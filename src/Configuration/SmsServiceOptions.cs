@@ -1,4 +1,4 @@
-namespace SmsNotificationService;
+namespace SmsNotificationService.Configuration;
 
 public class SmsServiceOptions
 {
@@ -6,4 +6,6 @@ public class SmsServiceOptions
 
     public string ConnectionString { get; set; } = string.Empty;
     public string SmsApiUrl { get; set; } = string.Empty;
+    public string AuthorizationToken { get; set; } = string.Empty;
+    public int RetryBackoffSeconds { get; set; } = 30;
 }

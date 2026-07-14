@@ -1,6 +1,15 @@
-using SmsNotificationService;
+using SmsNotificationService.Checks;
+using SmsNotificationService.Configuration;
+using SmsNotificationService.Data;
+using SmsNotificationService.Services;
+using SmsNotificationService.Workers;
+using Microsoft.Extensions.Options;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+var environment = builder.Environment.EnvironmentName;
+var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
+logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
 
 // Bind typed configuration options
 builder.Services.Configure<SmsServiceOptions>(builder.Configuration.GetSection(SmsServiceOptions.SectionName));
@@ -14,25 +23,48 @@ builder.Services.AddWindowsService(options =>
 // Register HttpClient to reuse sockets for external API calls
 builder.Services.AddHttpClient();
 
+// Register services
+builder.Services.AddSingleton<INotificationRepository>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<SmsServiceOptions>>();
+    var logger = sp.GetRequiredService<ILogger<NotificationRepository>>();
+    return new NotificationRepository(options.Value.ConnectionString, logger);
+});
+
+builder.Services.AddSingleton<SqlDependencyListener>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<SmsServiceOptions>>();
+    var logger = sp.GetRequiredService<ILogger<SqlDependencyListener>>();
+    return new SqlDependencyListener(options.Value.ConnectionString, logger);
+});
+
+builder.Services.AddSingleton<ISmsSender, SmsApiService>();
+
 // Register our background worker
 builder.Services.AddHostedService<Worker>();
 
 var host = builder.Build();
 
 // Validate configuration before starting services
-var logger = host.Services.GetRequiredService<ILogger<Program>>();
+var hostLogger = host.Services.GetRequiredService<ILogger<Program>>();
 var appOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName).Get<SmsServiceOptions>()
-    ?? throw new InvalidOperationException("Missing configuration section: SmsService");
+    ?? throw new InvalidOperationException("[Config] Missing configuration section: SmsService");
 
 if (string.IsNullOrWhiteSpace(appOptions.ConnectionString))
-    throw new InvalidOperationException("SmsService:ConnectionString is not configured. Set it via appsettings.json or environment variable SmsService__ConnectionString.");
+    throw new InvalidOperationException("[Config] SmsService:ConnectionString is not configured. Set via appsettings.json or SmsService__ConnectionString.");
 
 if (string.IsNullOrWhiteSpace(appOptions.SmsApiUrl))
-    throw new InvalidOperationException("SmsService:SmsApiUrl is not configured. Set it via appsettings.json or environment variable SmsService__SmsApiUrl.");
+    throw new InvalidOperationException("[Config] SmsService:SmsApiUrl is not configured. Set via appsettings.json or SmsService__SmsApiUrl.");
 
 if (!Uri.TryCreate(appOptions.SmsApiUrl, UriKind.Absolute, out _))
-    throw new InvalidOperationException($"SmsService:SmsApiUrl is not a valid URI: {appOptions.SmsApiUrl}");
+    throw new InvalidOperationException($"[Config] SmsService:SmsApiUrl is not a valid URI: {appOptions.SmsApiUrl}");
 
-await DatabaseConnectionCheck.RunAsync(appOptions.ConnectionString, logger);
+if (string.IsNullOrWhiteSpace(appOptions.AuthorizationToken))
+    throw new InvalidOperationException("[Config] SmsService:AuthorizationToken is not configured. Set via appsettings.json or SmsService__AuthorizationToken.");
 
+hostLogger.LogInformation("[Config] Configuration validated — API: {ApiUrl}", appOptions.SmsApiUrl);
+
+await DatabaseConnectionCheck.RunAsync(appOptions.ConnectionString, hostLogger);
+
+hostLogger.LogInformation("[App] SmsNotificationService ready");
 host.Run();
