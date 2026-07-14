@@ -34,18 +34,18 @@ public class SmsApiService : ISmsSender
 
                 var payload = new
                 {
-                    id = notification.id,
-                    phone_number = notification.phone_number,
-                    mpesa_code = notification.mpesa_code,
-                    admission_no = notification.adm_no,
-                    student_name = notification.stud_names,
-                    amount = notification.amount,
-                    receipt_no = notification.receipt_no,
-                    dated = notification.dated
+                    id = notification.Id,
+                    phone_number = notification.PhoneNumber,
+                    mpesa_code = notification.MpesaCode,
+                    admission_no = notification.AdmNo,
+                    student_name = notification.StudNames,
+                    amount = notification.Amount,
+                    receipt_no = notification.ReceiptNo,
+                    dated = notification.Dated
                 };
 
                 _logger.LogDebug("[SMS] Sending notification {Id} to {Phone} (attempt {Attempt}/{Max})",
-                    notification.id, notification.phone_number, attempt, MaxRetries);
+                    notification.Id, notification.PhoneNumber, attempt, MaxRetries);
 
                 var json = System.Text.Json.JsonSerializer.Serialize(payload);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
@@ -53,24 +53,24 @@ public class SmsApiService : ISmsSender
 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("[SMS] Sent notification {Id} to {Phone}", notification.id, notification.phone_number);
+                    _logger.LogInformation("[SMS] Sent notification {Id} to {Phone}", notification.Id, notification.PhoneNumber);
                     return true;
                 }
 
                 var body = await response.Content.ReadAsStringAsync();
                 _logger.LogWarning("[SMS] Notification {Id} to {Phone} failed — HTTP {StatusCode}: {Body} (attempt {Attempt}/{Max})",
-                    notification.id, notification.phone_number, (int)response.StatusCode, body, attempt, MaxRetries);
+                    notification.Id, notification.PhoneNumber, (int)response.StatusCode, body, attempt, MaxRetries);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[SMS] Notification {Id} to {Phone} exception (attempt {Attempt}/{Max})",
-                    notification.id, notification.phone_number, attempt, MaxRetries);
+                    notification.Id, notification.PhoneNumber, attempt, MaxRetries);
             }
 
             if (attempt < MaxRetries)
             {
                 var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
-                _logger.LogInformation("[SMS] Retrying notification {Id} in {Delay}s...", notification.id, delay.TotalSeconds);
+                _logger.LogInformation("[SMS] Retrying notification {Id} in {Delay}s...", notification.Id, delay.TotalSeconds);
                 await Task.Delay(delay);
             }
         }

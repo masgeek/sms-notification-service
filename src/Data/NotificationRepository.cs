@@ -12,7 +12,7 @@ public class NotificationRepository(string connectionString, ILogger<Notificatio
     public async Task<List<SmsNotification>> GetPendingAsync()
     {
 
-        await using var connection = new SqlConnection(connectionString);
+        using var connection = new SqlConnection(connectionString);
         var notifications = await connection.QueryAsync<SmsNotification>(
             "SELECT * FROM sms_notifications WHERE status = @Status AND retry_count < max_retries AND (retry_after IS NULL OR retry_after <= @Now)",
             new { Status = nameof(NotificationStatus.PENDING), Now = DateTime.UtcNow });
@@ -22,7 +22,7 @@ public class NotificationRepository(string connectionString, ILogger<Notificatio
 
     public async Task UpdateStatusAsync(long notificationId, NotificationStatus status)
     {
-        await using var connection = new SqlConnection(connectionString);
+        using var connection = new SqlConnection(connectionString);
         await connection.ExecuteAsync(
             "UPDATE sms_notifications SET status = @Status, updated_at = @UpdatedAt WHERE id = @Id",
             new { Status = status.ToString(), UpdatedAt = DateTime.UtcNow, Id = notificationId });
@@ -32,7 +32,7 @@ public class NotificationRepository(string connectionString, ILogger<Notificatio
 
     public async Task UpdateRetryAsync(long notificationId, int retryCount, DateTimeOffset retryAfter)
     {
-        await using var connection = new SqlConnection(connectionString);
+        using var connection = new SqlConnection(connectionString);
         await connection.ExecuteAsync(
             "UPDATE sms_notifications SET retry_count = @RetryCount, retry_after = @RetryAfter, updated_at = @UpdatedAt WHERE id = @Id",
             new { RetryCount = retryCount, RetryAfter = retryAfter, UpdatedAt = DateTime.UtcNow, Id = notificationId });

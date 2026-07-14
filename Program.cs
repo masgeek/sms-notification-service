@@ -1,15 +1,41 @@
 using SmsNotificationService.Checks;
 using SmsNotificationService.Configuration;
 using SmsNotificationService.Data;
+using SmsNotificationService.Models;
 using SmsNotificationService.Services;
 using SmsNotificationService.Workers;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
+using Dapper;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 var environment = builder.Environment.EnvironmentName;
 var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
 logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
+
+// Map PascalCase model properties to snake_case DB columns for Dapper
+SqlMapper.SetTypeMap(typeof(SmsNotification), new CustomPropertyTypeMap(
+    typeof(SmsNotification),
+    (type, columnName) => type.GetProperty(
+        columnName switch
+        {
+            "id" => nameof(SmsNotification.Id),
+            "phone_number" => nameof(SmsNotification.PhoneNumber),
+            "mpesa_code" => nameof(SmsNotification.MpesaCode),
+            "adm_no" => nameof(SmsNotification.AdmNo),
+            "stud_names" => nameof(SmsNotification.StudNames),
+            "amount" => nameof(SmsNotification.Amount),
+            "receipt_no" => nameof(SmsNotification.ReceiptNo),
+            "dated" => nameof(SmsNotification.Dated),
+            "status" => nameof(SmsNotification.Status),
+            "max_retries" => nameof(SmsNotification.MaxRetries),
+            "retry_count" => nameof(SmsNotification.RetryCount),
+            "retry_after" => nameof(SmsNotification.RetryAfter),
+            "created_at" => nameof(SmsNotification.CreatedAt),
+            "updated_at" => nameof(SmsNotification.UpdatedAt),
+            _ => columnName
+        })!));
 
 // Bind typed configuration options
 builder.Services.Configure<SmsServiceOptions>(builder.Configuration.GetSection(SmsServiceOptions.SectionName));

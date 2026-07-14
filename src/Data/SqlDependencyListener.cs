@@ -50,7 +50,7 @@ public class SqlDependencyListener(string connectionString, ILogger<SqlDependenc
         connection.Open();
 
         using var command = new SqlCommand(
-            "SELECT id, phone_number, mpesa_code, adm_no as admission_no, stud_names AS student_name, amount, receipt_no, dated, status, created_at, updated_at FROM sms_notifications", connection);
+            "SELECT id, phone_number, mpesa_code, adm_no, stud_names, amount, receipt_no, dated, status, created_at, updated_at FROM dbo.sms_notifications", connection);
 
         var dependency = new SqlDependency(command);
         dependency.OnChange += (sender, e) =>

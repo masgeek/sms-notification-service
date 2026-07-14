@@ -95,8 +95,8 @@ public class Worker : BackgroundService
 
     private async Task ProcessNotification(SmsNotification notification)
     {
-        var notifId = notification.id;
-        var phone = notification.phone_number;
+        var notifId = notification.Id;
+        var phone = notification.PhoneNumber;
 
         Interlocked.Increment(ref _inFlightCount);
         try
@@ -109,18 +109,18 @@ public class Worker : BackgroundService
                 return;
             }
 
-            var nextRetry = notification.retry_count + 1;
-            if (nextRetry >= notification.max_retries)
+            var nextRetry = notification.RetryCount + 1;
+            if (nextRetry >= notification.MaxRetries)
             {
                 _logger.LogError("[SMS] Notification {Id} to {Phone} failed after {Count}/{Limit} retries — CANCELLED",
-                    notifId, phone, nextRetry, notification.max_retries);
+                    notifId, phone, nextRetry, notification.MaxRetries);
                 await _repository.UpdateStatusAsync(notifId, NotificationStatus.CANCELLED);
             }
             else
             {
                 var retryAfter = _smsSender.CalculateRetryAfter(nextRetry);
                 _logger.LogWarning("[SMS] Notification {Id} to {Phone} failed — retry {Count}/{Limit} scheduled at {RetryAfter}",
-                    notifId, phone, nextRetry, notification.max_retries, retryAfter);
+                    notifId, phone, nextRetry, notification.MaxRetries, retryAfter);
                 await _repository.UpdateRetryAsync(notifId, nextRetry, retryAfter);
             }
         }
