@@ -1,0 +1,38 @@
+## ======= Target Build Folders =======
+bin/
+obj/
+
+## ======= .NET Core / Visual Studio Temporary Files =======
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+
+## ======= Publish Output Directories =======
+# This ensures self-contained publish folders don't get committed
+win-x64/
+win-x86/
+osx-x64/
+linux-x64/
+publish/
+
+## ======= User-Specific & Environment Secrets =======
+# Keep your local database connection strings and passwords safe
+appsettings.Development.json
+appsettings.Local.json
+*.env
+secrets.json
+
+## ======= Log Files =======
+*.log
+_Log/
+logs/
+
+## ======= ReSharper / JetBrains / Rider =======
+.idea/
+*.sln.DotSettings.user
+
+## ======= OS Metadata =======
+.DS_Store
+Thumbs.db
