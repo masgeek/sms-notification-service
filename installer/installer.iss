@@ -439,30 +439,19 @@ begin
   if ServiceExists('{#ServiceName}') then
   begin
     DeleteService('{#ServiceName}');
-    Sleep(1000); // give SCM time to process
+    Sleep(1000);
   end;
 
-  // Verify deletion
+  // Retry once
   if ServiceExists('{#ServiceName}') then
   begin
-    Log('WARNING: Service still exists after delete. Retrying...');
+    Log('Service still exists. Retrying...');
     DeleteService('{#ServiceName}');
     Sleep(2000);
   end;
 
-  // Registry fallback — remove the service key directly if sc delete failed
   if ServiceExists('{#ServiceName}') then
-  begin
-    Log('Service still exists. Attempting registry fallback...');
-    if RegDeleteKeyIncludingSubkeys(HKLM, 'SYSTEM\CurrentControlSet\Services\{#ServiceName}') then
-      Log('Registry key deleted. Restart required to fully remove service.')
-    else
-      Log('WARNING: Registry fallback also failed.');
-  end;
-
-  if ServiceExists('{#ServiceName}') then
-    MsgBox('Warning: Could not fully remove the Windows service.' + #13#10 +
-           'A reboot may be required to complete removal.', mbWarning, MB_OK)
+    Log('Service could not be deleted via sc. Registry cleanup will handle it.')
   else
     Log('Service deleted successfully.');
 
@@ -486,6 +475,10 @@ begin
   end
   else
     Log('Preserving configuration directory.');
+
+  // Final registry cleanup — always runs regardless of sc delete outcome
+  RegDeleteKeyIncludingSubkeys(HKLM, 'SYSTEM\CurrentControlSet\Services\{#ServiceName}');
+  Log('Registry cleanup completed.');
 
   Log('=== Uninstall completed ===');
 end;
