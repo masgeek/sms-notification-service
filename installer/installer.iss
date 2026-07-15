@@ -77,13 +77,8 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 ; ============================================================================
 
 ; ============================================================================
-; [UninstallRun] - Cleanup on uninstall
+; [UninstallRun] - Handled entirely in Pascal (CurUninstallStepChanged)
 ; ============================================================================
-[UninstallRun]
-Filename: "sc.exe"; Parameters: "stop {#ServiceName}"; Flags: runhidden waituntilterminated
-Filename: "{cmd}"; Parameters: "/c timeout /t 3 /nobreak >nul"; Flags: runhidden waituntilterminated
-Filename: "sc.exe"; Parameters: "delete {#ServiceName}"; Flags: runhidden waituntilterminated
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""try {{ [System.Diagnostics.EventLog]::DeleteEventSource('{#EventLogSource}') }} catch {{}}"""; Flags: runhidden waituntilterminated
 
 ; ============================================================================
 ; [Code] - Pascal Script
@@ -200,6 +195,22 @@ begin
   Result := (RunCmd('sc.exe', 'delete ' + SvcName) = 0);
 end;
 
+function JsonEscape(const S: String): String;
+begin
+  Result := S;
+  StringChangeEx(Result, '\', '\\', True);  // escape backslashes first
+  StringChangeEx(Result, '"', '\"', True);  // then escape quotes
+end;
+
+[Code]
+function BoolToStr(B: Boolean): String;
+begin
+  if B then
+    Result := 'True'
+  else
+    Result := 'False';
+end;
+
 // Executes a command. Raises an exception on failure.
 procedure ExecuteOrFail(const Exe, Params, FailureMsg: String);
 var
@@ -280,13 +291,31 @@ end;
 // Uses manual JSON construction to avoid external dependencies.
 procedure WriteConfigurationFile(const ConnStr, ApiUrl, Token: String);
 var
+  CfgDir: String;
   CfgPath: String;
-  JsonContent: String;
+  JsonContent: AnsiString;
   ExitCode: Integer;
 begin
+  CfgDir := ExpandConstant('{commonappdata}\{#ConfigDir}');
   CfgPath := ExpandConstant('{commonappdata}\{#ConfigDir}\{#ConfigFile}');
 
-  // Build JSON content
+  Log('CfgDir resolved to: ' + CfgDir);
+  Log('CfgPath resolved to: ' + CfgPath);
+
+  // Check BEFORE acting — is something already there, and what is it?
+  if DirExists(CfgDir) then
+    Log('CfgDir already exists as a directory.')
+  else if FileExists(CfgDir) then
+    Log('WARNING: CfgDir path exists but is a FILE, not a directory — this will block ForceDirectories.')
+  else
+    Log('CfgDir does not exist yet.');
+
+  if not ForceDirectories(CfgDir) then
+  begin
+    Log('ForceDirectories FAILED. DirExists now: ' + BoolToStr(DirExists(CfgDir)));
+    RaiseException('Failed to create configuration directory: ' + CfgDir);
+  end;
+
   JsonContent :=
     '{' + #13#10 +
     '  "SmsService": {' + #13#10 +
@@ -296,22 +325,23 @@ begin
     '  }' + #13#10 +
     '}';
 
-  // Ensure directory exists
-  ForceDirectories(ExpandConstant('{commonappdata}\{#ConfigDir}'));
+  Log('Attempting to write ' + IntToStr(Length(JsonContent)) + ' bytes to ' + CfgPath);
 
-  // Write the file
   if not SaveStringToFile(CfgPath, JsonContent, False) then
+  begin
+    Log('SaveStringToFile FAILED. FileExists now: ' + BoolToStr(FileExists(CfgPath)));
     RaiseException('Failed to write configuration file to: ' + CfgPath);
+  end;
 
   Log('Configuration written to: ' + CfgPath);
 
-  // Set NTFS permissions: admin full, system full, everyone read-only
   Exec(
     'icacls.exe',
     '"' + CfgPath + '" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Everyone:(OI)(CI)R"',
     '', SW_HIDE, ewWaitUntilTerminated, ExitCode
   );
-  Log('NTFS permissions set on configuration file.');
+  if ExitCode <> 0 then
+    Log('Warning: icacls returned exit code ' + IntToStr(ExitCode));
 end;
 
 // ============================================================================
@@ -406,7 +436,25 @@ begin
 
   // Delete service
   Log('Deleting service...');
-  DeleteService('{#ServiceName}');
+  if ServiceExists('{#ServiceName}') then
+  begin
+    DeleteService('{#ServiceName}');
+    Sleep(1000); // give SCM time to process
+  end;
+
+  // Verify deletion
+  if ServiceExists('{#ServiceName}') then
+  begin
+    Log('WARNING: Service still exists after delete. Retrying...');
+    DeleteService('{#ServiceName}');
+    Sleep(2000);
+  end;
+
+  if ServiceExists('{#ServiceName}') then
+    MsgBox('Warning: Could not remove the Windows service.' + #13#10 +
+           'Please remove it manually with: sc delete {#ServiceName}', mbWarning, MB_OK)
+  else
+    Log('Service deleted successfully.');
 
   // Remove event log source
   RemoveEventLog;
