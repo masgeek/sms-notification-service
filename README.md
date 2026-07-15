@@ -183,7 +183,7 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 |---|---|---|
 | `tests.yml` | All branches + PRs | Build + run unit tests |
 | `ci.yml` | Push/PR to main | Build + publish artifact |
-| `release.yml` | `v*` tag on main | Build win-x64/arm64, linux-x64 zips + GitHub Release |
+| `release.yml` | `v*` tag on main | Build win-x64 zip + GitHub Release |
 
 ## Versioning
 
