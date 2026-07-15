@@ -99,9 +99,7 @@ jobs:
 
       - name: Build installer
         if: steps.check-release.outputs.skip != 'true'
-        shell: bash
-        run: |
-          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DMyAppVersion=${{ steps.tag_version.outputs.version }}" installer/installer.iss
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ steps.tag_version.outputs.version }} installer\installer.iss'
 
       - name: Create GitHub Release
         if: steps.check-release.outputs.skip != 'true'
