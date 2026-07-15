@@ -506,14 +506,17 @@ end;
 // ============================================================================
 
 procedure InitializeWizard;
+var
+  PrevPageID: Integer;
 begin
   UpgradeMode := False;
   KeepExistingCfg := False;
+  PrevPageID := wpSelectDir;
 
   // --- Config exists? Ask user what to do ---
   if ConfigExists then
   begin
-    ConfigPromptPage := CreateInputOptionPage(wpSelectDir,
+    ConfigPromptPage := CreateInputOptionPage(PrevPageID,
       'Configuration Found',
       'An existing appsettings.Production.json was detected.',
       'What would you like to do?',
@@ -521,22 +524,15 @@ begin
     ConfigPromptPage.Add('Keep existing configuration');
     ConfigPromptPage.Add('Enter new configuration');
     ConfigPromptPage.Values[0] := True;
-
-    // Chain config pages AFTER the prompt
-    DbPage := CreateInputQueryPage(ConfigPromptPage.ID,
-      'Database Server',
-      'Enter the SQL Server connection details.',
-      'Server (e.g. 127.0.0.1):');
-  end
-  else
-  begin
-    // No existing config — chain directly from wpSelectDir
-    DbPage := CreateInputQueryPage(wpSelectDir,
-      'Database Server',
-      'Enter the SQL Server connection details.',
-      'Server (e.g. 127.0.0.1):');
+    PrevPageID := ConfigPromptPage.ID;
   end;
 
+  // --- Database fields (single page with 4 inputs) ---
+  DbPage := CreateInputQueryPage(PrevPageID,
+    'Database Server',
+    'Enter the SQL Server connection details.',
+    '');
+  DbPage.Add('Server (e.g. 127.0.0.1):', False);
   DbPage.Add('Database (e.g. school):', False);
   DbPage.Add('Username (e.g. sa):', False);
   DbPage.Add('Password:', True);
