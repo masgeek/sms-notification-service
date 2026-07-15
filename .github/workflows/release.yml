@@ -170,7 +170,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: release-artifacts
           path: artifacts
@@ -190,5 +190,5 @@ jobs:
           generateReleaseNotes: true
           skipIfReleaseExists: false
           artifacts: |
-            SmsNotificationService-win-x64.zip
-            SmsNotificationService-Setup-*.exe
+            artifacts/SmsNotificationService-win-x64.zip
+            artifacts/SmsNotificationService-Setup-*.exe
