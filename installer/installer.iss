@@ -16,6 +16,8 @@
 #define EventLogSource   "SmsNotificationService"
 #define ConfigDir        "Munywele\SmsNotificationService"
 #define ConfigFile       "appsettings.Production.json"
+#define LogRetentionDays "7"
+#define MaxLogFileSizeMb "10"
 
 ; ============================================================================
 ; [Setup] - Installer metadata, UI, compression, logging
@@ -328,7 +330,10 @@ begin
     '  "SmsService": {' + #13#10 +
     '    "ConnectionString": "' + ConnStr + '",' + #13#10 +
     '    "SmsApiUrl": "' + ApiUrl + '",' + #13#10 +
-    '    "AuthorizationToken": "' + Token + '"' + #13#10 +
+    '    "AuthorizationToken": "' + Token + '",' + #13#10 +
+    '    "RetryBackoffSeconds": 30,' + #13#10 +
+    '    "LogRetentionDays": ' + LogRetentionDays + ',' + #13#10 +
+    '    "MaxLogFileSizeMb": ' + MaxLogFileSizeMb + #13#10 +
     '  }' + #13#10 +
     '}';
 
