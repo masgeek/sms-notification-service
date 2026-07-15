@@ -450,9 +450,19 @@ begin
     Sleep(2000);
   end;
 
+  // Registry fallback — remove the service key directly if sc delete failed
   if ServiceExists('{#ServiceName}') then
-    MsgBox('Warning: Could not remove the Windows service.' + #13#10 +
-           'Please remove it manually with: sc delete {#ServiceName}', mbWarning, MB_OK)
+  begin
+    Log('Service still exists. Attempting registry fallback...');
+    if RegDeleteKeyIncludingSubkeys(HKLM, 'SYSTEM\CurrentControlSet\Services\{#ServiceName}') then
+      Log('Registry key deleted. Restart required to fully remove service.')
+    else
+      Log('WARNING: Registry fallback also failed.');
+  end;
+
+  if ServiceExists('{#ServiceName}') then
+    MsgBox('Warning: Could not fully remove the Windows service.' + #13#10 +
+           'A reboot may be required to complete removal.', mbWarning, MB_OK)
   else
     Log('Service deleted successfully.');
 
