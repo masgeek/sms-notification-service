@@ -92,7 +92,10 @@ var
   ConnStrPage      : TInputQueryWizardPage;
   ApiUrlPage       : TInputQueryWizardPage;
   AuthPage         : TInputQueryWizardPage;
-  UpgradeMode      : Boolean;  // True if existing installation detected
+  UpgradeMode      : Boolean;
+  ConfigExists     : Boolean;
+  KeepExistingCfg  : Boolean;
+  ConfigPromptPage : TInputOptionWizardPage;
 
 // ============================================================================
 // Utility: Run a command and return the exit code.
@@ -356,8 +359,11 @@ begin
   // 1. Register event log source
   RegisterEventLog;
 
-  // 2. Write configuration file (only on fresh install)
-  WriteConfigurationFile(ConnStrPage.Values[0], ApiUrlPage.Values[0], AuthPage.Values[0]);
+  // 2. Write configuration file (skip if user chose to keep existing)
+  if not KeepExistingCfg then
+    WriteConfigurationFile(ConnStrPage.Values[0], ApiUrlPage.Values[0], AuthPage.Values[0])
+  else
+    Log('Skipping configuration write — keeping existing file.');
 
   // 3. Create service
   Log('Creating Windows service...');
@@ -490,6 +496,20 @@ end;
 procedure InitializeWizard;
 begin
   UpgradeMode := False;
+  KeepExistingCfg := False;
+
+  // --- Config exists? Ask user what to do ---
+  if ConfigExists then
+  begin
+    ConfigPromptPage := CreateInputOptionPage(wpSelectDir,
+      'Configuration Found',
+      'An existing appsettings.Production.json was detected.',
+      'What would you like to do?',
+      True);  // Top-level radio group
+    ConfigPromptPage.Add('Keep existing configuration');
+    ConfigPromptPage.Add('Enter new configuration');
+    ConfigPromptPage.Values[0] := True;  // default: keep existing
+  end;
 
   // --- Database Connection Page ---
   ConnStrPage := CreateInputQueryPage(wpSelectDir,
@@ -519,13 +539,29 @@ end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
-  // Skip all three config pages if this is an upgrade
+  Result := False;
+
+  // On upgrade: skip config prompt and all config pages
   if UpgradeMode then
   begin
+    if ConfigExists and (PageID = ConfigPromptPage.ID) then
+      Result := True;
+    Result := Result or (PageID = ConnStrPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = AuthPage.ID);
+    Exit;
+  end;
+
+  // No existing config: nothing to skip (config pages show as normal)
+  if not ConfigExists then
+    Exit;
+
+  // Fresh install with existing config: if user chose to keep, skip config pages
+  if KeepExistingCfg then
+  begin
     Result := (PageID = ConnStrPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = AuthPage.ID);
-  end
-  else
-    Result := False;
+    Exit;
+  end;
+
+  // Fresh install with existing config and user chose "Enter new": show all pages
 end;
 
 // ============================================================================
@@ -535,6 +571,14 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
+
+  // Capture config prompt choice
+  if ConfigExists and (CurPageID = ConfigPromptPage.ID) then
+  begin
+    KeepExistingCfg := ConfigPromptPage.Values[0];
+    if KeepExistingCfg then
+      Log('User chose to keep existing configuration.');
+  end;
 
   if CurPageID = ConnStrPage.ID then
   begin
@@ -593,8 +637,11 @@ function InitializeSetup: Boolean;
 begin
   Result := True;
   UpgradeMode := ServiceExists('{#ServiceName}');
+  ConfigExists := FileExists(ExpandConstant('{commonappdata}\{#ConfigDir}\{#ConfigFile}'));
   if UpgradeMode then
     Log('Existing installation detected — upgrade mode enabled.');
+  if ConfigExists then
+    Log('Existing configuration file detected.');
 end;
 
 // ============================================================================
