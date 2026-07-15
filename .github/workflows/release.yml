@@ -58,11 +58,17 @@ jobs:
         run: dotnet build -c Release --no-restore
 
       - name: Publish win-x64
-        run: dotnet publish SmsNotificationService.csproj -c Release --no-build -r win-x64 --self-contained -o publish-win-x64
+        run: dotnet publish SmsNotificationService.csproj -c Release --no-build -r win-x64 --self-contained -o publish
 
       - name: Zip artifacts
         shell: bash
-        run: 7z a -tzip SmsNotificationService-win-x64.zip ./publish-win-x64/*
+        run: 7z a -tzip SmsNotificationService-win-x64.zip ./publish/*
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build installer
+        run: & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
@@ -72,4 +78,6 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-          files: SmsNotificationService-win-x64.zip
+          files: |
+            SmsNotificationService-win-x64.zip
+            installer\output\SmsNotificationService-Setup.exe
