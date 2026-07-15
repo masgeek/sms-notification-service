@@ -16,6 +16,7 @@ public class Worker : BackgroundService
     private bool _listenerActive;
 
     private const int ShutdownTimeoutSeconds = 30;
+    private const int RetryPollIntervalSeconds = 30;
 
     public bool IsListenerActive => _listenerActive;
 
@@ -48,6 +49,23 @@ public class Worker : BackgroundService
         {
             _listenerActive = false;
             _logger.LogCritical(ex, "[Listener] Failed to start SqlDependency — Service Broker may not be enabled on the target database");
+        }
+
+        // Polling loop — catches notifications whose retry_after has passed
+        // (SqlDependency only fires on data changes, not time-based conditions)
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(RetryPollIntervalSeconds));
+        _logger.LogInformation("[Poll] Retry poller started (every {Interval}s)", RetryPollIntervalSeconds);
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(stoppingToken))
+            {
+                await ProcessPendingNotifications(stoppingToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on shutdown
         }
     }
 
