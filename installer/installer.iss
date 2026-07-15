@@ -333,7 +333,7 @@ begin
   Log('Creating Windows service...');
   ExecuteOrFail(
     'sc.exe',
-    'create {#ServiceName} binPath= "{app}\SmsNotificationService.exe" start= auto DisplayName= "{#ServiceDisplay}" obj= LocalSystem',
+    'create {#ServiceName} binPath= "' + ExpandConstant('{app}') + '\SmsNotificationService.exe" start= auto DisplayName= "{#ServiceDisplay}" obj= LocalSystem',
     'Failed to create Windows service.'
   );
   Log('Service created.');
