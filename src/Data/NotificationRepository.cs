@@ -39,14 +39,4 @@ public class NotificationRepository(string connectionString, ILogger<Notificatio
 
         _logger.LogDebug("[DB] Notification {Id} retry → {Count}, next attempt at {RetryAfter}", notificationId, retryCount, retryAfter);
     }
-
-    public async Task ResetNotificationAsync(long notificationId)
-    {
-        using var connection = new SqlConnection(connectionString);
-        await connection.ExecuteAsync(
-            "UPDATE sms_notifications SET status = @Status, retry_count = 0, retry_after = NULL, updated_at = @UpdatedAt WHERE id = @Id",
-            new { Status = nameof(NotificationStatus.PENDING), UpdatedAt = DateTime.UtcNow, Id = notificationId });
-
-        _logger.LogDebug("[DB] Notification {Id} reset to PENDING (retry_count cleared)", notificationId);
-    }
 }
