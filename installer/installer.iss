@@ -89,7 +89,7 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 // Global state
 // ============================================================================
 var
-  ConnStrPage      : TInputQueryWizardPage;
+  DbPage           : TInputQueryWizardPage;
   ApiUrlPage       : TInputQueryWizardPage;
   AuthPage         : TInputQueryWizardPage;
   UpgradeMode      : Boolean;
@@ -291,16 +291,20 @@ end;
 // ============================================================================
 
 // Writes appsettings.Production.json to ProgramData.
-// Uses manual JSON construction to avoid external dependencies.
-procedure WriteConfigurationFile(const ConnStr, ApiUrl, Token: String);
+// Builds connection string from individual fields.
+procedure WriteConfigurationFile(const Server, Database, Username, Password, ApiUrl, Token: String);
 var
   CfgDir: String;
   CfgPath: String;
+  ConnStr: String;
   JsonContent: AnsiString;
   ExitCode: Integer;
 begin
   CfgDir := ExpandConstant('{commonappdata}\{#ConfigDir}');
   CfgPath := ExpandConstant('{commonappdata}\{#ConfigDir}\{#ConfigFile}');
+
+  // Build connection string from individual fields
+  ConnStr := 'Server=' + Server + ';Database=' + Database + ';User Id=' + Username + ';Password=' + Password + ';TrustServerCertificate=True;';
 
   Log('CfgDir resolved to: ' + CfgDir);
   Log('CfgPath resolved to: ' + CfgPath);
@@ -361,7 +365,7 @@ begin
 
   // 2. Write configuration file (skip if user chose to keep existing)
   if not KeepExistingCfg then
-    WriteConfigurationFile(ConnStrPage.Values[0], ApiUrlPage.Values[0], AuthPage.Values[0])
+    WriteConfigurationFile(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3], ApiUrlPage.Values[0], AuthPage.Values[0])
   else
     Log('Skipping configuration write — keeping existing file.');
 
@@ -410,7 +414,7 @@ begin
   if not KeepExistingCfg then
   begin
     Log('Writing updated configuration...');
-    WriteConfigurationFile(ConnStrPage.Values[0], ApiUrlPage.Values[0], AuthPage.Values[0]);
+    WriteConfigurationFile(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3], ApiUrlPage.Values[0], AuthPage.Values[0]);
   end
   else
     Log('Keeping existing configuration.');
@@ -519,23 +523,25 @@ begin
     ConfigPromptPage.Values[0] := True;
 
     // Chain config pages AFTER the prompt
-    ConnStrPage := CreateInputQueryPage(ConfigPromptPage.ID,
-      'Database Connection',
-      'Enter the SQL Server connection string.',
-      'Connection String:');
+    DbPage := CreateInputQueryPage(ConfigPromptPage.ID,
+      'Database Server',
+      'Enter the SQL Server connection details.',
+      'Server (e.g. 127.0.0.1):');
   end
   else
   begin
     // No existing config — chain directly from wpSelectDir
-    ConnStrPage := CreateInputQueryPage(wpSelectDir,
-      'Database Connection',
-      'Enter the SQL Server connection string.',
-      'Connection String:');
+    DbPage := CreateInputQueryPage(wpSelectDir,
+      'Database Server',
+      'Enter the SQL Server connection details.',
+      'Server (e.g. 127.0.0.1):');
   end;
 
-  ConnStrPage.Add('Server=127.0.0.1;Database=school;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;', False);
+  DbPage.Add('Database (e.g. school):', False);
+  DbPage.Add('Username (e.g. sa):', False);
+  DbPage.Add('Password:', True);
 
-  ApiUrlPage := CreateInputQueryPage(ConnStrPage.ID,
+  ApiUrlPage := CreateInputQueryPage(DbPage.ID,
     'SMS API Configuration',
     'Enter the SMS API endpoint URL.',
     'API URL:');
@@ -563,7 +569,7 @@ begin
   // Existing config (fresh or upgrade): if user chose to keep, skip config pages
   if KeepExistingCfg then
   begin
-    Result := (PageID = ConnStrPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = AuthPage.ID);
+    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = AuthPage.ID);
     Exit;
   end;
 end;
@@ -584,23 +590,29 @@ begin
       Log('User chose to keep existing configuration.');
   end;
 
-  if CurPageID = ConnStrPage.ID then
+  if CurPageID = DbPage.ID then
   begin
-    if Trim(ConnStrPage.Values[0]) = '' then
+    if Trim(DbPage.Values[0]) = '' then
     begin
-      MsgBox('The SQL Server connection string cannot be empty.', mbError, MB_OK);
+      MsgBox('The server name cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
-    if Pos('Server=', ConnStrPage.Values[0]) = 0 then
+    if Trim(DbPage.Values[1]) = '' then
     begin
-      MsgBox('The connection string must contain a Server parameter.', mbError, MB_OK);
+      MsgBox('The database name cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
-    if Pos('Database=', ConnStrPage.Values[0]) = 0 then
+    if Trim(DbPage.Values[2]) = '' then
     begin
-      MsgBox('The connection string must contain a Database parameter.', mbError, MB_OK);
+      MsgBox('The username cannot be empty.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if Trim(DbPage.Values[3]) = '' then
+    begin
+      MsgBox('The password cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
