@@ -3,8 +3,22 @@ name: Tests
 on:
   push:
     branches: ["*"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "SmsNotificationService.csproj"
+      - "Directory.Build.props"
   pull_request:
     branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "SmsNotificationService.csproj"
+      - "Directory.Build.props"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -17,6 +31,24 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Cache build output
+        uses: actions/cache@v6
+        with:
+          path: |
+            **/bin/Release
+            **/obj/Release
+          key: ${{ runner.os }}-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-build-
 
       - name: Restore
         run: dotnet restore
