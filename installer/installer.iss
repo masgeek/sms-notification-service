@@ -513,32 +513,39 @@ begin
       'Configuration Found',
       'An existing appsettings.Production.json was detected.',
       'What would you like to do?',
-      True,False);  // Top-level radio group
+      True, False);
     ConfigPromptPage.Add('Keep existing configuration');
     ConfigPromptPage.Add('Enter new configuration');
-    ConfigPromptPage.Values[0] := True;  // default: keep existing
+    ConfigPromptPage.Values[0] := True;
+
+    // Chain config pages AFTER the prompt
+    ConnStrPage := CreateInputQueryPage(ConfigPromptPage.ID,
+      'Database Connection',
+      'Enter the SQL Server connection string.',
+      'Connection String:');
+  end
+  else
+  begin
+    // No existing config — chain directly from wpSelectDir
+    ConnStrPage := CreateInputQueryPage(wpSelectDir,
+      'Database Connection',
+      'Enter the SQL Server connection string.',
+      'Connection String:');
   end;
 
-  // --- Database Connection Page ---
-  ConnStrPage := CreateInputQueryPage(wpSelectDir,
-    'Database Connection',
-    'Enter the SQL Server connection string.',
-    'Connection String:');
   ConnStrPage.Add('Server=127.0.0.1;Database=school;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;', False);
 
-  // --- SMS API URL Page ---
   ApiUrlPage := CreateInputQueryPage(ConnStrPage.ID,
     'SMS API Configuration',
     'Enter the SMS API endpoint URL.',
     'API URL:');
   ApiUrlPage.Add('https://api.munywele.co.ke/v1/send', False);
 
-  // --- Authorization Token Page (masked) ---
   AuthPage := CreateInputQueryPage(ApiUrlPage.ID,
     'Authorization',
     'Enter the bearer token for the SMS API.',
     'Token:');
-  AuthPage.Add('', True);  // True = password/masked input
+  AuthPage.Add('', True);
 end;
 
 // ============================================================================
