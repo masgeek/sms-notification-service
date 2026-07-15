@@ -122,6 +122,8 @@ sc create SmsNotificationService binPath="C:\path\to\publish\SmsNotificationServ
 sc start SmsNotificationService
 ```
 
+> Full deployment guide: [docs/deployment.md](docs/deployment.md)
+
 ## How It Works
 
 1. **Startup** — Validates configuration and database connectivity
@@ -167,6 +169,21 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 - **Typed configuration** — `IOptions<SmsServiceOptions>` with startup validation
 - **Null safety** — Nullable enabled with warnings-as-errors
 - **Structured logging** — `[Tag]` prefixed logs for quick filtering
+
+## Versioning
+
+This project uses **Git tag-based versioning**. The version in `Directory.Build.props` is automatically updated when a release tag is pushed.
+
+```bash
+# Create and push a version tag
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+This triggers the GitHub Actions release workflow which:
+1. Updates the version in `Directory.Build.props`
+2. Builds self-contained executables for win-x64, win-arm64, linux-x64
+3. Creates a GitHub Release with the zip artifacts
 
 ## Project Structure
 
