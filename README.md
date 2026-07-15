@@ -9,10 +9,10 @@ SQL Server (sms_notifications table)
     |
     | SqlDependency (Service Broker)
     v
-SqlDependencyListener
+SqlDependencyListener / RetryPoller
     |
     v
-Worker (orchestration)
+NotificationProcessor (shared logic, thread-safe)
     |
     | INotificationRepository    ISmsSender
     v                            v
@@ -26,8 +26,8 @@ SQL Server                     SMS API
 ## Tech Stack
 
 - .NET 10 Worker Service
-- `Microsoft.Data.SqlClient` 7.0.2 — SQL Server connectivity
-- `Dapper` 2.1.79 — lightweight ORM
+- `Microsoft.Data.SqlClient` — SQL Server connectivity
+- `Dapper` — lightweight ORM
 - `SqlDependency` — real-time change notifications via Service Broker
 - `xUnit` + `Moq` + `FluentAssertions` — unit testing
 
@@ -69,9 +69,7 @@ CREATE TABLE sms_notifications (
 
 ### 3. Configure
 
-Edit `appsettings.Development.json` or set environment variables:
-
-**appsettings.Development.json:**
+Edit `appsettings.Development.json`:
 
 ```json
 {
@@ -79,39 +77,23 @@ Edit `appsettings.Development.json` or set environment variables:
     "ConnectionString": "Server=127.0.0.1;Database=school;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;",
     "SmsApiUrl": "https://api.munywele.co.ke/v1/send",
     "AuthorizationToken": "your-bearer-token",
-    "RetryBackoffSeconds": 30
+    "RetryBackoffSeconds": 30,
+    "RetryPollIntervalSeconds": 30,
+    "LogRetentionDays": 7,
+    "MaxLogFileSizeMb": 10
   }
 }
 ```
 
-**Environment variables:**
-
-```powershell
-# Set (run as Administrator — persists across reboots)
-[Environment]::SetEnvironmentVariable("SmsService__ConnectionString", "Server=127.0.0.1;Database=school;User Id=sa;Password=YourPassword123;TrustServerCertificate=True;", "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__SmsApiUrl", "https://api.munywele.co.ke/v1/send", "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__AuthorizationToken", "your-bearer-token-here", "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__RetryBackoffSeconds", "30", "Machine")
-
-# Verify
-[Environment]::GetEnvironmentVariable("SmsService__ConnectionString", "Machine")
-[Environment]::GetEnvironmentVariable("SmsService__SmsApiUrl", "Machine")
-[Environment]::GetEnvironmentVariable("SmsService__AuthorizationToken", "Machine")
-[Environment]::GetEnvironmentVariable("SmsService__RetryBackoffSeconds", "Machine")
-
-# Remove
-[Environment]::SetEnvironmentVariable("SmsService__ConnectionString", $null, "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__SmsApiUrl", $null, "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__AuthorizationToken", $null, "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__RetryBackoffSeconds", $null, "Machine")
-```
-
-| Config Key | Env Variable | Default | Description |
-|---|---|---|---|
-| `SmsService:ConnectionString` | `SmsService__ConnectionString` | — | SQL Server connection string |
-| `SmsService:SmsApiUrl` | `SmsService__SmsApiUrl` | — | SMS API endpoint URL |
-| `SmsService:AuthorizationToken` | `SmsService__AuthorizationToken` | — | Bearer token for API auth |
-| `SmsService:RetryBackoffSeconds` | `SmsService__RetryBackoffSeconds` | `30` | Base retry backoff in seconds |
+| Config Key | Default | Description |
+|---|---|---|
+| `ConnectionString` | — | SQL Server connection string |
+| `SmsApiUrl` | — | SMS API endpoint URL |
+| `AuthorizationToken` | — | Bearer token for API auth |
+| `RetryBackoffSeconds` | `30` | Base retry backoff in seconds |
+| `RetryPollIntervalSeconds` | `30` | How often the retry poller checks for eligible notifications |
+| `LogRetentionDays` | `7` | Days to keep log files before cleanup |
+| `MaxLogFileSizeMb` | `10` | Max log file size before rotation |
 
 ### 4. Run
 
@@ -119,19 +101,24 @@ Edit `appsettings.Development.json` or set environment variables:
 dotnet run
 ```
 
-### 5. Run as Windows Service
+### 5. Install as Windows Service
 
 **Installer (recommended):**
 
-1. Publish: `dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained`
-2. Open `installer/installer.iss` in Inno Setup and compile
-3. Run `installer/output/SmsNotificationService-Setup.exe` as Administrator
+Download the latest release from [GitHub Releases](../../releases) and run `SmsNotificationService-Setup-<version>.exe` as Administrator. The installer will:
+
+- Install files to `C:\Program Files\SmsNotificationService\`
+- Prompt for database connection, API URL, and auth token
+- Create the Windows Service (delayed auto-start)
+- Write config to `ProgramData\Munywele\SmsNotificationService\appsettings.Production.json`
+- Register an Event Log source
+- Configure service recovery (restart on failure)
 
 **Manual:**
 
 ```bash
 dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained
-sc create SmsNotificationService binPath="C:\path\to\publish\SmsNotificationService.exe"
+sc create SmsNotificationService binPath="C:\path\to\publish\SmsNotificationService.exe" start=delayed-auto
 sc start SmsNotificationService
 ```
 
@@ -139,11 +126,11 @@ sc start SmsNotificationService
 
 ## How It Works
 
-1. **Startup** — Validates configuration and database connectivity
+1. **Startup** — Validates configuration and database connectivity (10s timeout)
 2. **Catch-up** — Processes any existing `PENDING` notifications before starting the listener
 3. **SqlDependency listener** — Registers a schema-qualified SELECT query on `dbo.sms_notifications`
-4. **Change detected** — When rows change, `OnChange` fires
-5. **Process pending** — Fetches all `PENDING` notifications where `retry_count < max_retries` and `retry_after` has passed (or is null)
+4. **Retry poller** — Periodically checks for notifications where `retry_after` has passed
+5. **Process pending** — Fetches all `PENDING` notifications (externally re-queued notifications are always picked up)
 6. **Send SMS** — POSTs raw data payload to the configured API
 7. **On success** — Status → `PROCESSED`
 8. **On failure** — Increments `retry_count`, sets `retry_after` with exponential backoff
@@ -175,34 +162,50 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 ## Features
 
 - **SOLID architecture** — Interfaces (`INotificationRepository`, `ISmsSender`) enable testing and swapping implementations
-- **Separation of concerns** — `SqlDependencyListener` handles Service Broker, `NotificationRepository` handles data access, `SmsApiService` handles HTTP
+- **3-component worker** — `NotificationProcessor` (shared logic), `TableChangeListener` (SqlDependency), `RetryPoller` (periodic polling)
 - **Concurrency guard** — `SemaphoreSlim` prevents duplicate processing
 - **Retry with backoff** — Configurable exponential backoff per notification
+- **External re-queue support** — Notifications reset by external apps are always picked up
 - **Startup catch-up** — Processes missed notifications on restart
 - **Listener resilience** — Retries `SqlDependency` registration up to 5 times
+- **DB connection timeout** — 10-second timeout on startup check
 - **Graceful shutdown** — Waits up to 30s for in-flight sends
 - **Typed configuration** — `IOptions<SmsServiceOptions>` with startup validation
+- **File logging** — Daily rotation, configurable retention and max size
 - **Null safety** — Nullable enabled with warnings-as-errors
 - **Structured logging** — `[Tag]` prefixed logs for quick filtering
 
 ## CI/CD
 
+Fully automated pipeline. No manual tagging required.
+
+```
+Tests (all branches)  ──>  Release (main only)
+                              ├── Auto-generate tag from conventional commits
+                              ├── Build win-x64 + Inno Setup installer
+                              └── Create/update GitHub Release
+```
+
 | Workflow | Trigger | What |
 |---|---|---|
-| `tests.yml` | All branches + PRs | Build + run unit tests |
-| `ci.yml` | Push/PR to main | Build + publish artifact |
-| `release.yml` | `v*` tag on main | Build win-x64 zip + GitHub Release |
+| `tests.yml` | All pushes | Build + unit tests (cached by SHA) |
+| `release.yml` | After tests pass on `main` | Auto-tag, build zip + installer, GitHub Release |
+
+**Idempotent:** Re-running on the same commit republishes the existing release with updated artifacts.
 
 ## Versioning
 
-Git tag-based. Push a tag to create a release:
+Automatic. Versions are generated from conventional commits when tests pass on `main`:
 
-```bash
-git tag v1.2.0
-git push origin v1.2.0
-```
+- Commit messages following [Conventional Commits](https://www.conventionalcommits.org/) (`fix:`, `feat:`, `BREAKING CHANGE:`) drive version bumps
+- The tag action creates an annotated tag (e.g., `1.2.3`)
+- `Directory.Build.props` is updated automatically during the release build
+- The installer receives the version via `/DMyAppVersion=<version>` at compile time
 
-This triggers the release workflow which builds self-contained executables and creates a GitHub Release with artifacts.
+To manually trigger a release:
+
+1. Go to **Actions > Release > Run workflow**
+2. Select the `main` branch
 
 ## Testing
 
@@ -218,13 +221,15 @@ dotnet test
 
 ```
 SmsNotificationService/
-├── Program.cs                              # Entry point, DI, config validation
-├── Directory.Build.props                   # Centralized versioning
-├── appsettings.json                        # Production config (empty values)
+├── Program.cs                              # Entry point, DI, config, file logging
+├── Directory.Build.props                   # Centralized versioning (auto-updated by CI)
+├── appsettings.json                        # Production config template
 ├── appsettings.Development.json            # Dev config
 ├── src/
 │   ├── Workers/
-│   │   └── Worker.cs                       # Orchestration — startup, shutdown, queue
+│   │   ├── NotificationProcessor.cs        # Shared processing logic (thread-safe)
+│   │   ├── TableChangeListener.cs          # SqlDependency real-time listener
+│   │   └── RetryPoller.cs                  # Periodic polling for retry-eligible notifications
 │   ├── Data/
 │   │   ├── INotificationRepository.cs      # Data access contract
 │   │   ├── NotificationRepository.cs       # DB reads/writes (Dapper)
@@ -237,18 +242,19 @@ SmsNotificationService/
 │   │   └── NotificationStatus.cs           # Status enum
 │   ├── Configuration/
 │   │   └── SmsServiceOptions.cs            # Typed config
-│   └── Checks/
-│       └── DatabaseConnectionCheck.cs      # Startup DB check
+│   ├── Checks/
+│   │   └── DatabaseConnectionCheck.cs      # Startup DB check (10s timeout)
+│   └── Logging/
+│       └── FileLoggerProvider.cs           # File logging with daily rotation
 ├── tests/
 │   └── SmsNotificationService.Tests/
 │       ├── WorkerTests.cs                  # Worker unit tests
 │       └── SmsApiServiceTests.cs           # SMS service unit tests
 ├── installer/
-│   └── installer.iss                      # Inno Setup script
+│   └── installer.iss                       # Inno Setup (dynamic version via /D)
 ├── .github/workflows/
 │   ├── tests.yml                           # Test on all branches
-│   ├── ci.yml                              # Build on main/PRs
-│   └── release.yml                         # Release on v* tags
+│   └── release.yml                         # Auto-tag + build + release on main
 ├── docs/
 │   ├── deployment.md                       # Deployment guide
 │   └── plan.md                             # Feature plan
@@ -274,6 +280,10 @@ The SMS API receives raw data fields (snake_case):
 
 ## Logging
 
+**File logs** are written to `ProgramData\Munywele\SmsNotificationService\logs\` with daily rotation and configurable retention (default 7 days).
+
+**Console output:**
+
 ```
 [App]      SmsNotificationService starting (Environment: Development)
 [Config]   Configuration validated — API: https://api.munywele.co.ke/v1/send
@@ -282,10 +292,6 @@ The SMS API receives raw data fields (snake_case):
 [Queue]    Found 3 pending notification(s)
 [SMS]      Sending notification 1 to 07130000000 (attempt 1/3)
 [SMS]      Sent notification 1 to 07130000000 — status updated to PROCESSED
-[SMS]      Sending notification 2 to 07130000001 (attempt 1/3)
-[SMS]      Notification 2 to 07130000001 failed — HTTP 503: Service Unavailable (attempt 1/3)
-[SMS]      Retrying notification 2 in 2s...
-[SMS]      Notification 2 to 07130000001 failed — retry 1/5 scheduled at 2026-07-14T06:05:00Z
 [Listener] Query registered successfully. Waiting for table changes...
 ```
 
