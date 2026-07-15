@@ -53,10 +53,17 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      - name: Debug tag outputs
+        shell: bash
+        run: |
+          echo "version=${{ needs.tag.outputs.version }}"
+          echo "new_tag=${{ needs.tag.outputs.new_tag }}"
+
       - name: Update Directory.Build.props
         shell: bash
         run: |
           VERSION="${{ needs.tag.outputs.version }}"
+          echo "Writing version: ${VERSION}"
           echo "<Project>" > Directory.Build.props
           echo "  <PropertyGroup>" >> Directory.Build.props
           echo "    <Version>${VERSION}</Version>" >> Directory.Build.props
@@ -65,6 +72,7 @@ jobs:
           echo "    <InformationalVersion>${VERSION}</InformationalVersion>" >> Directory.Build.props
           echo "  </PropertyGroup>" >> Directory.Build.props
           echo "</Project>" >> Directory.Build.props
+          cat Directory.Build.props
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -91,7 +99,9 @@ jobs:
         run: choco install innosetup -y
 
       - name: Build installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=$env:VERSION installer\installer.iss'
+        run: |
+          Write-Host "ISCC version: $env:VERSION"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" "installer\installer.iss"
         env:
           VERSION: ${{ needs.tag.outputs.version }}
 
