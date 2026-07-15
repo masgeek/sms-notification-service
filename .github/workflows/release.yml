@@ -95,7 +95,8 @@ jobs:
           cat Directory.Build.props
 
       - name: Clean intermediate output
-        run: dotnet clean -c Release && dotnet buildserver shutdown
+        shell: bash
+        run: rm -rf **/bin/Release **/obj/Release
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
