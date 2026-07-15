@@ -17,7 +17,9 @@ var environment = builder.Environment.EnvironmentName;
 var logDir = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
     "Munywele", "SmsNotificationService", "logs");
-builder.Logging.AddProvider(new FileLoggerProvider(logDir));
+
+var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName).Get<SmsServiceOptions>() ?? new();
+builder.Logging.AddProvider(new FileLoggerProvider(logDir, svcOptions.LogRetentionDays, svcOptions.MaxLogFileSizeMb));
 var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
 logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
 
