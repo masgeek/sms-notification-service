@@ -1,3 +1,4 @@
+using System.Reflection;
 using SmsNotificationService.Checks;
 using SmsNotificationService.Configuration;
 using SmsNotificationService.Data;
@@ -8,6 +9,13 @@ using SmsNotificationService.Workers;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using Dapper;
+
+if (args.Contains("--version") || args.Contains("-v"))
+{
+    var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "unknown";
+    Console.WriteLine(version);
+    return;
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 
