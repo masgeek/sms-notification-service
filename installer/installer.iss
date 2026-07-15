@@ -332,8 +332,8 @@ begin
     '    "SmsApiUrl": "' + ApiUrl + '",' + #13#10 +
     '    "AuthorizationToken": "' + Token + '",' + #13#10 +
     '    "RetryBackoffSeconds": 30,' + #13#10 +
-    '    "LogRetentionDays": ' + LogRetentionDays + ',' + #13#10 +
-    '    "MaxLogFileSizeMb": ' + MaxLogFileSizeMb + #13#10 +
+    '    "LogRetentionDays": ' + '{#LogRetentionDays}' + ',' + #13#10 +
+    '    "MaxLogFileSizeMb": ' + '{#MaxLogFileSizeMb}' + #13#10 +
     '  }' + #13#10 +
     '}';
 

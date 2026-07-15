@@ -75,8 +75,10 @@ builder.Services.AddSingleton<SqlDependencyListener>(sp =>
 
 builder.Services.AddSingleton<ISmsSender, SmsApiService>();
 
-// Register our background worker
-builder.Services.AddHostedService<Worker>();
+// Register shared processor and workers
+builder.Services.AddSingleton<NotificationProcessor>();
+builder.Services.AddHostedService<TableChangeListener>();
+builder.Services.AddHostedService<RetryPoller>();
 
 var host = builder.Build();
 
