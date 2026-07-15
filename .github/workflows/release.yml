@@ -11,25 +11,20 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
-    runs-on: windows-latest
-    timeout-minutes: 20
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: >
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
-    concurrency:
-      cancel-in-progress: false
-      group: release-${{ github.ref }}
-
+    outputs:
+      version: ${{ steps.tag_version.outputs.version }}
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
 
       - name: Generate Tag
         id: tag_version
@@ -39,10 +34,22 @@ jobs:
           tag_prefix: ""
           create_annotated_tag: true
 
+  build:
+    needs: tag
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
       - name: Update Directory.Build.props
         shell: bash
         run: |
-          VERSION="${{ steps.tag_version.outputs.version }}"
+          VERSION="${{ needs.tag.outputs.version }}"
           echo "<Project>" > Directory.Build.props
           echo "  <PropertyGroup>" >> Directory.Build.props
           echo "    <Version>${VERSION}</Version>" >> Directory.Build.props
@@ -77,19 +84,38 @@ jobs:
         run: choco install innosetup -y
 
       - name: Build installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ steps.tag_version.outputs.version }} installer\installer.iss'
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ needs.tag.outputs.version }} installer\installer.iss'
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            SmsNotificationService-win-x64.zip
+            installer/output/SmsNotificationService-Setup-${{ needs.tag.outputs.version }}.exe
+          retention-days: 1
+
+  release:
+    needs: [tag, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1.16.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.tag_version.outputs.new_tag }}
-          name: Version ${{ steps.tag_version.outputs.new_tag }}
-          body: ${{ steps.tag_version.outputs.changelog }}
+          tag: ${{ needs.tag.outputs.new_tag }}
+          name: Version ${{ needs.tag.outputs.new_tag }}
+          body: ${{ needs.tag.outputs.changelog }}
           makeLatest: true
           allowUpdates: true
           generateReleaseNotes: true
           skipIfReleaseExists: false
           artifacts: |
             SmsNotificationService-win-x64.zip
-            installer/output/SmsNotificationService-Setup-${{ steps.tag_version.outputs.version }}.exe
+            SmsNotificationService-Setup-${{ needs.tag.outputs.version }}.exe
