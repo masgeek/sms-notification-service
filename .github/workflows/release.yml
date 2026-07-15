@@ -105,6 +105,9 @@ jobs:
         env:
           VERSION: ${{ needs.tag.outputs.version }}
 
+      - name: Verify version in build
+        run: '& publish\SmsNotificationService.exe --version'
+
       - name: Verify artifacts
         shell: bash
         run: |
