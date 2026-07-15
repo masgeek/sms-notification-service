@@ -16,25 +16,25 @@ jobs:
       group: test-${{ github.ref }}
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
       # Skip if this commit already passed tests
       - name: Restore test result cache
         id: test-cache
-        uses: actions/cache/restore@v7
+        uses: actions/cache/restore@v4
         with:
           path: .test-passed
           key: test-result-${{ github.sha }}
 
       - name: Setup .NET
         if: steps.test-cache.outputs.cache-hit != 'true'
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
         if: steps.test-cache.outputs.cache-hit != 'true'
-        uses: actions/cache@v6
+        uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
@@ -60,7 +60,7 @@ jobs:
 
       - name: Save test result cache
         if: steps.test-cache.outputs.cache-hit != 'true' && success()
-        uses: actions/cache/save@v7
+        uses: actions/cache/save@v4
         with:
           path: .test-passed
           key: test-result-${{ github.sha }}
