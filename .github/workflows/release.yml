@@ -91,7 +91,9 @@ jobs:
         run: choco install innosetup -y
 
       - name: Build installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ needs.tag.outputs.version }} installer\installer.iss'
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=$env:VERSION installer\installer.iss'
+        env:
+          VERSION: ${{ needs.tag.outputs.version }}
 
       - name: Verify artifacts
         shell: bash
@@ -100,8 +102,7 @@ jobs:
           ls -la SmsNotificationService-win-x64.zip
           echo "=== Installer output ==="
           ls -la installer/output/
-          echo "=== Version ==="
-          echo "${{ needs.tag.outputs.version }}"
+          echo "=== Version: $VERSION ==="
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
