@@ -12,10 +12,32 @@ public sealed class FileLoggerProvider : ILoggerProvider
     private readonly string _logDirectory;
     private readonly ConcurrentDictionary<string, FileLogger> _loggers = new();
 
+    private const int MaxLogRetentionDays = 7;
+
     public FileLoggerProvider(string logDirectory)
     {
         _logDirectory = logDirectory;
         Directory.CreateDirectory(_logDirectory);
+        CleanupOldLogs();
+    }
+
+    private void CleanupOldLogs()
+    {
+        try
+        {
+            var cutoff = DateTime.Now.AddDays(-MaxLogRetentionDays);
+            foreach (var file in Directory.GetFiles(_logDirectory, "*.log"))
+            {
+                if (File.GetLastWriteTime(file) < cutoff)
+                {
+                    File.Delete(file);
+                }
+            }
+        }
+        catch
+        {
+            // Best effort — don't crash the service over log cleanup
+        }
     }
 
     public ILogger CreateLogger(string categoryName)
