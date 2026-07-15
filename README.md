@@ -9,15 +9,18 @@ SQL Server (sms_notifications table)
     |
     | SqlDependency (Service Broker)
     v
-Worker (background service)
+SqlDependencyListener
     |
-    | HTTP POST (JSON payload)
     v
-SMS API (e.g., api.munywele.co.ke)
+Worker (orchestration)
     |
-    | Response
-    v
-Update status → PROCESSED / CANCELLED
+    | INotificationRepository    ISmsSender
+    v                            v
+NotificationRepository          SmsApiService
+    |                            |
+    | Dapper                     | HttpClient
+    v                            v
+SQL Server                     SMS API
 ```
 
 ## Tech Stack
@@ -26,6 +29,7 @@ Update status → PROCESSED / CANCELLED
 - `Microsoft.Data.SqlClient` 7.0.2 — SQL Server connectivity
 - `Dapper` 2.1.79 — lightweight ORM
 - `SqlDependency` — real-time change notifications via Service Broker
+- `xUnit` + `Moq` + `FluentAssertions` — unit testing
 
 ## Prerequisites
 
@@ -49,8 +53,8 @@ CREATE TABLE sms_notifications (
     id              BIGINT IDENTITY(1,1) PRIMARY KEY,
     phone_number    NVARCHAR(50)    NOT NULL,
     mpesa_code      NVARCHAR(100)   NOT NULL,
-    admission_no    NVARCHAR(50)    NOT NULL,
-    student_name    NVARCHAR(200)   NULL,
+    adm_no          NVARCHAR(50)    NOT NULL,
+    stud_names      NVARCHAR(200)   NULL,
     amount          DECIMAL(18,2)   NULL,
     receipt_no      NVARCHAR(100)   NULL,
     dated           DATETIME        NULL,
@@ -74,6 +78,7 @@ Edit `appsettings.Development.json` or set environment variables:
   "SmsService": {
     "ConnectionString": "Server=127.0.0.1;Database=school;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;",
     "SmsApiUrl": "https://api.munywele.co.ke/v1/send",
+    "AuthorizationToken": "your-bearer-token",
     "RetryBackoffSeconds": 30
   }
 }
@@ -116,17 +121,27 @@ dotnet run
 
 ### 5. Run as Windows Service
 
+**Installer (recommended):**
+
+1. Publish: `dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained`
+2. Open `installer/installer.iss` in Inno Setup and compile
+3. Run `installer/output/SmsNotificationService-Setup.exe` as Administrator
+
+**Manual:**
+
 ```bash
-dotnet publish -c Release
+dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained
 sc create SmsNotificationService binPath="C:\path\to\publish\SmsNotificationService.exe"
 sc start SmsNotificationService
 ```
+
+> Full deployment guide: [docs/deployment.md](docs/deployment.md)
 
 ## How It Works
 
 1. **Startup** — Validates configuration and database connectivity
 2. **Catch-up** — Processes any existing `PENDING` notifications before starting the listener
-3. **SqlDependency listener** — Registers a SELECT query on `sms_notifications`
+3. **SqlDependency listener** — Registers a schema-qualified SELECT query on `dbo.sms_notifications`
 4. **Change detected** — When rows change, `OnChange` fires
 5. **Process pending** — Fetches all `PENDING` notifications where `retry_count < max_retries` and `retry_after` has passed (or is null)
 6. **Send SMS** — POSTs raw data payload to the configured API
@@ -159,6 +174,8 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 
 ## Features
 
+- **SOLID architecture** — Interfaces (`INotificationRepository`, `ISmsSender`) enable testing and swapping implementations
+- **Separation of concerns** — `SqlDependencyListener` handles Service Broker, `NotificationRepository` handles data access, `SmsApiService` handles HTTP
 - **Concurrency guard** — `SemaphoreSlim` prevents duplicate processing
 - **Retry with backoff** — Configurable exponential backoff per notification
 - **Startup catch-up** — Processes missed notifications on restart
@@ -168,31 +185,74 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 - **Null safety** — Nullable enabled with warnings-as-errors
 - **Structured logging** — `[Tag]` prefixed logs for quick filtering
 
+## CI/CD
+
+| Workflow | Trigger | What |
+|---|---|---|
+| `tests.yml` | All branches + PRs | Build + run unit tests |
+| `ci.yml` | Push/PR to main | Build + publish artifact |
+| `release.yml` | `v*` tag on main | Build win-x64 zip + GitHub Release |
+
+## Versioning
+
+Git tag-based. Push a tag to create a release:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+This triggers the release workflow which builds self-contained executables and creates a GitHub Release with artifacts.
+
+## Testing
+
+```bash
+dotnet test
+```
+
+12 unit tests covering:
+- `WorkerTests` — pending processing, success/failure flows, retry scheduling, concurrency
+- `SmsApiServiceTests` — HTTP retry logic, success/failure, `CalculateRetryAfter` backoff
+
 ## Project Structure
 
 ```
 SmsNotificationService/
-├── Program.cs                          # Entry point, DI, config validation
-├── appsettings.json                    # Production config (empty values)
-├── appsettings.Development.json        # Dev config
+├── Program.cs                              # Entry point, DI, config validation
+├── Directory.Build.props                   # Centralized versioning
+├── appsettings.json                        # Production config (empty values)
+├── appsettings.Development.json            # Dev config
 ├── src/
 │   ├── Workers/
-│   │   └── Worker.cs                   # Orchestration — startup, shutdown, queue
+│   │   └── Worker.cs                       # Orchestration — startup, shutdown, queue
 │   ├── Data/
-│   │   └── NotificationRepository.cs   # DB reads/writes
+│   │   ├── INotificationRepository.cs      # Data access contract
+│   │   ├── NotificationRepository.cs       # DB reads/writes (Dapper)
+│   │   └── SqlDependencyListener.cs        # Service Broker listener
 │   ├── Services/
-│   │   └── SmsApiService.cs            # HTTP calls with retry and backoff
+│   │   ├── ISmsSender.cs                   # SMS sending contract
+│   │   └── SmsApiService.cs               # HTTP calls with retry
 │   ├── Models/
-│   │   ├── SmsNotification.cs          # Entity model
-│   │   └── NotificationStatus.cs       # Status enum
+│   │   ├── SmsNotification.cs              # Entity (PascalCase, Dapper-mapped)
+│   │   └── NotificationStatus.cs           # Status enum
 │   ├── Configuration/
-│   │   └── SmsServiceOptions.cs        # Typed config
+│   │   └── SmsServiceOptions.cs            # Typed config
 │   └── Checks/
-│       └── DatabaseConnectionCheck.cs  # Startup DB check
-├── Properties/
-│   └── launchSettings.json
-└── docs/
-    └── plan.md                         # Feature plan
+│       └── DatabaseConnectionCheck.cs      # Startup DB check
+├── tests/
+│   └── SmsNotificationService.Tests/
+│       ├── WorkerTests.cs                  # Worker unit tests
+│       └── SmsApiServiceTests.cs           # SMS service unit tests
+├── installer/
+│   └── installer.iss                      # Inno Setup script
+├── .github/workflows/
+│   ├── tests.yml                           # Test on all branches
+│   ├── ci.yml                              # Build on main/PRs
+│   └── release.yml                         # Release on v* tags
+├── docs/
+│   ├── deployment.md                       # Deployment guide
+│   └── plan.md                             # Feature plan
+└── SmsNotificationService.slnx             # Solution file
 ```
 
 ## API Payload
