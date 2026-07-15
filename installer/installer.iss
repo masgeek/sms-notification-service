@@ -32,10 +32,9 @@ OutputDir=installer\output
 OutputBaseFilename=SmsNotificationService-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
-ArchitecturesInstallMode=x64
+ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64
 PrivilegesRequired=admin
-PrivilegesRequiredOverridingOwnedMachine=yes
 SetupIconFile=..\favicon.ico
 UninstallDisplayIcon={app}\SmsNotificationService.exe
 WizardStyle=modern
@@ -57,9 +56,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; ============================================================================
 [Dirs]
 Name: "{app}"; Permissions: everyone-readexec
-Name: "{commonappdata}\{#ConfigDir}"; Permissions: admins-full localsystem-full everyone-read
-Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full localsystem-full everyone-read
-Name: "{commonappdata}\{#ConfigDir}\data"; Permissions: admins-full localsystem-full everyone-read
+Name: "{commonappdata}\{#ConfigDir}"; Permissions: admins-full system-full everyone-readexec
+Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full everyone-readexec
+Name: "{commonappdata}\{#ConfigDir}\data"; Permissions: admins-full system-full everyone-readexec
 
 ; ============================================================================
 ; [Files] - Application binaries (always overwrite)
@@ -82,8 +81,9 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 ; ============================================================================
 [UninstallRun]
 Filename: "sc.exe"; Parameters: "stop {#ServiceName}"; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/c timeout /t 3 /nobreak >nul"; Flags: runhidden waituntilterminated
 Filename: "sc.exe"; Parameters: "delete {#ServiceName}"; Flags: runhidden waituntilterminated
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""try { [System.Diagnostics.EventLog]::DeleteEventSource('{#EventLogSource}') } catch {}"""; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""try {{ [System.Diagnostics.EventLog]::DeleteEventSource('{#EventLogSource}') }} catch {{}}"""; Flags: runhidden waituntilterminated
 
 ; ============================================================================
 ; [Code] - Pascal Script
@@ -118,6 +118,18 @@ end;
 // Service helpers
 // ============================================================================
 
+// Import the Win32 GetTickCount API from kernel32.dll.
+// Inno Setup's Pascal Script has no built-in tick-count function,
+// so it must be declared as an external function before use.
+// Returns: number of milliseconds elapsed since system startup,
+// as a DWORD (32-bit unsigned integer).
+// Note: wraps around to 0 after ~49.7 days of uptime — fine for
+// short-lived polling loops (e.g. during install/uninstall),
+// but avoid for long-duration timing. Use GetTickCount64 instead
+// if wraparound safety is ever needed.
+function GetTickCount: DWORD;
+  external 'GetTickCount@kernel32.dll stdcall';
+  
 // Returns True if a Windows service with the given name exists.
 function ServiceExists(const SvcName: String): Boolean;
 begin
@@ -133,33 +145,45 @@ end;
 // Polls service state until it matches TargetState or timeout expires.
 // TargetState: 'STOPPED' or 'RUNNING'
 function WaitForServiceState(const SvcName: String; const TargetState: String; TimeoutMs: Integer): Boolean;
-var
-  StartTick: Cardinal;
-  OutputFile: String;
-  Cmd: String;
-  Content: String;
-begin
-  StartTick := GetTickCount;
-  OutputFile := ExpandConstant('{tmp}\svcstate.txt');
-
-  while (GetTickCount - StartTick) < Cardinal(TimeoutMs) do
+  var
+    StartTick: Cardinal;
+    OutputFile: String;
+    Cmd: String;
+    Content: AnsiString;   // LoadStringFromFile requires an AnsiString var param, not String
+    ExitCode: Integer;
   begin
-    Cmd := 'sc query ' + SvcName + ' | findstr /C:"STATE"';
-    Exec('cmd.exe', '/C ' + Cmd + ' > "' + OutputFile + ' 2>&1"', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+    Result := False;       // default outcome if we time out without a match
+    StartTick := GetTickCount;
+    OutputFile := ExpandConstant('{tmp}\svcstate.txt');
 
-    if FileExists(OutputFile) then
+    while (GetTickCount - StartTick) < Cardinal(TimeoutMs) do
     begin
-      Content := LoadStringFromFile(OutputFile);
-      if Pos(UpperCase(TargetState), UpperCase(Content)) > 0 then
+      // Quote SvcName in case the service name ever contains spaces
+      Cmd := 'sc query "' + SvcName + '" | findstr /C:"STATE"';
+
+      // Redirect both stdout and stderr into OutputFile.
+      // Closing quote must wrap the path only, not "2>&1".
+      Exec('cmd.exe', '/C ' + Cmd + ' > "' + OutputFile + '" 2>&1',
+        '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+
+      if FileExists(OutputFile) then
       begin
-        Result := True;
-        Exit;
+        // LoadStringFromFile fills Content via var param and returns
+        // a Boolean success flag — it does not work as a direct assignment.
+        if LoadStringFromFile(OutputFile, Content) then
+        begin
+          if Pos(UpperCase(TargetState), UpperCase(Content)) > 0 then
+          begin
+            Result := True;
+            Exit; // early return as soon as the target state is found
+          end;
+        end;
       end;
+
+      Sleep(500); // throttle polling interval to avoid busy-looping
     end;
 
-    Sleep(500);
-  end;
-
+  // Loop exhausted TimeoutMs without finding TargetState
   Log('WaitForServiceState: timed out waiting for ' + TargetState);
   Result := False;
 end;
@@ -198,10 +222,11 @@ var
 begin
   Exec(
     'powershell.exe',
-    '-NoProfile -ExecutionPolicy Bypass -Command "try { [System.Diagnostics.EventLog]::CreateEventSource(''' + EventLogSource + ''', ''Application'') } catch {}"',
+    '-NoProfile -ExecutionPolicy Bypass -Command "try { [System.Diagnostics.EventLog]::CreateEventSource(''' +
+      '{#EventLogSource}' + ''', ''Application'') } catch {}"',
     '', SW_HIDE, ewWaitUntilTerminated, ExitCode
   );
-  Log('Event log source registered: ' + EventLogSource);
+  Log('Event log source registered: {#EventLogSource}');
 end;
 
 // Removes the Event Log source. Idempotent.
@@ -211,10 +236,11 @@ var
 begin
   Exec(
     'powershell.exe',
-    '-NoProfile -ExecutionPolicy Bypass -Command "try { [System.Diagnostics.EventLog]::DeleteEventSource(''' + EventLogSource + ''') } catch {}"',
+    '-NoProfile -ExecutionPolicy Bypass -Command "try { [System.Diagnostics.EventLog]::DeleteEventSource(''' +
+      '{#EventLogSource}' + ''') } catch {}"',
     '', SW_HIDE, ewWaitUntilTerminated, ExitCode
   );
-  Log('Event log source removed: ' + EventLogSource);
+  Log('Event log source removed: {#EventLogSource}');
 end;
 
 // ============================================================================
@@ -325,7 +351,7 @@ begin
     Log('Service started successfully.')
   else
     MsgBox('The service was created but may not have started.' + #13#10 +
-           'Check Windows Event Log for details.', mbWarning, MB_OK);
+           'Check Windows Event Log for details.', mbInformation, MB_OK);
 
   Log('=== Fresh install completed ===');
 end;
@@ -359,7 +385,7 @@ begin
     Log('Service restarted successfully after upgrade.')
   else
     MsgBox('The service was updated but may not have restarted.' + #13#10 +
-           'Check Windows Event Log for details.', mbWarning, MB_OK);
+           'Check Windows Event Log for details.', mbInformation, MB_OK);
 
   Log('=== Upgrade completed ===');
 end;
