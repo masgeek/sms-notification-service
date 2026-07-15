@@ -151,13 +151,17 @@ jobs:
           ls -la installer/output/
           echo "=== Version: $VERSION ==="
 
+      - name: Copy installer to root
+        shell: bash
+        run: cp installer/output/SmsNotificationService-Setup-*.exe .
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
           path: |
             SmsNotificationService-win-x64.zip
-            installer/output/
+            SmsNotificationService-Setup-*.exe
           retention-days: 1
 
   release:
@@ -186,5 +190,5 @@ jobs:
           generateReleaseNotes: true
           skipIfReleaseExists: false
           artifacts: |
-            artifacts/SmsNotificationService-win-x64.zip
-            artifacts/SmsNotificationService-Setup-*.exe
+            SmsNotificationService-win-x64.zip
+            SmsNotificationService-Setup-*.exe
