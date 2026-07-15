@@ -1,49 +1,75 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  build-and-release:
     runs-on: windows-latest
+    timeout-minutes: 20
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    concurrency:
+      cancel-in-progress: false
+      group: release-${{ github.ref }}
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Skip if a tag already exists for this commit (idempotent)
+      - name: Check existing tag
+        id: check-release
+        shell: bash
+        run: |
+          EXISTING=$(git tag --points-at HEAD 2>/dev/null | head -1 || true)
+          if [ -n "$EXISTING" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Existing tag found: $EXISTING"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup .NET
+        if: steps.check-release.outputs.skip != 'true'
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
 
-      - name: Get version from tag
-        id: version
-        shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: Generate Tag
+        if: steps.check-release.outputs.skip != 'true'
+        id: tag_version
+        uses: masgeek/github-tag-action@release
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_prefix: ""
+          create_annotated_tag: true
 
       - name: Update Directory.Build.props
+        if: steps.check-release.outputs.skip != 'true'
         shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          cat > Directory.Build.props << EOF
-          <Project>
-            <PropertyGroup>
-              <Version>${VERSION}</Version>
-              <AssemblyVersion>${VERSION}</AssemblyVersion>
-              <FileVersion>${VERSION}</FileVersion>
-              <InformationalVersion>${VERSION}</InformationalVersion>
-            </PropertyGroup>
-          </Project>
-          EOF
+          VERSION="${{ steps.tag_version.outputs.version }}"
+          echo "<Project>" > Directory.Build.props
+          echo "  <PropertyGroup>" >> Directory.Build.props
+          echo "    <Version>${VERSION}</Version>" >> Directory.Build.props
+          echo "    <AssemblyVersion>${VERSION}</AssemblyVersion>" >> Directory.Build.props
+          echo "    <FileVersion>${VERSION}</FileVersion>" >> Directory.Build.props
+          echo "    <InformationalVersion>${VERSION}</InformationalVersion>" >> Directory.Build.props
+          echo "  </PropertyGroup>" >> Directory.Build.props
+          echo "</Project>" >> Directory.Build.props
 
       - name: Cache NuGet packages
+        if: steps.check-release.outputs.skip != 'true'
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
@@ -52,39 +78,42 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore
+        if: steps.check-release.outputs.skip != 'true'
         run: dotnet restore
 
       - name: Build
+        if: steps.check-release.outputs.skip != 'true'
         run: dotnet build -c Release --no-restore
 
       - name: Publish win-x64
+        if: steps.check-release.outputs.skip != 'true'
         run: dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o publish
 
       - name: Zip artifacts
+        if: steps.check-release.outputs.skip != 'true'
         shell: bash
         run: 7z a -tzip SmsNotificationService-win-x64.zip ./publish/*
 
       - name: Install Inno Setup
+        if: steps.check-release.outputs.skip != 'true'
         run: choco install innosetup -y
 
       - name: Build installer
-        run: & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
-
-      - name: Verify artifacts exist
-        shell: bash
-        run: |
-          ls -la SmsNotificationService-win-x64.zip
-          ls -la installer/output/
-          echo "Version: ${{ steps.version.outputs.VERSION }}"
+        if: steps.check-release.outputs.skip != 'true'
+        run: "& 'C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe' /DMyAppVersion=${{ steps.tag_version.outputs.version }} installer\\installer.iss"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        if: steps.check-release.outputs.skip != 'true'
+        uses: ncipollo/release-action@v1.16.0
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          files: |
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Version ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          makeLatest: true
+          allowUpdates: true
+          generateReleaseNotes: true
+          skipIfReleaseExists: false
+          artifacts: |
             SmsNotificationService-win-x64.zip
-            installer/output/SmsNotificationService-Setup-${{ steps.version.outputs.VERSION }}.exe
+            installer/output/SmsNotificationService-Setup-${{ steps.tag_version.outputs.version }}.exe

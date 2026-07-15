@@ -8,7 +8,9 @@
 ; ============================================================================
 
 #define MyAppName        "SmsNotificationService"
-#define MyAppVersion     "1.0.0"
+#ifndef MyAppVersion
+  #define MyAppVersion     "1.0.0"
+#endif
 #define MyAppPublisher   "Munywele"
 #define ServiceName      "SmsNotificationService"
 #define ServiceDisplay   "SmsNotificationService"

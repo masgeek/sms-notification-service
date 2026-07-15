@@ -2,37 +2,39 @@ name: Tests
 
 on:
   push:
-    branches: ["*"]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "SmsNotificationService.csproj"
-      - "Directory.Build.props"
-  pull_request:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "SmsNotificationService.csproj"
-      - "Directory.Build.props"
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: windows-latest
+    timeout-minutes: 15
+    concurrency:
+      cancel-in-progress: true
+      group: test-${{ github.ref }}
 
     steps:
       - uses: actions/checkout@v7
 
+      # Skip if this commit already passed tests
+      - name: Restore test result cache
+        id: test-cache
+        uses: actions/cache/restore@v7
+        with:
+          path: .test-passed
+          key: test-result-${{ github.sha }}
+
       - name: Setup .NET
+        if: steps.test-cache.outputs.cache-hit != 'true'
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
+        if: steps.test-cache.outputs.cache-hit != 'true'
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
@@ -40,21 +42,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Cache build output
-        uses: actions/cache@v6
-        with:
-          path: |
-            **/bin/Release
-            **/obj/Release
-          key: ${{ runner.os }}-build-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-build-
-
       - name: Restore
+        if: steps.test-cache.outputs.cache-hit != 'true'
         run: dotnet restore
 
       - name: Build
+        if: steps.test-cache.outputs.cache-hit != 'true'
         run: dotnet build -c Release --no-restore
 
       - name: Test
+        if: steps.test-cache.outputs.cache-hit != 'true'
         run: dotnet test -c Release --no-build --verbosity normal
+
+      # Save sentinel only after tests pass
+      - name: Create test sentinel
+        if: steps.test-cache.outputs.cache-hit != 'true' && success()
+        run: echo "passed at $(date -u)" > .test-passed
+
+      - name: Save test result cache
+        if: steps.test-cache.outputs.cache-hit != 'true' && success()
+        uses: actions/cache/save@v7
+        with:
+          path: .test-passed
+          key: test-result-${{ github.sha }}

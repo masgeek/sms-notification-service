@@ -1,26 +1,21 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "SmsNotificationService.csproj"
-      - "Directory.Build.props"
-  pull_request:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "SmsNotificationService.csproj"
-      - "Directory.Build.props"
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 15
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    concurrency:
+      cancel-in-progress: true
+      group: ci-${{ github.ref }}
 
     steps:
       - uses: actions/checkout@v7
@@ -37,16 +32,6 @@ jobs:
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
-
-      - name: Cache build output
-        uses: actions/cache@v6
-        with:
-          path: |
-            **/bin/Release
-            **/obj/Release
-          key: ${{ runner.os }}-build-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-build-
 
       - name: Restore
         run: dotnet restore
