@@ -121,8 +121,16 @@ dotnet run
 
 ### 5. Run as Windows Service
 
+**Installer (recommended):**
+
+1. Publish: `dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained`
+2. Open `installer/installer.iss` in Inno Setup and compile
+3. Run `installer/output/SmsNotificationService-Setup.exe` as Administrator
+
+**Manual:**
+
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained
+dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained
 sc create SmsNotificationService binPath="C:\path\to\publish\SmsNotificationService.exe"
 sc start SmsNotificationService
 ```
@@ -235,6 +243,8 @@ SmsNotificationService/
 │   └── SmsNotificationService.Tests/
 │       ├── WorkerTests.cs                  # Worker unit tests
 │       └── SmsApiServiceTests.cs           # SMS service unit tests
+├── installer/
+│   └── installer.iss                      # Inno Setup script
 ├── .github/workflows/
 │   ├── tests.yml                           # Test on all branches
 │   ├── ci.yml                              # Build on main/PRs

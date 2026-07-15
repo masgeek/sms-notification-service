@@ -5,46 +5,53 @@
 ### Publish (self-contained — no .NET runtime needed on target)
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained
+dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained
 ```
 
-Output: `bin\Release\net10.0\win-x64\publish\`
+Output: `publish\`
 
-### Publish (framework-dependent — requires .NET 10 runtime on target)
+## Create Installer
 
-```bash
-dotnet publish -c Release
-```
+### Prerequisites
 
-Output: `bin\Release\net10.0\publish\`
+- [Inno Setup 6+](https://jrsoftware.org/isinfo.php) installed on your build machine
+
+### Build
+
+1. Publish the project (above)
+2. Open `installer/installer.iss` in Inno Setup Compiler
+3. Click **Build > Compile**
+4. Output: `installer/output/SmsNotificationService-Setup.exe`
+
+The installer will:
+- Install files to `C:\Program Files\SmsNotificationService\`
+- Prompt for database connection, API URL, and auth token
+- Create the Windows Service (auto-start)
+- Set Machine-scope environment variables
+- Register an Event Log source
 
 ## Install as Windows Service
 
-### 1. Copy the published folder
+### Option A: Use the Installer
 
-```
-C:\Services\SmsNotificationService\
-```
+Run `SmsNotificationService-Setup.exe` as Administrator. Follow the prompts.
 
-### 2. Create the service
+### Option B: Manual Install
 
 ```powershell
+# Copy published folder
+C:\Services\SmsNotificationService\
+
+# Create service
 sc create SmsNotificationService binPath="C:\Services\SmsNotificationService\SmsNotificationService.exe" start=auto
 sc description SmsNotificationService "Listens to SQL Server for SMS notifications and sends them via HTTP API"
-```
 
-### 3. Set environment variables (Machine scope, requires Admin)
-
-```powershell
+# Set env vars
 [Environment]::SetEnvironmentVariable("SmsService__ConnectionString", "Server=127.0.0.1;Database=school;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;", "Machine")
 [Environment]::SetEnvironmentVariable("SmsService__SmsApiUrl", "https://api.munywele.co.ke/v1/send", "Machine")
 [Environment]::SetEnvironmentVariable("SmsService__AuthorizationToken", "your-bearer-token-here", "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__RetryBackoffSeconds", "30", "Machine")
-```
 
-### 4. Start the service
-
-```powershell
+# Start
 sc start SmsNotificationService
 ```
 
