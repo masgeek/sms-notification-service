@@ -64,6 +64,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Debug tag outputs
+        id: resolve-version
         shell: bash
         run: |
           echo "=== Tag outputs from tag job ==="
@@ -125,7 +126,7 @@ jobs:
           Write-Host "ISCC version: $env:VERSION"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" "installer\installer.iss"
         env:
-          VERSION: ${{ needs.tag.outputs.version }}
+          VERSION: ${{ steps.resolve-version.outputs.RESOLVED_VERSION }}
 
       - name: Verify version in build
         run: |
@@ -137,7 +138,7 @@ jobs:
             exit 1
           }
         env:
-          VERSION: ${{ needs.tag.outputs.version }}
+          VERSION: ${{ steps.resolve-version.outputs.RESOLVED_VERSION }}
 
       - name: Verify artifacts
         shell: bash
