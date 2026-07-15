@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <WarningsAsErrors>nullable</WarningsAsErrors>
-    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <DefaultItemExcludes>$(DefaultItemExcludes);tests\**</DefaultItemExcludes>
     <UserSecretsId>dotnet-SmsNotificationService-8049dd06-d3d1-4fae-a2e0-5b26db80a79b</UserSecretsId>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
