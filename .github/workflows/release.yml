@@ -70,6 +70,13 @@ jobs:
       - name: Build installer
         run: & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
 
+      - name: Verify artifacts exist
+        shell: bash
+        run: |
+          ls -la SmsNotificationService-win-x64.zip
+          ls -la installer/output/
+          echo "Version: ${{ steps.version.outputs.VERSION }}"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
@@ -80,4 +87,4 @@ jobs:
           generate_release_notes: true
           files: |
             SmsNotificationService-win-x64.zip
-            installer\output\SmsNotificationService-Setup.exe
+            installer/output/SmsNotificationService-Setup-${{ steps.version.outputs.VERSION }}.exe
