@@ -406,6 +406,15 @@ begin
   else
     RaiseException('Failed to stop the {#ServiceName} service. Please stop it manually and try again.');
 
+  // Update config if user chose to enter new settings
+  if not KeepExistingCfg then
+  begin
+    Log('Writing updated configuration...');
+    WriteConfigurationFile(ConnStrPage.Values[0], ApiUrlPage.Values[0], AuthPage.Values[0]);
+  end
+  else
+    Log('Keeping existing configuration.');
+
   Log('=== Upgrade pre-install completed (files will be replaced, service restarted in post-install) ===');
 end;
 
@@ -504,7 +513,7 @@ begin
       'Configuration Found',
       'An existing appsettings.Production.json was detected.',
       'What would you like to do?',
-      True);  // Top-level radio group
+      True,False);  // Top-level radio group
     ConfigPromptPage.Add('Keep existing configuration');
     ConfigPromptPage.Add('Enter new configuration');
     ConfigPromptPage.Values[0] := True;  // default: keep existing
@@ -540,27 +549,16 @@ function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
 
-  // On upgrade: skip config prompt and all config pages
-  if UpgradeMode then
-  begin
-    if ConfigExists and (PageID = ConfigPromptPage.ID) then
-      Result := True;
-    Result := Result or (PageID = ConnStrPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = AuthPage.ID);
-    Exit;
-  end;
-
   // No existing config: nothing to skip (config pages show as normal)
   if not ConfigExists then
     Exit;
 
-  // Fresh install with existing config: if user chose to keep, skip config pages
+  // Existing config (fresh or upgrade): if user chose to keep, skip config pages
   if KeepExistingCfg then
   begin
     Result := (PageID = ConnStrPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = AuthPage.ID);
     Exit;
   end;
-
-  // Fresh install with existing config and user chose "Enter new": show all pages
 end;
 
 // ============================================================================
