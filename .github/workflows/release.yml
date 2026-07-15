@@ -26,26 +26,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check existing tag
-        id: check-release
-        shell: bash
-        run: |
-          EXISTING=$(git tag --points-at HEAD 2>/dev/null | head -1 || true)
-          if [ -n "$EXISTING" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Existing tag found: $EXISTING"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Setup .NET
-        if: steps.check-release.outputs.skip != 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
 
       - name: Generate Tag
-        if: steps.check-release.outputs.skip != 'true'
         id: tag_version
         uses: masgeek/github-tag-action@release
         with:
@@ -54,7 +40,6 @@ jobs:
           create_annotated_tag: true
 
       - name: Update Directory.Build.props
-        if: steps.check-release.outputs.skip != 'true'
         shell: bash
         run: |
           VERSION="${{ steps.tag_version.outputs.version }}"
@@ -68,7 +53,6 @@ jobs:
           echo "</Project>" >> Directory.Build.props
 
       - name: Cache NuGet packages
-        if: steps.check-release.outputs.skip != 'true'
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
@@ -77,32 +61,25 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore
-        if: steps.check-release.outputs.skip != 'true'
         run: dotnet restore
 
       - name: Build
-        if: steps.check-release.outputs.skip != 'true'
         run: dotnet build -c Release --no-restore
 
       - name: Publish win-x64
-        if: steps.check-release.outputs.skip != 'true'
         run: dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o publish
 
       - name: Zip artifacts
-        if: steps.check-release.outputs.skip != 'true'
         shell: bash
         run: 7z a -tzip SmsNotificationService-win-x64.zip "./publish/*"
 
       - name: Install Inno Setup
-        if: steps.check-release.outputs.skip != 'true'
         run: choco install innosetup -y
 
       - name: Build installer
-        if: steps.check-release.outputs.skip != 'true'
         run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ steps.tag_version.outputs.version }} installer\installer.iss'
 
       - name: Create GitHub Release
-        if: steps.check-release.outputs.skip != 'true'
         uses: ncipollo/release-action@v1.16.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
