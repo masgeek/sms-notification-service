@@ -369,14 +369,13 @@ begin
   Log('Creating Windows service...');
   ExecuteOrFail(
     'sc.exe',
-    'create {#ServiceName} binPath= "' + ExpandConstant('{app}') + '\SmsNotificationService.exe" start= auto DisplayName= "{#ServiceDisplay}" obj= LocalSystem',
+    'create {#ServiceName} binPath= "' + ExpandConstant('{app}') + '\SmsNotificationService.exe" start= delayed-auto DisplayName= "{#ServiceDisplay}" obj= LocalSystem',
     'Failed to create Windows service.'
   );
   Log('Service created.');
 
   // 4. Configure service
   ConfigureServiceDescription('{#ServiceName}', '{#ServiceDesc}');
-  ConfigureDelayedAutoStart('{#ServiceName}');
   ConfigureRecovery('{#ServiceName}');
 
   // 5. Start service
