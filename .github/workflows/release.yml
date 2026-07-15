@@ -71,10 +71,16 @@ jobs:
           echo "version='${{ needs.tag.outputs.version }}'"
           echo "new_tag='${{ needs.tag.outputs.new_tag }}'"
           echo "=== Resolving version ==="
-          VERSION="${{ needs.tag.outputs.version }}"
-          if [ -z "$VERSION" ]; then
-            echo "Tag output empty — falling back to latest git tag"
-            VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.0.0")
+          VERSION="1.0.0"
+          if [ -n "${{ needs.tag.outputs.version }}" ]; then
+            VERSION="${{ needs.tag.outputs.version }}"
+          elif [ -n "${{ needs.tag.outputs.new_tag }}" ]; then
+            VERSION="${{ needs.tag.outputs.new_tag }}"
+          else
+            GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+            if [ -n "$GIT_TAG" ]; then
+              VERSION="$GIT_TAG"
+            fi
           fi
           echo "RESOLVED_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Resolved version: $VERSION"
