@@ -1,6 +1,7 @@
 using SmsNotificationService.Checks;
 using SmsNotificationService.Configuration;
 using SmsNotificationService.Data;
+using SmsNotificationService.Logging;
 using SmsNotificationService.Models;
 using SmsNotificationService.Services;
 using SmsNotificationService.Workers;
@@ -11,6 +12,14 @@ using Dapper;
 var builder = Host.CreateApplicationBuilder(args);
 
 var environment = builder.Environment.EnvironmentName;
+
+// File logging — ProgramData\Munywele\SmsNotificationService\logs\
+var logDir = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+    "Munywele", "SmsNotificationService", "logs");
+
+var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName).Get<SmsServiceOptions>() ?? new();
+builder.Logging.AddProvider(new FileLoggerProvider(logDir, svcOptions.LogRetentionDays, svcOptions.MaxLogFileSizeMb));
 var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
 logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
 
@@ -66,8 +75,10 @@ builder.Services.AddSingleton<SqlDependencyListener>(sp =>
 
 builder.Services.AddSingleton<ISmsSender, SmsApiService>();
 
-// Register our background worker
-builder.Services.AddHostedService<Worker>();
+// Register shared processor and workers
+builder.Services.AddSingleton<NotificationProcessor>();
+builder.Services.AddHostedService<TableChangeListener>();
+builder.Services.AddHostedService<RetryPoller>();
 
 var host = builder.Build();
 

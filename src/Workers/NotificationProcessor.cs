@@ -4,54 +4,28 @@ using SmsNotificationService.Services;
 
 namespace SmsNotificationService.Workers;
 
-public class Worker : BackgroundService
+/// <summary>
+/// Shared notification processing logic used by both the table change listener
+/// and the retry poller. Thread-safe via SemaphoreSlim.
+/// </summary>
+public sealed class NotificationProcessor
 {
-    private readonly ILogger<Worker> _logger;
+    private readonly ILogger<NotificationProcessor> _logger;
     private readonly INotificationRepository _repository;
     private readonly ISmsSender _smsSender;
-    private readonly SqlDependencyListener _listener;
-
     private readonly SemaphoreSlim _processingLock = new(1, 1);
     private int _inFlightCount;
-    private bool _listenerActive;
 
-    private const int ShutdownTimeoutSeconds = 30;
+    public int InFlightCount => _inFlightCount;
 
-    public bool IsListenerActive => _listenerActive;
-
-    public Worker(ILogger<Worker> logger, INotificationRepository repository, ISmsSender smsSender, SqlDependencyListener listener)
+    public NotificationProcessor(ILogger<NotificationProcessor> logger, INotificationRepository repository, ISmsSender smsSender)
     {
         _logger = logger;
         _repository = repository;
         _smsSender = smsSender;
-        _listener = listener;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        _logger.LogInformation("[Start] Initializing SMS notification service");
-
-        try
-        {
-            await ProcessPendingNotifications(stoppingToken);
-
-            _listener.Start();
-            _logger.LogInformation("[Listener] SqlDependency started, registering query...");
-
-            _listener.RegisterQueryWithRetry(
-                onChanges: () => ProcessPendingNotifications(stoppingToken).GetAwaiter().GetResult(),
-                stoppingToken: stoppingToken);
-
-            _listenerActive = true;
-        }
-        catch (Exception ex)
-        {
-            _listenerActive = false;
-            _logger.LogCritical(ex, "[Listener] Failed to start SqlDependency — Service Broker may not be enabled on the target database");
-        }
-    }
-
-    private async Task ProcessPendingNotifications(CancellationToken stoppingToken)
+    public async Task ProcessPendingAsync(CancellationToken stoppingToken)
     {
         if (!await _processingLock.WaitAsync(0, stoppingToken))
         {
@@ -128,30 +102,5 @@ public class Worker : BackgroundService
         {
             Interlocked.Decrement(ref _inFlightCount);
         }
-    }
-
-    public override async Task StopAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("[Shutdown] Stopping SMS notification service...");
-
-        _listenerActive = false;
-        _listener.Stop();
-        _logger.LogInformation("[Shutdown] SqlDependency listener stopped");
-
-        var timeout = TimeSpan.FromSeconds(ShutdownTimeoutSeconds);
-        var deadline = DateTime.UtcNow + timeout;
-
-        while (_inFlightCount > 0 && DateTime.UtcNow < deadline)
-        {
-            _logger.LogInformation("[Shutdown] Waiting for {Count} in-flight send(s) to complete...", _inFlightCount);
-            await Task.Delay(500, cancellationToken);
-        }
-
-        if (_inFlightCount > 0)
-            _logger.LogWarning("[Shutdown] Timed out after {Timeout}s — {Count} send(s) still in progress", timeout.TotalSeconds, _inFlightCount);
-        else
-            _logger.LogInformation("[Shutdown] All operations completed cleanly");
-
-        await base.StopAsync(cancellationToken);
     }
 }
