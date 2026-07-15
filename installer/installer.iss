@@ -536,6 +536,8 @@ begin
   DbPage.Add('Database (e.g. school):', False);
   DbPage.Add('Username (e.g. sa):', False);
   DbPage.Add('Password:', True);
+  DbPage.Values[0] := '127.0.0.1';
+  DbPage.Values[2] := 'sa';
 
   ApiUrlPage := CreateInputQueryPage(DbPage.ID,
     'SMS API Configuration',
