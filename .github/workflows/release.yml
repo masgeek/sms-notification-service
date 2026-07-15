@@ -41,6 +41,16 @@ jobs:
           tag_prefix: ""
           create_annotated_tag: true
 
+      - name: Debug tag outputs
+        run: |
+          echo "=== Tag Action Outputs ==="
+          echo "version=${{ steps.tag_version.outputs.version }}"
+          echo "new_tag=${{ steps.tag_version.outputs.new_tag }}"
+          echo "changelog=${{ steps.tag_version.outputs.changelog }}"
+          echo "previous_tag=${{ steps.tag_version.outputs.previous_tag }}"
+          echo "=== All Outputs ==="
+          echo '${{ toJSON(steps.tag_version.outputs) }}'
+
   build:
     needs: tag
     runs-on: windows-latest
@@ -56,13 +66,22 @@ jobs:
       - name: Debug tag outputs
         shell: bash
         run: |
-          echo "version=${{ needs.tag.outputs.version }}"
-          echo "new_tag=${{ needs.tag.outputs.new_tag }}"
+          echo "=== Tag outputs from tag job ==="
+          echo "version='${{ needs.tag.outputs.version }}'"
+          echo "new_tag='${{ needs.tag.outputs.new_tag }}'"
+          echo "=== Resolving version ==="
+          VERSION="${{ needs.tag.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            echo "Tag output empty — falling back to latest git tag"
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "1.0.0")
+          fi
+          echo "RESOLVED_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
 
       - name: Update Directory.Build.props
         shell: bash
         run: |
-          VERSION="${{ needs.tag.outputs.version }}"
+          VERSION="${{ steps.resolve-version.outputs.RESOLVED_VERSION }}"
           echo "Writing version: ${VERSION}"
           echo "<Project>" > Directory.Build.props
           echo "  <PropertyGroup>" >> Directory.Build.props
@@ -73,6 +92,9 @@ jobs:
           echo "  </PropertyGroup>" >> Directory.Build.props
           echo "</Project>" >> Directory.Build.props
           cat Directory.Build.props
+
+      - name: Clean intermediate output
+        run: dotnet clean -c Release && dotnet buildserver shutdown
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -106,7 +128,16 @@ jobs:
           VERSION: ${{ needs.tag.outputs.version }}
 
       - name: Verify version in build
-        run: '& publish\SmsNotificationService.exe --version'
+        run: |
+          $builtVersion = & publish\SmsNotificationService.exe --version
+          Write-Host "Built version: $builtVersion"
+          Write-Host "Expected version: $env:VERSION"
+          if ($builtVersion -ne $env:VERSION) {
+            Write-Error "Version mismatch! Built: $builtVersion, Expected: $env:VERSION"
+            exit 1
+          }
+        env:
+          VERSION: ${{ needs.tag.outputs.version }}
 
       - name: Verify artifacts
         shell: bash
