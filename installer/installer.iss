@@ -281,9 +281,9 @@ procedure ConfigureRecovery(const SvcName: String);
 var
   ExitCode: Integer;
 begin
-  // reset=86400 (1 day), actions=restart/5s x3
-  Exec('sc.exe', 'failure ' + SvcName + ' reset= 86400 actions= restart/5000/restart/5000/restart/5000', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
-  Log('Failure recovery configured.');
+  // reset=86400 (1 day), actions=restart/5min, restart/5s, restart/5s
+  Exec('sc.exe', 'failure ' + SvcName + ' reset= 86400 actions= restart/300000/restart/5000/restart/5000', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+  Log('Failure recovery configured (5min, 5s, 5s).');
 end;
 
 // ============================================================================
