@@ -82,14 +82,13 @@ jobs:
               VERSION="$GIT_TAG"
             fi
           fi
-          echo "RESOLVED_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Using VERSION: $VERSION"
 
       - name: Update Directory.Build.props
         shell: bash
         run: |
-          VERSION="${{ steps.resolve-version.outputs.RESOLVED_VERSION }}"
-          echo "Writing version: ${VERSION}"
+          echo "Writing version: $VERSION"
           echo "<Project>" > Directory.Build.props
           echo "  <PropertyGroup>" >> Directory.Build.props
           echo "    <Version>${VERSION}</Version>" >> Directory.Build.props
@@ -132,8 +131,6 @@ jobs:
         run: |
           Write-Host "ISCC version: $env:VERSION"
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" "installer\installer.iss"
-        env:
-          VERSION: ${{ steps.resolve-version.outputs.RESOLVED_VERSION }}
 
       - name: Verify version in build
         run: |
@@ -144,8 +141,6 @@ jobs:
             Write-Error "Version mismatch! Built: $builtVersion, Expected: $env:VERSION"
             exit 1
           }
-        env:
-          VERSION: ${{ steps.resolve-version.outputs.RESOLVED_VERSION }}
 
       - name: Verify artifacts
         shell: bash
