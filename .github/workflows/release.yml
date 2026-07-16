@@ -5,31 +5,39 @@ on:
     workflows: ["Tests"]
     types: [completed]
     branches: [main]
+  # push:
+  #   branches:
+  #     - develop
+  #   paths-ignore:
+  #     - "**.md"
+  #     - "docs/**"
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-and-release:
-    runs-on: windows-latest
-    timeout-minutes: 20
+  tag:
+    name: Generate Version Tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: >
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
-    concurrency:
-      cancel-in-progress: false
-      group: release-${{ github.ref }}
-
+    outputs:
+      version: ${{ steps.tag_version.outputs.version }}
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
 
       - name: Generate Tag
         id: tag_version
@@ -39,10 +47,57 @@ jobs:
           tag_prefix: ""
           create_annotated_tag: true
 
+      - name: Debug tag outputs
+        run: |
+          echo "=== Tag Action Outputs ==="
+          echo "version=${{ steps.tag_version.outputs.version }}"
+          echo "new_tag=${{ steps.tag_version.outputs.new_tag }}"
+          echo "changelog=${{ steps.tag_version.outputs.changelog }}"
+          echo "previous_tag=${{ steps.tag_version.outputs.previous_tag }}"
+          echo "=== All Outputs ==="
+          echo '${{ toJSON(steps.tag_version.outputs) }}'
+
+  build:
+    name: Build and Package
+    needs: tag
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+          cache: true
+
+      - name: Debug tag outputs
+        id: resolve-version
+        shell: bash
+        run: |
+          echo "=== Tag outputs from tag job ==="
+          echo "version='${{ needs.tag.outputs.version }}'"
+          echo "new_tag='${{ needs.tag.outputs.new_tag }}'"
+          echo "=== Resolving version ==="
+          VERSION="1.0.0"
+          if [ -n "${{ needs.tag.outputs.version }}" ]; then
+            VERSION="${{ needs.tag.outputs.version }}"
+          elif [ -n "${{ needs.tag.outputs.new_tag }}" ]; then
+            VERSION="${{ needs.tag.outputs.new_tag }}"
+          else
+            GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+            if [ -n "$GIT_TAG" ]; then
+              VERSION="$GIT_TAG"
+            fi
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Using VERSION: $VERSION"
+
       - name: Update Directory.Build.props
         shell: bash
         run: |
-          VERSION="${{ steps.tag_version.outputs.version }}"
+          echo "Writing version: $VERSION"
           echo "<Project>" > Directory.Build.props
           echo "  <PropertyGroup>" >> Directory.Build.props
           echo "    <Version>${VERSION}</Version>" >> Directory.Build.props
@@ -51,14 +106,11 @@ jobs:
           echo "    <InformationalVersion>${VERSION}</InformationalVersion>" >> Directory.Build.props
           echo "  </PropertyGroup>" >> Directory.Build.props
           echo "</Project>" >> Directory.Build.props
+          cat Directory.Build.props
 
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
+      - name: Clean intermediate output
+        shell: bash
+        run: rm -rf **/bin/Release **/obj/Release
 
       - name: Restore
         run: dotnet restore
@@ -77,19 +129,68 @@ jobs:
         run: choco install innosetup -y
 
       - name: Build installer
-        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=${{ steps.tag_version.outputs.version }} installer\installer.iss'
+        run: |
+          Write-Host "ISCC version: $env:VERSION"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" "installer\installer.iss"
+
+      - name: Verify version in build
+        run: |
+          $builtVersion = & publish\SmsNotificationService.exe --version
+          Write-Host "Built version: $builtVersion"
+          Write-Host "Expected version: $env:VERSION"
+          if ($builtVersion -ne $env:VERSION) {
+            Write-Error "Version mismatch! Built: $builtVersion, Expected: $env:VERSION"
+            exit 1
+          }
+
+      - name: Verify artifacts
+        shell: bash
+        run: |
+          echo "=== Build output ==="
+          ls -la SmsNotificationService-win-x64.zip
+          echo "=== Installer output ==="
+          ls -la installer/output/
+          echo "=== Version: $VERSION ==="
+
+      - name: Copy installer to root
+        shell: bash
+        run: cp installer/output/SmsNotificationService-Setup-*.exe .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-artifacts
+          path: |
+            SmsNotificationService-win-x64.zip
+            SmsNotificationService-Setup-*.exe
+          retention-days: 1
+
+  release:
+    name: Publish GitHub Release
+    needs: [tag, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-artifacts
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: ls -la artifacts/
 
       - name: Create GitHub Release
-        uses: ncipollo/release-action@v1.16.0
+        uses: ncipollo/release-action@v1.21.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.tag_version.outputs.new_tag }}
-          name: Version ${{ steps.tag_version.outputs.new_tag }}
-          body: ${{ steps.tag_version.outputs.changelog }}
+          tag: ${{ needs.tag.outputs.new_tag }}
+          name: Version ${{ needs.tag.outputs.new_tag }}
+          body: ${{ needs.tag.outputs.changelog }}
           makeLatest: true
           allowUpdates: true
           generateReleaseNotes: true
           skipIfReleaseExists: false
           artifacts: |
-            SmsNotificationService-win-x64.zip
-            installer/output/SmsNotificationService-Setup-${{ steps.tag_version.outputs.version }}.exe
+            artifacts/SmsNotificationService-win-x64.zip
+            artifacts/SmsNotificationService-Setup-*.exe
