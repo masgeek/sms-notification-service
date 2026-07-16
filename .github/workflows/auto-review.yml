@@ -45,12 +45,12 @@ jobs:
             --jq "[.[] | select(.commit_id == \"$HEAD_SHA\" and .state == \"APPROVED\" and (.user.login | endswith(\"[bot]\")))] | length > 0")
           echo "already_approved=$ALREADY_APPROVED" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for checks
+      - name: Wait for Tests to pass
         if: steps.precheck.outputs.already_approved == 'false'
         uses: lewagon/wait-on-check-action@v1.8.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          check-name: "All Checks Passed"
+          check-name: "Validate Inno Setup Script"
           repo-token: ${{ steps.app-token.outputs.token }}
           wait-interval: 30
           allowed-conclusions: success
