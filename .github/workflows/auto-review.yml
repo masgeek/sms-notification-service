@@ -1,0 +1,75 @@
+name: Auto Review PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: auto-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-approve:
+    name: Auto Approve PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Skip drafts, skip PRs from the bot itself, only auto-approve trusted authors,
+    # and let a "hold" label give a human an escape hatch to block auto-approval.
+    if: |
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login != 'masgeek-bot[bot]' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) &&
+      !contains(github.event.pull_request.labels.*.name, 'hold')
+    steps:
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+
+      - name: Skip if already approved for this commit
+        id: precheck
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          ALREADY_APPROVED=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
+            --jq "[.[] | select(.commit_id == \"$HEAD_SHA\" and .state == \"APPROVED\" and .user.login | endswith(\"[bot]\"))] | length > 0")
+          echo "already_approved=$ALREADY_APPROVED" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for checks
+        if: steps.precheck.outputs.already_approved == 'false'
+        uses: lewagon/wait-on-check-action@v1.8.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: "All Checks Passed"
+          repo-token: ${{ steps.app-token.outputs.token }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+      - name: Approve PR
+        if: steps.precheck.outputs.already_approved == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr review ${{ github.event.pull_request.number }} \
+            --approve \
+            --body "✅ Auto-approved — all checks passed on \`${{ github.event.pull_request.head.sha }}\`."
+
+      - name: Comment on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "⚠️ Auto-review could not approve this PR — checks did not pass or timed out on \`${{ github.event.pull_request.head.sha }}\`. Manual review required."
