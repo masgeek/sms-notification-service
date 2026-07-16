@@ -22,14 +22,38 @@ var builder = Host.CreateApplicationBuilder(args);
 var environment = builder.Environment.EnvironmentName;
 
 // File logging — ProgramData\Munywele\SmsNotificationService\logs\
-var logDir = Path.Combine(
+var appDataDir = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-    "Munywele", "SmsNotificationService", "logs");
+    "Munywele", "SmsNotificationService");
+
+var logDir = Path.Combine(appDataDir, "logs");
+
+// Load config from ProgramData as additional source
+var prodConfigPath = Path.Combine(appDataDir, "appsettings.Production.json");
+try
+{
+    if (File.Exists(prodConfigPath))
+        builder.Configuration.AddJsonFile(prodConfigPath, optional: true, reloadOnChange: false);
+}
+catch (UnauthorizedAccessException)
+{
+    Console.WriteLine($"[Config] Warning: Access denied to {prodConfigPath} — using environment variables or defaults");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[Config] Warning: Could not load {prodConfigPath}: {ex.Message} — using environment variables or defaults");
+}
 
 var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName).Get<SmsServiceOptions>() ?? new();
 builder.Logging.AddProvider(new FileLoggerProvider(logDir, svcOptions.LogRetentionDays, svcOptions.MaxLogFileSizeMb));
 var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
 logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
+
+// Log config source
+if (File.Exists(prodConfigPath))
+    logger.LogInformation("[Config] Loading config from: {Path}", prodConfigPath);
+else
+    logger.LogInformation("[Config] No config file found at {Path} — using environment variables or defaults", prodConfigPath);
 
 // Map PascalCase model properties to snake_case DB columns for Dapper
 SqlMapper.SetTypeMap(typeof(SmsNotification), new CustomPropertyTypeMap(
