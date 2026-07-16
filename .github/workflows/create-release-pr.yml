@@ -1,13 +1,11 @@
 name: Create Release PR
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
     branches:
       - develop
-      - ci/pr
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
   workflow_dispatch:
 
 permissions:
@@ -20,6 +18,12 @@ jobs:
     name: Open PR to Main
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      cancel-in-progress: true
+      group: release-pr-${{ github.ref }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -32,7 +36,7 @@ jobs:
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          permission-contents: write
+          permission-contents: read
           permission-pull-requests: write
           permission-issues: write
 
