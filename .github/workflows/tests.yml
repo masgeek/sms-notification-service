@@ -16,7 +16,7 @@ jobs:
       group: test-${{ github.ref }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Skip if this commit already passed tests
       - name: Restore test result cache
@@ -57,7 +57,7 @@ jobs:
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
         with:
           path: installer/installer.iss
-          
+
       # Save sentinel only after tests pass
       - name: Create test sentinel
         if: steps.test-cache.outputs.cache-hit != 'true' && success()
