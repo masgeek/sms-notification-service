@@ -93,7 +93,7 @@ jobs:
           echo placeholder > publish\SmsNotificationService.exe
 
       - name: Compile and validate ISS script
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: installer/installer.iss
 
