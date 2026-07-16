@@ -1,0 +1,146 @@
+name: Create Release PR
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  create-pr:
+    name: Open PR to Main
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      cancel-in-progress: true
+      group: release-pr-${{ github.ref }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+          permission-issues: write
+
+      # - name: Ensure labels exist
+      #   env:
+      #     GH_TOKEN: ${{ steps.app-token.outputs.token }}
+      #   run: |
+      #     gh label create release --color "0E8A16" --description "Automated release PR" --force
+      #     gh label create automated --color "5319E7" --description "Created by a workflow" --force
+
+      - name: Get latest tag
+        id: tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          echo "latest=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          if [ "${{ steps.tag.outputs.latest }}" != "none" ]; then
+            RANGE="${{ steps.tag.outputs.latest }}..HEAD"
+          else
+            RANGE="HEAD~20..HEAD"
+          fi
+
+          declare -A TITLES=(
+            [feat]="✨ Features" [fix]="🐛 Fixes" [perf]="⚡ Performance"
+            [refactor]="♻️ Refactoring" [docs]="📝 Docs" [test]="✅ Tests"
+            [build]="📦 Build" [ci]="🤖 CI" [chore]="🧹 Chore" [revert]="⏪ Reverts"
+          )
+          ORDER=(feat fix perf refactor docs test build ci chore revert)
+
+          declare -A BUCKETS
+          OTHER=""
+
+          while IFS= read -r line; do
+            hash="${line%%|*}"
+            rest="${line#*|}"
+            subject="${rest#*|}"
+            type=$(echo "$subject" | grep -oP '^[a-zA-Z]+(?=(\(.+\))?!?:)' | tr '[:upper:]' '[:lower:]')
+            entry="- ${subject} (${hash})"
+            if [[ -n "$type" && -n "${TITLES[$type]:-}" ]]; then
+              BUCKETS[$type]+="${entry}"$'\n'
+            else
+              OTHER+="${entry}"$'\n'
+            fi
+          done < <(git log $RANGE --no-merges --pretty=format:"%h|%an|%s")
+
+          NOTES=""
+          for type in "${ORDER[@]}"; do
+            if [[ -n "${BUCKETS[$type]:-}" ]]; then
+              NOTES+="### ${TITLES[$type]}"$'\n'"${BUCKETS[$type]}"$'\n'
+            fi
+          done
+          if [[ -n "$OTHER" ]]; then
+            NOTES+="### 📌 Other"$'\n'"${OTHER}"$'\n'
+          fi
+
+          STAT=$(git diff --shortstat $RANGE 2>/dev/null || echo "no changes")
+          CONTRIBUTORS=$(git log $RANGE --no-merges --pretty=format:"%an" | sort -u | sed 's/^/- /')
+          COMMIT_COUNT=$(git log $RANGE --no-merges --oneline | wc -l | tr -d ' ')
+
+          {
+            echo "notes<<NOTES_EOF"
+            echo "$NOTES"
+            echo "NOTES_EOF"
+            echo "stat<<STAT_EOF"
+            echo "$STAT"
+            echo "STAT_EOF"
+            echo "contributors<<CONTRIB_EOF"
+            echo "$CONTRIBUTORS"
+            echo "CONTRIB_EOF"
+            echo "commit_count=$COMMIT_COUNT"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create or update Pull Request
+        uses: devops-infra/action-pull-request@v1.4.0
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          # source_branch: ${{ github.ref_name }}
+          source_branch: develop
+          target_branch: main
+          label: release,automated,bot-release
+          reviewer: masgeek
+          create_missing_labels: true
+          title: "Release: ${{ github.ref_name }} → main"
+          body: |
+            ## 🚀 Automated Release PR
+
+            **Source:** `${{ github.ref_name }}` → **Target:** `main`
+            **Previous tag:** `${{ steps.tag.outputs.latest }}`
+            **Commits included:** ${{ steps.notes.outputs.commit_count }}
+            **Diff:** ${{ steps.notes.outputs.stat }}
+
+            ---
+
+            ${{ steps.notes.outputs.notes }}
+
+            ---
+
+            ### 👥 Contributors
+            ${{ steps.notes.outputs.contributors }}
+
+            ---
+            > Merge this PR to trigger the release workflow.
+          get_diff: false
+          allow_no_diff: false

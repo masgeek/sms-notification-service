@@ -1,0 +1,161 @@
+name: Auto Review PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: auto-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-approve:
+    name: Auto Approve PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: |
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login != 'masgeek-bot[bot]' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) &&
+      !contains(github.event.pull_request.labels.*.name, 'hold')
+    steps:
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+
+      - name: Skip if already approved for this commit
+        id: precheck
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          ALREADY_APPROVED=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
+            --jq "[.[] | select(.commit_id == \"$HEAD_SHA\" and .state == \"APPROVED\" and (.user.login | endswith(\"[bot]\")))] | length > 0")
+          echo "already_approved=$ALREADY_APPROVED" >> "$GITHUB_OUTPUT"
+
+      - name: Check for unresolved review threads
+        id: threads
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          UNRESOLVED=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                      isOutdated
+                    }
+                  }
+                }
+              }
+            }' \
+            -f owner="${{ github.repository_owner }}" \
+            -f repo="${{ github.event.repository.name }}" \
+            -F pr="${{ github.event.pull_request.number }}" \
+            --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .isOutdated == false)] | length')
+          echo "unresolved_count=$UNRESOLVED" >> "$GITHUB_OUTPUT"
+
+      - name: Check for workflow file changes
+        id: workflow-files
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          CHANGED=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --paginate \
+            --jq '[.[] | select(.filename | startswith(".github/workflows/"))] | length > 0')
+          echo "workflow_changed=$CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: Check if branch is up to date with base
+        id: up-to-date
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          PR_BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          CURRENT_BASE_SHA=$(gh api "repos/${{ github.repository }}/commits/$BASE_BRANCH" --jq '.sha')
+          if [ "$PR_BASE_SHA" == "$CURRENT_BASE_SHA" ]; then
+            echo "branch_stale=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch_stale=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for Tests to pass
+        if: |
+          steps.precheck.outputs.already_approved == 'false' &&
+          steps.threads.outputs.unresolved_count == '0' &&
+          steps.workflow-files.outputs.workflow_changed == 'false' &&
+          steps.up-to-date.outputs.branch_stale == 'false'
+        uses: lewagon/wait-on-check-action@v1.8.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: "Validate Inno Setup Script"
+          repo-token: ${{ steps.app-token.outputs.token }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+      - name: Approve PR
+        if: |
+          steps.precheck.outputs.already_approved == 'false' &&
+          steps.threads.outputs.unresolved_count == '0' &&
+          steps.workflow-files.outputs.workflow_changed == 'false' &&
+          steps.up-to-date.outputs.branch_stale == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr review ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --approve \
+            --body "✅ Auto-approved — all checks passed on \`${{ github.event.pull_request.head.sha }}\`."
+
+      - name: Comment when blocked by unresolved conversations
+        if: steps.threads.outputs.unresolved_count != '0'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "⏳ Auto-approval skipped — this PR has ${{ steps.threads.outputs.unresolved_count }} unresolved review conversation(s). Resolve them to allow auto-approval."
+
+      - name: Comment when blocked by workflow file changes
+        if: steps.workflow-files.outputs.workflow_changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "🔒 Auto-approval skipped — this PR modifies files under \`.github/workflows/\`. CI/CD changes require manual review."
+
+      - name: Comment when blocked by stale branch
+        if: |
+          steps.threads.outputs.unresolved_count == '0' &&
+          steps.workflow-files.outputs.workflow_changed == 'false' &&
+          steps.up-to-date.outputs.branch_stale == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "🔄 Auto-approval skipped — this branch is behind \`${{ github.event.pull_request.base.ref }}\`. Update the branch to allow auto-approval."
+
+      - name: Comment on check failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "⚠️ Auto-review could not approve this PR — checks did not pass or timed out on \`${{ github.event.pull_request.head.sha }}\`. Manual review required."
