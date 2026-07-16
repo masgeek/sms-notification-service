@@ -40,6 +40,17 @@ SQL Server                     SMS API
 
 ## Setup
 
+### Windows SmartScreen Warning
+
+When you first run the installer, Windows SmartScreen may show a warning because the application doesn't have an established reputation yet. This is expected for new software.
+
+**To run the installer:**
+
+1. Click **"More info"**
+2. Click **"Run anyway"**
+
+> This warning disappears after the application builds download reputation, or can be eliminated by purchasing a code signing certificate (~$70/year from SSL.com).
+
 ### 1. Enable Service Broker
 
 ```sql
@@ -58,6 +69,7 @@ CREATE TABLE sms_notifications (
     amount          DECIMAL(18,2)   NULL,
     receipt_no      NVARCHAR(100)   NULL,
     dated           DATETIME        NULL,
+    description     NVARCHAR(MAX)   NULL,
     status          NVARCHAR(20)    NOT NULL DEFAULT 'PENDING',
     max_retries     INT             NOT NULL DEFAULT 5,
     retry_count     INT             NOT NULL DEFAULT 0,
@@ -172,6 +184,7 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 - **Graceful shutdown** — Waits up to 30s for in-flight sends
 - **Typed configuration** — `IOptions<SmsServiceOptions>` with startup validation
 - **File logging** — Daily rotation, configurable retention and max size
+- **Error logging** — API error responses saved to `description` column for debugging
 - **Null safety** — Nullable enabled with warnings-as-errors
 - **Structured logging** — `[Tag]` prefixed logs for quick filtering
 

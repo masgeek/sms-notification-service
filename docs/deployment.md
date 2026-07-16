@@ -4,6 +4,35 @@
 
 Download the latest installer from [GitHub Releases](../../releases) and run `SmsNotificationService-Setup-<version>.exe` as Administrator.
 
+## Windows SmartScreen Warning
+
+When you first run the installer, Windows SmartScreen may show a warning: **"Windows protected your PC"**. This is expected for new software without an established download reputation.
+
+### How to Bypass
+
+1. Click **"More info"**
+2. Click **"Run anyway"**
+
+![SmartScreen Bypass](https://learn.microsoft.com/en-us/windows/win32/secauthn/images/smartscreen-more-info.png)
+
+### Why This Happens
+
+- The application is not signed with a code signing certificate
+- Windows SmartScreen builds reputation based on download counts
+- New applications trigger warnings until they establish reputation
+
+### To Avoid This Warning Permanently
+
+Purchase a code signing certificate:
+
+| Provider | Cost | Notes |
+|----------|------|-------|
+| SSL.com | ~$70/year | Cheapest legitimate option |
+| Certum | ~€20/year | Polish CA, good prices |
+| DigiCert | ~$200+/year | Industry standard |
+
+> Even with a certificate, new signings trigger SmartScreen temporarily until reputation builds.
+
 ## Build from Source
 
 ### Publish (self-contained — no .NET runtime needed on target)
