@@ -56,8 +56,8 @@ jobs:
       - name: Validate installer script
         run: |
           choco install innosetup -y
-          mkdir installer\publish
-          echo placeholder > installer\publish\SmsNotificationService.exe
+          mkdir publish
+          echo placeholder > publish\SmsNotificationService.exe
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
 
       # Save sentinel only after tests pass
