@@ -61,7 +61,7 @@ internal sealed class FileLogger : ILogger, IDisposable
     private readonly string _logDirectory;
     private readonly string _categoryName;
     private readonly long _maxFileSizeBytes;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private string _filePath;
     private StreamWriter _writer;
 
