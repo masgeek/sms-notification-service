@@ -5,10 +5,15 @@ on:
     paths-ignore:
       - "**.md"
       - "docs/**"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   workflow_dispatch:
 
 jobs:
   test:
+    name: .NET Tests
     runs-on: windows-latest
     timeout-minutes: 15
     concurrency:
@@ -16,9 +21,9 @@ jobs:
       group: test-${{ github.ref }}
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Skip if this commit already passed tests
       - name: Restore test result cache
         id: test-cache
         uses: actions/cache/restore@v4
@@ -26,45 +31,43 @@ jobs:
           path: .test-passed
           key: test-result-${{ github.sha }}
 
-      - name: Setup .NET
+      - name: Setup .NET SDK
         if: steps.test-cache.outputs.cache-hit != 'true'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+          cache: true
 
-      - name: Cache NuGet packages
-        if: steps.test-cache.outputs.cache-hit != 'true'
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
-
-      - name: Restore
+      - name: Restore NuGet packages
         if: steps.test-cache.outputs.cache-hit != 'true'
         run: dotnet restore
 
-      - name: Build
+      - name: Build project
         if: steps.test-cache.outputs.cache-hit != 'true'
         run: dotnet build -c Release --no-restore
 
-      - name: Test
+      - name: Check code formatting
         if: steps.test-cache.outputs.cache-hit != 'true'
-        run: dotnet test -c Release --no-build --verbosity normal
+        run: dotnet format --verify-no-changes --no-restore
 
-      - name: Create dummy publish folder
-        run: |
-          mkdir publish
-          echo placeholder > publish\SmsNotificationService.exe
+      - name: Run unit tests
+        if: steps.test-cache.outputs.cache-hit != 'true'
+        run: dotnet test -c Release --no-build --verbosity normal --logger "trx;LogFileName=TestResults.trx"
 
-      - name: Validate installer script
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
+      - name: Upload test results
+        if: steps.test-cache.outputs.cache-hit != 'true' && always()
+        uses: actions/upload-artifact@v4
         with:
-          path: installer/installer.iss
+          name: test-results
+          path: "**/TestResults.trx"
+          retention-days: 7
 
-      # Save sentinel only after tests pass
-      - name: Create test sentinel
+      - name: Check for vulnerable packages
+        if: steps.test-cache.outputs.cache-hit != 'true'
+        run: dotnet list package --vulnerable --include-transitive
+        continue-on-error: true
+
+      - name: Create test cache sentinel
         if: steps.test-cache.outputs.cache-hit != 'true' && success()
         run: echo "passed at $(date -u)" > .test-passed
 
@@ -74,3 +77,40 @@ jobs:
         with:
           path: .test-passed
           key: test-result-${{ github.sha }}
+
+  validate-installer:
+    name: Validate Inno Setup Script
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create dummy publish folder
+        run: |
+          mkdir publish
+          echo placeholder > publish\SmsNotificationService.exe
+
+      - name: Compile and validate ISS script
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
+        with:
+          path: installer/installer.iss
+
+  summary:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs: [test, validate-installer]
+    if: always()
+    steps:
+      - name: Evaluate job results
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "::error::Tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.validate-installer.result }}" != "success" ]; then
+            echo "::error::Installer validation failed"
+            exit 1
+          fi
+          echo "All checks passed"
