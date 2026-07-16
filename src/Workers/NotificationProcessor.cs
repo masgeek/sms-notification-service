@@ -75,12 +75,18 @@ public sealed class NotificationProcessor
         Interlocked.Increment(ref _inFlightCount);
         try
         {
-            var sent = await _smsSender.SendAsync(notification);
+            var result = await _smsSender.SendAsync(notification);
 
-            if (sent)
+            if (result.Success)
             {
                 await _repository.UpdateStatusAsync(notifId, NotificationStatus.PROCESSED);
                 return;
+            }
+
+            // Save the error response from the API
+            if (!string.IsNullOrEmpty(result.ErrorMessage))
+            {
+                await _repository.UpdateDescriptionAsync(notifId, result.ErrorMessage);
             }
 
             var nextRetry = notification.RetryCount + 1;

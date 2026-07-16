@@ -34,7 +34,7 @@ public class NotificationProcessorTests
         var notification = new SmsNotification { Id = 1, PhoneNumber = "0712345678" };
         _repositoryMock.Setup(r => r.GetPendingAsync())
             .ReturnsAsync(new List<SmsNotification> { notification });
-        _smsSenderMock.Setup(s => s.SendAsync(notification)).ReturnsAsync(true);
+        _smsSenderMock.Setup(s => s.SendAsync(notification)).ReturnsAsync(SendResult.Ok());
 
         var processor = CreateProcessor();
         await processor.ProcessPendingAsync(CancellationToken.None);
@@ -54,12 +54,14 @@ public class NotificationProcessorTests
         };
         _repositoryMock.Setup(r => r.GetPendingAsync())
             .ReturnsAsync(new List<SmsNotification> { notification });
-        _smsSenderMock.Setup(s => s.SendAsync(notification)).ReturnsAsync(false);
+        _smsSenderMock.Setup(s => s.SendAsync(notification))
+            .ReturnsAsync(SendResult.Fail("{\"error\":\"rate limit exceeded\"}"));
 
         var processor = CreateProcessor();
         await processor.ProcessPendingAsync(CancellationToken.None);
 
         _repositoryMock.Verify(r => r.UpdateStatusAsync(2, NotificationStatus.CANCELLED), Times.Once);
+        _repositoryMock.Verify(r => r.UpdateDescriptionAsync(2, "{\"error\":\"rate limit exceeded\"}"), Times.Once);
     }
 
     [Fact]
@@ -74,7 +76,8 @@ public class NotificationProcessorTests
         };
         _repositoryMock.Setup(r => r.GetPendingAsync())
             .ReturnsAsync(new List<SmsNotification> { notification });
-        _smsSenderMock.Setup(s => s.SendAsync(notification)).ReturnsAsync(false);
+        _smsSenderMock.Setup(s => s.SendAsync(notification))
+            .ReturnsAsync(SendResult.Fail("{\"error\":\"temporary failure\"}"));
         _smsSenderMock.Setup(s => s.CalculateRetryAfter(2))
             .Returns(DateTimeOffset.UtcNow.AddMinutes(5));
 
@@ -82,6 +85,7 @@ public class NotificationProcessorTests
         await processor.ProcessPendingAsync(CancellationToken.None);
 
         _repositoryMock.Verify(r => r.UpdateRetryAsync(3, 2, It.IsAny<DateTimeOffset>()), Times.Once);
+        _repositoryMock.Verify(r => r.UpdateDescriptionAsync(3, "{\"error\":\"temporary failure\"}"), Times.Once);
     }
 
     [Fact]
@@ -95,7 +99,7 @@ public class NotificationProcessorTests
         };
         _repositoryMock.Setup(r => r.GetPendingAsync())
             .ReturnsAsync(notifications);
-        _smsSenderMock.Setup(s => s.SendAsync(It.IsAny<SmsNotification>())).ReturnsAsync(true);
+        _smsSenderMock.Setup(s => s.SendAsync(It.IsAny<SmsNotification>())).ReturnsAsync(SendResult.Ok());
 
         var processor = CreateProcessor();
         await processor.ProcessPendingAsync(CancellationToken.None);

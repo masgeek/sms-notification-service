@@ -10,6 +10,7 @@ public class SmsNotification
     public decimal? Amount { get; set; }
     public string? ReceiptNo { get; set; }
     public DateTime? Dated { get; set; }
+    public string? Description { get; set; }
     public NotificationStatus Status { get; set; } = NotificationStatus.PENDING;
     public int MaxRetries { get; set; }
     public int RetryCount { get; set; }

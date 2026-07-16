@@ -39,4 +39,14 @@ public class NotificationRepository(string connectionString, ILogger<Notificatio
 
         _logger.LogDebug("[DB] Notification {Id} retry → {Count}, next attempt at {RetryAfter}", notificationId, retryCount, retryAfter);
     }
+
+    public async Task UpdateDescriptionAsync(long notificationId, string description)
+    {
+        using var connection = new SqlConnection(connectionString);
+        await connection.ExecuteAsync(
+            "UPDATE sms_notifications SET description = @Description, updated_at = @UpdatedAt WHERE id = @Id",
+            new { Description = description, UpdatedAt = DateTime.UtcNow, Id = notificationId });
+
+        _logger.LogDebug("[DB] Notification {Id} description updated", notificationId);
+    }
 }
