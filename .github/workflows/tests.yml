@@ -48,7 +48,7 @@ jobs:
 
       - name: Check code formatting
         if: steps.test-cache.outputs.cache-hit != 'true'
-        run: dotnet format --verify-no-changes --no-restore
+        run: dotnet format SmsNotificationService.slnx --verify-no-changes --verbosity diagnostic
 
       - name: Run unit tests
         if: steps.test-cache.outputs.cache-hit != 'true'
