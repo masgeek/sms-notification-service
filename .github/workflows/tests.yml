@@ -54,10 +54,10 @@ jobs:
         run: dotnet test -c Release --no-build --verbosity normal
 
       - name: Validate installer script
-        run: |
-          choco install innosetup -y
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /check installer\installer.iss
-
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
+        with:
+          path: installer/installer.iss
+          
       # Save sentinel only after tests pass
       - name: Create test sentinel
         if: steps.test-cache.outputs.cache-hit != 'true' && success()
