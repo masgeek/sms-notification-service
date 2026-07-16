@@ -59,6 +59,37 @@ Config is stored in `ProgramData\Munywele\SmsNotificationService\appsettings.Pro
 
 Edit the file directly or reinstall with "Enter new configuration" selected.
 
+### Environment Variables (Fallback)
+
+If the config file is missing, environment variables are used as a fallback:
+
+```powershell
+# Set (run as Administrator — persists across reboots)
+[Environment]::SetEnvironmentVariable("SmsService__ConnectionString", "Server=127.0.0.1;Database=school;User Id=sa;Password=YourPassword123;TrustServerCertificate=True;", "Machine")
+[Environment]::SetEnvironmentVariable("SmsService__SmsApiUrl", "https://api.munywele.co.ke/v1/send", "Machine")
+[Environment]::SetEnvironmentVariable("SmsService__AuthorizationToken", "your-bearer-token-here", "Machine")
+[Environment]::SetEnvironmentVariable("SmsService__RetryBackoffSeconds", "30", "Machine")
+
+# Verify
+[Environment]::GetEnvironmentVariable("SmsService__ConnectionString", "Machine")
+[Environment]::GetEnvironmentVariable("SmsService__SmsApiUrl", "Machine")
+
+# Remove
+[Environment]::SetEnvironmentVariable("SmsService__ConnectionString", $null, "Machine")
+[Environment]::SetEnvironmentVariable("SmsService__SmsApiUrl", $null, "Machine")
+[Environment]::SetEnvironmentVariable("SmsService__AuthorizationToken", $null, "Machine")
+[Environment]::SetEnvironmentVariable("SmsService__RetryBackoffSeconds", $null, "Machine")
+```
+
+| Config Key | Env Variable | Default | Description |
+|---|---|---|---|
+| `SmsService:ConnectionString` | `SmsService__ConnectionString` | — | SQL Server connection string |
+| `SmsService:SmsApiUrl` | `SmsService__SmsApiUrl` | — | SMS API endpoint URL |
+| `SmsService:AuthorizationToken` | `SmsService__AuthorizationToken` | — | Bearer token for API auth |
+| `SmsService:RetryBackoffSeconds` | `SmsService__RetryBackoffSeconds` | `30` | Base retry backoff in seconds |
+
+> **Priority:** Config file (`appsettings.Production.json`) > Environment variables > Defaults
+
 ## Manual Install
 
 ```powershell
