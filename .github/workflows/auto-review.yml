@@ -72,4 +72,5 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
             --body "⚠️ Auto-review could not approve this PR — checks did not pass or timed out on \`${{ github.event.pull_request.head.sha }}\`. Manual review required."
