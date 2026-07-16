@@ -20,8 +20,6 @@ jobs:
     name: Auto Approve PR
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    # Skip drafts, skip PRs from the bot itself, only auto-approve trusted authors,
-    # and let a "hold" label give a human an escape hatch to block auto-approval.
     if: |
       github.event.pull_request.draft == false &&
       github.event.pull_request.user.login != 'masgeek-bot[bot]' &&
@@ -44,7 +42,7 @@ jobs:
         run: |
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           ALREADY_APPROVED=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
-            --jq "[.[] | select(.commit_id == \"$HEAD_SHA\" and .state == \"APPROVED\" and .user.login | endswith(\"[bot]\"))] | length > 0")
+            --jq "[.[] | select(.commit_id == \"$HEAD_SHA\" and .state == \"APPROVED\" and (.user.login | endswith(\"[bot]\")))] | length > 0")
           echo "already_approved=$ALREADY_APPROVED" >> "$GITHUB_OUTPUT"
 
       - name: Wait for checks
@@ -63,6 +61,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh pr review ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
             --approve \
             --body "✅ Auto-approved — all checks passed on \`${{ github.event.pull_request.head.sha }}\`."
 
