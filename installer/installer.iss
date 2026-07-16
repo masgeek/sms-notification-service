@@ -12,6 +12,7 @@
   #define MyAppVersion     "1.0.0"
 #endif
 #define MyAppPublisher   "Munywele Consulting LTD"
+#define MyAppCopyright   "Copyright (C) 2026 Munywele Consulting LTD"
 #define ServiceName      "SmsNotificationService"
 #define ServiceDisplay   "SmsNotificationService"
 #define ServiceDesc      "Listens to SQL Server for SMS notifications and sends them via HTTP API"
@@ -32,12 +33,12 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL=https://munywele.co.ke
 AppSupportURL=https://github.com/masgeek/sms-notification-service/issues
 AppUpdatesURL=https://github.com/masgeek/sms-notification-service/releases
-AppCopyright=Copyright (C) 2026 Munywele Consulting LTD
+AppCopyright={#MyAppCopyright}
 AppVerName={#MyAppName} {#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
-VersionInfoCopyright={#AppCopyright}
+VersionInfoCopyright={#MyAppCopyright}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=output
