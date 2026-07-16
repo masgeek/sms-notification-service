@@ -53,6 +53,11 @@ jobs:
         if: steps.test-cache.outputs.cache-hit != 'true'
         run: dotnet test -c Release --no-build --verbosity normal
 
+      - name: Create dummy publish folder
+        run: |
+          mkdir installer\publish
+          echo placeholder > installer\publish\SmsNotificationService.exe
+
       - name: Validate installer script
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
         with:
