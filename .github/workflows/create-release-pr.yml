@@ -1,0 +1,71 @@
+name: Create Release PR
+
+on:
+  push:
+    branches:
+      - develop
+      - ci/pr
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-pr:
+    name: Open PR to Main
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Get latest tag
+        id: tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          echo "latest=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Get changelog since last tag
+        id: changelog
+        run: |
+          if [ "${{ steps.tag.outputs.latest }}" != "none" ]; then
+            LOG=$(git log "${{ steps.tag.outputs.latest }}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+          else
+            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          fi
+          echo "changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: develop
+          base: main
+          title: "Release: develop → main"
+          body: |
+            ## Automated Release PR
+
+            **Source:** `develop` → `main`
+            **Last tag:** `${{ steps.tag.outputs.latest }}`
+
+            ### Changes since last release
+            ${{ steps.changelog.outputs.changes }}
+
+            ---
+            > Merge this PR to trigger the release workflow.
+          commit-message: "chore: release develop → main"
+          labels: release,automated
