@@ -11,8 +11,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   create-pr:
@@ -35,12 +36,12 @@ jobs:
           permission-pull-requests: write
           permission-issues: write
 
-      - name: Ensure labels exist
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          gh label create release --color "0E8A16" --description "Automated release PR" --force
-          gh label create automated --color "5319E7" --description "Created by a workflow" --force
+      # - name: Ensure labels exist
+      #   env:
+      #     GH_TOKEN: ${{ steps.app-token.outputs.token }}
+      #   run: |
+      #     gh label create release --color "0E8A16" --description "Automated release PR" --force
+      #     gh label create automated --color "5319E7" --description "Created by a workflow" --force
 
       - name: Get latest tag
         id: tag
@@ -108,11 +109,14 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create or update Pull Request
-        uses: devops-infra/action-pull-request@v1.2.5
+        uses: devops-infra/action-pull-request@v1.4.0
         with:
           github_token: ${{ steps.app-token.outputs.token }}
           source_branch: ${{ github.ref_name }}
           target_branch: main
+          label: release,automated,bot-release
+          reviewer: masgeek
+          create_missing_labels: true
           title: "Release: ${{ github.ref_name }} → main"
           body: |
             ## 🚀 Automated Release PR
@@ -133,6 +137,5 @@ jobs:
 
             ---
             > Merge this PR to trigger the release workflow.
-          label: release,automated
           get_diff: false
           allow_no_diff: false
