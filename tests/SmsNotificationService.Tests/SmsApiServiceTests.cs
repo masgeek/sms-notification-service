@@ -47,7 +47,7 @@ public class SmsApiServiceTests
     };
 
     [Fact]
-    public async Task SendAsync_Success_ReturnsTrue()
+    public async Task SendAsync_Success_ReturnsOk()
     {
         var handler = new Mock<HttpMessageHandler>();
         handler.Protected()
@@ -59,11 +59,11 @@ public class SmsApiServiceTests
         var service = CreateService(handler.Object);
         var result = await service.SendAsync(CreateNotification());
 
-        result.Should().BeTrue();
+        result.Success.Should().BeTrue();
     }
 
     [Fact]
-    public async Task SendAsync_ServerError_RetriesAndReturnsFalse()
+    public async Task SendAsync_ServerError_RetriesAndReturnsFail()
     {
         var handler = new Mock<HttpMessageHandler>();
         handler.Protected()
@@ -72,19 +72,20 @@ public class SmsApiServiceTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.InternalServerError)
             {
-                Content = new StringContent("error")
+                Content = new StringContent("{\"error\":\"server unavailable\"}")
             });
 
         var service = CreateService(handler.Object);
         var result = await service.SendAsync(CreateNotification());
 
-        result.Should().BeFalse();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("{\"error\":\"server unavailable\"}");
         handler.Protected().Verify("SendAsync", Times.Exactly(3),
             ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>());
     }
 
     [Fact]
-    public async Task SendAsync_Exception_RetriesAndReturnsFalse()
+    public async Task SendAsync_Exception_RetriesAndReturnsFail()
     {
         var handler = new Mock<HttpMessageHandler>();
         handler.Protected()
@@ -96,11 +97,12 @@ public class SmsApiServiceTests
         var service = CreateService(handler.Object);
         var result = await service.SendAsync(CreateNotification());
 
-        result.Should().BeFalse();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Connection refused");
     }
 
     [Fact]
-    public async Task SendAsync_SecondAttemptSucceeds_ReturnsTrue()
+    public async Task SendAsync_SecondAttemptSucceeds_ReturnsOk()
     {
         var callCount = 0;
         var handler = new Mock<HttpMessageHandler>();
@@ -119,7 +121,7 @@ public class SmsApiServiceTests
         var service = CreateService(handler.Object);
         var result = await service.SendAsync(CreateNotification());
 
-        result.Should().BeTrue();
+        result.Success.Should().BeTrue();
         handler.Protected().Verify("SendAsync", Times.Exactly(2),
             ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>());
     }

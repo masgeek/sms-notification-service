@@ -23,7 +23,7 @@ public class SmsApiService : ISmsSender
         _retryBackoffSeconds = options.Value.RetryBackoffSeconds;
     }
 
-    public async Task<bool> SendAsync(SmsNotification notification)
+    public async Task<SendResult> SendAsync(SmsNotification notification)
     {
         for (int attempt = 1; attempt <= MaxRetries; attempt++)
         {
@@ -54,17 +54,27 @@ public class SmsApiService : ISmsSender
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("[SMS] Sent notification {Id} to {Phone}", notification.Id, notification.PhoneNumber);
-                    return true;
+                    return SendResult.Ok();
                 }
 
                 var body = await response.Content.ReadAsStringAsync();
                 _logger.LogWarning("[SMS] Notification {Id} to {Phone} failed — HTTP {StatusCode}: {Body} (attempt {Attempt}/{Max})",
                     notification.Id, notification.PhoneNumber, (int)response.StatusCode, body, attempt, MaxRetries);
+
+                if (attempt == MaxRetries)
+                {
+                    return SendResult.Fail(body);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[SMS] Notification {Id} to {Phone} exception (attempt {Attempt}/{Max})",
                     notification.Id, notification.PhoneNumber, attempt, MaxRetries);
+
+                if (attempt == MaxRetries)
+                {
+                    return SendResult.Fail(ex.Message);
+                }
             }
 
             if (attempt < MaxRetries)
@@ -75,7 +85,7 @@ public class SmsApiService : ISmsSender
             }
         }
 
-        return false;
+        return SendResult.Fail("Exhausted all retries");
     }
 
     public DateTimeOffset CalculateRetryAfter(int retryCount)
