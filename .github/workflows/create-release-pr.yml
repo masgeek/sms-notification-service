@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # need full history + tags for git describe/log below
 
       - name: Generate token
         id: app-token
@@ -30,12 +32,13 @@ jobs:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write
+          permission-pull-requests: write   # <-- required to open the PR with this token
 
       - name: Get latest tag
         id: tag
         run: |
           TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
-          echo "latest=$TAG" >> $GITHUB_OUTPUT
+          echo "latest=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Get changelog since last tag
         id: changelog
@@ -45,9 +48,11 @@ jobs:
           else
             LOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
           fi
-          echo "changes<<EOF" >> $GITHUB_OUTPUT
-          echo "$LOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "changes<<CHANGELOG_EOF"
+            echo "$LOG"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v8
