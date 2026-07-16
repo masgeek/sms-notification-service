@@ -1,14 +1,9 @@
 using System.Reflection;
+using SmsNotificationService;
 using SmsNotificationService.Checks;
 using SmsNotificationService.Configuration;
 using SmsNotificationService.Data;
 using SmsNotificationService.Logging;
-using SmsNotificationService.Models;
-using SmsNotificationService.Services;
-using SmsNotificationService.Workers;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Options;
-using Dapper;
 
 if (args.Contains("--version") || args.Contains("-v"))
 {
@@ -21,115 +16,39 @@ var builder = Host.CreateApplicationBuilder(args);
 
 var environment = builder.Environment.EnvironmentName;
 
-// File logging — ProgramData\Munywele\SmsNotificationService\logs\
 var appDataDir = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
     "Munywele", "SmsNotificationService");
 
 var logDir = Path.Combine(appDataDir, "logs");
 
-// Load config from ProgramData as additional source
-var prodConfigPath = Path.Combine(appDataDir, "appsettings.Production.json");
-try
-{
-    if (File.Exists(prodConfigPath))
-        builder.Configuration.AddJsonFile(prodConfigPath, optional: true, reloadOnChange: false);
-}
-catch (UnauthorizedAccessException)
-{
-    Console.WriteLine($"[Config] Warning: Access denied to {prodConfigPath} — using environment variables or defaults");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"[Config] Warning: Could not load {prodConfigPath}: {ex.Message} — using environment variables or defaults");
-}
+builder.Configuration.AddProductionConfig(appDataDir);
 
-var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName).Get<SmsServiceOptions>() ?? new();
+var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName)
+    .Get<SmsServiceOptions>() ?? new();
+
 builder.Logging.AddProvider(new FileLoggerProvider(logDir, svcOptions.LogRetentionDays, svcOptions.MaxLogFileSizeMb));
 var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
 logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
 
-// Log config source
+var prodConfigPath = Path.Combine(appDataDir, "appsettings.Production.json");
 if (File.Exists(prodConfigPath))
     logger.LogInformation("[Config] Loading config from: {Path}", prodConfigPath);
 else
     logger.LogInformation("[Config] No config file found at {Path} — using environment variables or defaults", prodConfigPath);
 
-// Map PascalCase model properties to snake_case DB columns for Dapper
-SqlMapper.SetTypeMap(typeof(SmsNotification), new CustomPropertyTypeMap(
-    typeof(SmsNotification),
-    (type, columnName) => type.GetProperty(
-        columnName switch
-        {
-            "id" => nameof(SmsNotification.Id),
-            "phone_number" => nameof(SmsNotification.PhoneNumber),
-            "mpesa_code" => nameof(SmsNotification.MpesaCode),
-            "adm_no" => nameof(SmsNotification.AdmNo),
-            "stud_names" => nameof(SmsNotification.StudNames),
-            "amount" => nameof(SmsNotification.Amount),
-            "receipt_no" => nameof(SmsNotification.ReceiptNo),
-            "dated" => nameof(SmsNotification.Dated),
-            "status" => nameof(SmsNotification.Status),
-            "max_retries" => nameof(SmsNotification.MaxRetries),
-            "retry_count" => nameof(SmsNotification.RetryCount),
-            "retry_after" => nameof(SmsNotification.RetryAfter),
-            "created_at" => nameof(SmsNotification.CreatedAt),
-            "updated_at" => nameof(SmsNotification.UpdatedAt),
-            _ => columnName
-        })!));
+DapperMapper.Register();
 
-// Bind typed configuration options
-builder.Services.Configure<SmsServiceOptions>(builder.Configuration.GetSection(SmsServiceOptions.SectionName));
-
-// Registers this as a standard Windows Service
-builder.Services.AddWindowsService(options =>
-{
-    options.ServiceName = "SmsNotificationService";
-});
-
-// Register HttpClient to reuse sockets for external API calls
-builder.Services.AddHttpClient();
-
-// Register services
-builder.Services.AddSingleton<INotificationRepository>(sp =>
-{
-    var options = sp.GetRequiredService<IOptions<SmsServiceOptions>>();
-    var logger = sp.GetRequiredService<ILogger<NotificationRepository>>();
-    return new NotificationRepository(options.Value.ConnectionString, logger);
-});
-
-builder.Services.AddSingleton<SqlDependencyListener>(sp =>
-{
-    var options = sp.GetRequiredService<IOptions<SmsServiceOptions>>();
-    var logger = sp.GetRequiredService<ILogger<SqlDependencyListener>>();
-    return new SqlDependencyListener(options.Value.ConnectionString, logger);
-});
-
-builder.Services.AddSingleton<ISmsSender, SmsApiService>();
-
-// Register shared processor and workers
-builder.Services.AddSingleton<NotificationProcessor>();
-builder.Services.AddHostedService<TableChangeListener>();
-builder.Services.AddHostedService<RetryPoller>();
+builder.Services.AddSmsNotificationServices(builder.Configuration);
 
 var host = builder.Build();
 
-// Validate configuration before starting services
 var hostLogger = host.Services.GetRequiredService<ILogger<Program>>();
-var appOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName).Get<SmsServiceOptions>()
-    ?? throw new InvalidOperationException("[Config] Missing configuration section: SmsService");
 
-if (string.IsNullOrWhiteSpace(appOptions.ConnectionString))
-    throw new InvalidOperationException("[Config] SmsService:ConnectionString is not configured. Set via appsettings.json or SmsService__ConnectionString.");
+builder.Configuration.ValidateSmsServiceOptions();
 
-if (string.IsNullOrWhiteSpace(appOptions.SmsApiUrl))
-    throw new InvalidOperationException("[Config] SmsService:SmsApiUrl is not configured. Set via appsettings.json or SmsService__SmsApiUrl.");
-
-if (!Uri.TryCreate(appOptions.SmsApiUrl, UriKind.Absolute, out _))
-    throw new InvalidOperationException($"[Config] SmsService:SmsApiUrl is not a valid URI: {appOptions.SmsApiUrl}");
-
-if (string.IsNullOrWhiteSpace(appOptions.AuthorizationToken))
-    throw new InvalidOperationException("[Config] SmsService:AuthorizationToken is not configured. Set via appsettings.json or SmsService__AuthorizationToken.");
+var appOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName)
+    .Get<SmsServiceOptions>()!;
 
 hostLogger.LogInformation("[Config] Configuration validated — API: {ApiUrl}", appOptions.SmsApiUrl);
 
