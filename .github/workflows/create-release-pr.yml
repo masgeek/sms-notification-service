@@ -23,7 +23,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0  # needed for git describe/log below, and recommended by action-pull-request
+          fetch-depth: 0
 
       - name: Generate token
         id: app-token
@@ -33,6 +33,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
+          permission-issues: write
 
       - name: Ensure labels exist
         env:
@@ -40,12 +41,73 @@ jobs:
         run: |
           gh label create release --color "0E8A16" --description "Automated release PR" --force
           gh label create automated --color "5319E7" --description "Created by a workflow" --force
-      
+
       - name: Get latest tag
         id: tag
         run: |
           TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
           echo "latest=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          if [ "${{ steps.tag.outputs.latest }}" != "none" ]; then
+            RANGE="${{ steps.tag.outputs.latest }}..HEAD"
+          else
+            RANGE="HEAD~20..HEAD"
+          fi
+
+          # Bucket commits by conventional-commit type
+          declare -A TITLES=(
+            [feat]="✨ Features" [fix]="🐛 Fixes" [perf]="⚡ Performance"
+            [refactor]="♻️ Refactoring" [docs]="📝 Docs" [test]="✅ Tests"
+            [build]="📦 Build" [ci]="🤖 CI" [chore]="🧹 Chore" [revert]="⏪ Reverts"
+          )
+          ORDER=(feat fix perf refactor docs test build ci chore revert)
+
+          declare -A BUCKETS
+          OTHER=""
+
+          while IFS= read -r line; do
+            hash="${line%%|*}"
+            rest="${line#*|}"
+            subject="${rest#*|}"
+            type=$(echo "$subject" | grep -oP '^[a-zA-Z]+(?=(\(.+\))?!?:)' | tr '[:upper:]' '[:lower:]')
+            entry="- ${subject} (${hash})"
+            if [[ -n "$type" && -n "${TITLES[$type]:-}" ]]; then
+              BUCKETS[$type]+="${entry}"$'\n'
+            else
+              OTHER+="${entry}"$'\n'
+            fi
+          done < <(git log $RANGE --no-merges --pretty=format:"%h|%an|%s")
+
+          NOTES=""
+          for type in "${ORDER[@]}"; do
+            if [[ -n "${BUCKETS[$type]:-}" ]]; then
+              NOTES+="### ${TITLES[$type]}"$'\n'"${BUCKETS[$type]}"$'\n'
+            fi
+          done
+          if [[ -n "$OTHER" ]]; then
+            NOTES+="### 📌 Other"$'\n'"${OTHER}"$'\n'
+          fi
+
+          # Stats: files changed, +/- lines, contributors
+          STAT=$(git diff --shortstat $RANGE 2>/dev/null || echo "no changes")
+          CONTRIBUTORS=$(git log $RANGE --no-merges --pretty=format:"%an" | sort -u | sed 's/^/- /')
+          COMMIT_COUNT=$(git log $RANGE --no-merges --oneline | wc -l | tr -d ' ')
+
+          {
+            echo "notes<<NOTES_EOF"
+            echo "$NOTES"
+            echo "NOTES_EOF"
+            echo "stat<<STAT_EOF"
+            echo "$STAT"
+            echo "STAT_EOF"
+            echo "contributors<<CONTRIB_EOF"
+            echo "$CONTRIBUTORS"
+            echo "CONTRIB_EOF"
+            echo "commit_count=$COMMIT_COUNT" 
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create or update Pull Request
         uses: devops-infra/action-pull-request@v1.2.5
@@ -55,13 +117,24 @@ jobs:
           target_branch: main
           title: "Release: develop → main"
           body: |
-            ## Automated Release PR
+            ## 🚀 Automated Release PR
 
-            **Source:** `develop` → `main`
-            **Last tag:** `${{ steps.tag.outputs.latest }}`
+            **Source:** `develop` → **Target:** `main`
+            **Previous tag:** `${{ steps.tag.outputs.latest }}`
+            **Commits included:** ${{ steps.notes.outputs.commit_count }}
+            **Diff:** ${{ steps.notes.outputs.stat }}
+
+            ---
+
+            ${{ steps.notes.outputs.notes }}
+
+            ---
+
+            ### 👥 Contributors
+            ${{ steps.notes.outputs.contributors }}
 
             ---
             > Merge this PR to trigger the release workflow.
           label: release,automated
-          get_diff: true          # appends commit list + changed files automatically
-          allow_no_diff: false    # don't open/keep a PR if develop == main
+          get_diff: false
+          allow_no_diff: false
