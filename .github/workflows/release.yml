@@ -4,13 +4,13 @@ on:
   workflow_run:
     workflows: ["Tests"]
     types: [completed]
-    branches: [develop]
-  push:
-    branches:
-      - develop
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+    branches: [main]
+  # push:
+  #   branches:
+  #     - develop
+  #   paths-ignore:
+  #     - "**.md"
+  #     - "docs/**"
   workflow_dispatch:
 
 permissions:
