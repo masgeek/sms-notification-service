@@ -45,8 +45,32 @@ jobs:
             --jq "[.[] | select(.commit_id == \"$HEAD_SHA\" and .state == \"APPROVED\" and (.user.login | endswith(\"[bot]\")))] | length > 0")
           echo "already_approved=$ALREADY_APPROVED" >> "$GITHUB_OUTPUT"
 
+      - name: Check for unresolved review threads
+        id: threads
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          UNRESOLVED=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes {
+                      isResolved
+                      isOutdated
+                    }
+                  }
+                }
+              }
+            }' \
+            -f owner="${{ github.repository_owner }}" \
+            -f repo="${{ github.event.repository.name }}" \
+            -F pr="${{ github.event.pull_request.number }}" \
+            --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .isOutdated == false)] | length')
+          echo "unresolved_count=$UNRESOLVED" >> "$GITHUB_OUTPUT"
+
       - name: Wait for Tests to pass
-        if: steps.precheck.outputs.already_approved == 'false'
+        if: steps.precheck.outputs.already_approved == 'false' && steps.threads.outputs.unresolved_count == '0'
         uses: lewagon/wait-on-check-action@v1.8.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -56,7 +80,7 @@ jobs:
           allowed-conclusions: success
 
       - name: Approve PR
-        if: steps.precheck.outputs.already_approved == 'false'
+        if: steps.precheck.outputs.already_approved == 'false' && steps.threads.outputs.unresolved_count == '0'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
@@ -65,7 +89,16 @@ jobs:
             --approve \
             --body "✅ Auto-approved — all checks passed on \`${{ github.event.pull_request.head.sha }}\`."
 
-      - name: Comment on failure
+      - name: Comment when blocked by unresolved conversations
+        if: steps.threads.outputs.unresolved_count != '0'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "⏳ Auto-approval skipped — this PR has ${{ steps.threads.outputs.unresolved_count }} unresolved review conversation(s). Resolve them to allow auto-approval."
+
+      - name: Comment on check failure
         if: failure()
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
