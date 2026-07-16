@@ -116,7 +116,8 @@ jobs:
         uses: devops-infra/action-pull-request@v1.4.0
         with:
           github_token: ${{ steps.app-token.outputs.token }}
-          source_branch: ${{ github.ref_name }}
+          # source_branch: ${{ github.ref_name }}
+          source_branch: develop
           target_branch: main
           label: release,automated,bot-release
           reviewer: masgeek
