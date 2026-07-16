@@ -69,8 +69,36 @@ jobs:
             --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false and .isOutdated == false)] | length')
           echo "unresolved_count=$UNRESOLVED" >> "$GITHUB_OUTPUT"
 
+      - name: Check for workflow file changes
+        id: workflow-files
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          CHANGED=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --paginate \
+            --jq '[.[] | select(.filename | startswith(".github/workflows/"))] | length > 0')
+          echo "workflow_changed=$CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: Check if branch is up to date with base
+        id: up-to-date
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+          PR_BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          CURRENT_BASE_SHA=$(gh api "repos/${{ github.repository }}/commits/$BASE_BRANCH" --jq '.sha')
+          if [ "$PR_BASE_SHA" == "$CURRENT_BASE_SHA" ]; then
+            echo "branch_stale=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch_stale=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Wait for Tests to pass
-        if: steps.precheck.outputs.already_approved == 'false' && steps.threads.outputs.unresolved_count == '0'
+        if: |
+          steps.precheck.outputs.already_approved == 'false' &&
+          steps.threads.outputs.unresolved_count == '0' &&
+          steps.workflow-files.outputs.workflow_changed == 'false' &&
+          steps.up-to-date.outputs.branch_stale == 'false'
         uses: lewagon/wait-on-check-action@v1.8.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -80,7 +108,11 @@ jobs:
           allowed-conclusions: success
 
       - name: Approve PR
-        if: steps.precheck.outputs.already_approved == 'false' && steps.threads.outputs.unresolved_count == '0'
+        if: |
+          steps.precheck.outputs.already_approved == 'false' &&
+          steps.threads.outputs.unresolved_count == '0' &&
+          steps.workflow-files.outputs.workflow_changed == 'false' &&
+          steps.up-to-date.outputs.branch_stale == 'false'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
@@ -97,6 +129,27 @@ jobs:
           gh pr comment ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
             --body "⏳ Auto-approval skipped — this PR has ${{ steps.threads.outputs.unresolved_count }} unresolved review conversation(s). Resolve them to allow auto-approval."
+
+      - name: Comment when blocked by workflow file changes
+        if: steps.workflow-files.outputs.workflow_changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "🔒 Auto-approval skipped — this PR modifies files under \`.github/workflows/\`. CI/CD changes require manual review."
+
+      - name: Comment when blocked by stale branch
+        if: |
+          steps.threads.outputs.unresolved_count == '0' &&
+          steps.workflow-files.outputs.workflow_changed == 'false' &&
+          steps.up-to-date.outputs.branch_stale == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "🔄 Auto-approval skipped — this branch is behind \`${{ github.event.pull_request.base.ref }}\`. Update the branch to allow auto-approval."
 
       - name: Comment on check failure
         if: failure()
