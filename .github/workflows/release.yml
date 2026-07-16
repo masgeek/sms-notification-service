@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   tag:
+    name: Generate Version Tag
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: >
@@ -29,7 +30,8 @@ jobs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
       changelog: ${{ steps.tag_version.outputs.changelog }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -52,16 +54,19 @@ jobs:
           echo '${{ toJSON(steps.tag_version.outputs) }}'
 
   build:
+    name: Build and Package
     needs: tag
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v7
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
+          cache: true
 
       - name: Debug tag outputs
         id: resolve-version
@@ -102,14 +107,6 @@ jobs:
       - name: Clean intermediate output
         shell: bash
         run: rm -rf **/bin/Release **/obj/Release
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
 
       - name: Restore
         run: dotnet restore
@@ -156,7 +153,7 @@ jobs:
         run: cp installer/output/SmsNotificationService-Setup-*.exe .
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-artifacts
           path: |
@@ -165,12 +162,13 @@ jobs:
           retention-days: 1
 
   release:
+    name: Publish GitHub Release
     needs: [tag, build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           name: release-artifacts
           path: artifacts
