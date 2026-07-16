@@ -23,7 +23,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0  # need full history + tags for git describe/log below
+          fetch-depth: 0  # needed for git describe/log below, and recommended by action-pull-request
 
       - name: Generate token
         id: app-token
@@ -32,7 +32,7 @@ jobs:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write
-          permission-pull-requests: write   # <-- required to open the PR with this token
+          permission-pull-requests: write
 
       - name: Get latest tag
         id: tag
@@ -40,26 +40,12 @@ jobs:
           TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
           echo "latest=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Get changelog since last tag
-        id: changelog
-        run: |
-          if [ "${{ steps.tag.outputs.latest }}" != "none" ]; then
-            LOG=$(git log "${{ steps.tag.outputs.latest }}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
-          else
-            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
-          fi
-          {
-            echo "changes<<CHANGELOG_EOF"
-            echo "$LOG"
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v8
+      - name: Create or update Pull Request
+        uses: devops-infra/action-pull-request@v1.2.5
         with:
-          token: ${{ steps.app-token.outputs.token }}
-          branch: develop
-          base: main
+          github_token: ${{ steps.app-token.outputs.token }}
+          source_branch: develop
+          target_branch: main
           title: "Release: develop → main"
           body: |
             ## Automated Release PR
@@ -67,10 +53,8 @@ jobs:
             **Source:** `develop` → `main`
             **Last tag:** `${{ steps.tag.outputs.latest }}`
 
-            ### Changes since last release
-            ${{ steps.changelog.outputs.changes }}
-
             ---
             > Merge this PR to trigger the release workflow.
-          commit-message: "chore: release develop → main"
-          labels: release,automated
+          label: release,automated
+          get_diff: true          # appends commit list + changed files automatically
+          allow_no_diff: false    # don't open/keep a PR if develop == main
