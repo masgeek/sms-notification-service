@@ -34,6 +34,13 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
+      - name: Ensure labels exist
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh label create release --color "0E8A16" --description "Automated release PR" --force
+          gh label create automated --color "5319E7" --description "Created by a workflow" --force
+      
       - name: Get latest tag
         id: tag
         run: |
