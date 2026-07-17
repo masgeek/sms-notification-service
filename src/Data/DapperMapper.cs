@@ -20,6 +20,7 @@ public static class DapperMapper
                     "amount" => nameof(SmsNotification.Amount),
                     "receipt_no" => nameof(SmsNotification.ReceiptNo),
                     "dated" => nameof(SmsNotification.Dated),
+                    "description_json" => nameof(SmsNotification.Description),
                     "status" => nameof(SmsNotification.Status),
                     "max_retries" => nameof(SmsNotification.MaxRetries),
                     "retry_count" => nameof(SmsNotification.RetryCount),

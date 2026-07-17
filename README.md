@@ -87,7 +87,7 @@ Edit `appsettings.Development.json`:
 {
   "SmsService": {
     "ConnectionString": "Server=127.0.0.1;Database=school;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;",
-    "SmsApiUrl": "https://api.munywele.co.ke/v1/send",
+    "SmsApiUrl": "https://fees.munywele.co.ke/api/v1/notifications",
     "AuthorizationToken": "your-bearer-token",
     "RetryBackoffSeconds": 30,
     "RetryPollIntervalSeconds": 30,

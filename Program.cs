@@ -41,11 +41,11 @@ DapperMapper.Register();
 
 builder.Services.AddSmsNotificationServices(builder.Configuration);
 
+builder.Configuration.ValidateSmsServiceOptions();
+
 var host = builder.Build();
 
 var hostLogger = host.Services.GetRequiredService<ILogger<Program>>();
-
-builder.Configuration.ValidateSmsServiceOptions();
 
 var appOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName)
     .Get<SmsServiceOptions>()!;
