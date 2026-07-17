@@ -70,7 +70,6 @@ Based on the audit findings, here are the fixes to apply in priority order. Comm
 - [x] **Add DB connectivity check in installer**
   - File: `installer/installer.iss`
   - Test connection before creating the service
-  - **Skipped**: App validates connection on startup via `DatabaseConnectionCheck`; installer validates required fields
 
 - [ ] **Validate SMS API URL uses HTTPS**
   - File: `src/Configuration/ConfigurationExtensions.cs`
