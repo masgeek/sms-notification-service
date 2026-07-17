@@ -3,6 +3,7 @@
 ; ============================================================================
 ; Requires: Inno Setup 6.4+
 ; Build:    dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o publish
+;           dotnet publish SmsNotificationService.Tray\SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o publish-tray
 ; Compile:  Open in Inno Setup Compiler -> Build -> Compile
 ; Output:   installer\output\SmsNotificationService-Setup-<version>.exe
 ; ============================================================================
@@ -27,6 +28,8 @@
 #define ServiceName      "SmsNotificationService"
 #define ServiceDisplay   "SmsNotificationService"
 #define ServiceDesc      "Listens to SQL Server for SMS notifications and sends them via HTTP API"
+#define TrayAppName      "SmsNotificationService.Tray"
+#define TrayAppDisplay   "SmsNotificationService Tray"
 #define EventLogSource   "SmsNotificationService"
 #define ConfigDir        "Munywele\SmsNotificationService"
 #define ConfigFile       "appsettings.Production.json"
@@ -88,15 +91,24 @@ Name: "{commonappdata}\{#ConfigDir}\data"; Permissions: admins-full system-full 
 
 ; ============================================================================
 ; [Files] - Application binaries (always overwrite)
+;           Tray app binaries are always copied; shortcut/registry are optional
 ; ============================================================================
 [Files]
 Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\publish-tray\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; ============================================================================
 ; [Icons] - Start Menu shortcut
 ; ============================================================================
 [Icons]
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#TrayAppName}.exe"; Comment: "Open SMS Notification Service tray app"; Check: ShouldInstallTrayApp
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+
+; ============================================================================
+; [Registry] - Auto-start tray app on user login
+; ============================================================================
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#TrayAppName}"; ValueData: """{app}\{#TrayAppName}.exe"""; Flags: uninsdeletevalue; Check: ShouldInstallTrayApp
 
 ; ============================================================================
 ; [Code] - Pascal Script (modular includes)

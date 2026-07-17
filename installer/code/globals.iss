@@ -1,9 +1,11 @@
 var
   DbPage           : TInputQueryWizardPage;
   ApiUrlPage       : TInputQueryWizardPage;
+  TrayPage         : TInputOptionWizardPage;
   UpgradeMode      : Boolean;
   ConfigExists     : Boolean;
   KeepExistingCfg  : Boolean;
+  InstallTrayApp   : Boolean;
   ConfigPromptPage : TInputOptionWizardPage;
 
 function InitializeSetup: Boolean;
@@ -15,4 +17,9 @@ begin
     Log('Existing installation detected — upgrade mode enabled.');
   if ConfigExists then
     Log('Existing configuration file detected.');
+end;
+
+function ShouldInstallTrayApp: Boolean;
+begin
+  Result := InstallTrayApp;
 end;
