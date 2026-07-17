@@ -1,16 +1,6 @@
-var
-  DbServerEdit    : TNewEdit;
-  DbDatabaseEdit  : TNewEdit;
-  DbUsernameEdit  : TNewEdit;
-  DbPasswordEdit  : TNewEdit;
-  DbTestButton    : TNewButton;
-  DbTestResult    : TNewStaticText;
-
 procedure InitializeWizard;
 var
   PrevPageID: Integer;
-  Lbl: TNewStaticText;
-  TopY: Integer;
 begin
   UpgradeMode := False;
   KeepExistingCfg := False;
@@ -29,92 +19,17 @@ begin
     PrevPageID := ConfigPromptPage.ID;
   end;
 
-  DbPage := CreateCustomPage(PrevPageID, 'Database Server', 'Enter the SQL Server connection details.');
-
-  TopY := ScaleY(16);
-
-  Lbl := TNewStaticText.Create(DbPage);
-  Lbl.Parent := DbPage;
-  Lbl.Left := ScaleX(16);
-  Lbl.Top := TopY;
-  Lbl.AutoSize := True;
-  Lbl.Caption := 'Server (e.g. 127.0.0.1):';
-  TopY := TopY + Lbl.Height + ScaleY(4);
-
-  DbServerEdit := TNewEdit.Create(DbPage);
-  DbServerEdit.Parent := DbPage;
-  DbServerEdit.Left := ScaleX(16);
-  DbServerEdit.Top := TopY;
-  DbServerEdit.Width := ScaleX(300);
-  DbServerEdit.Text := '127.0.0.1';
-  TopY := TopY + DbServerEdit.Height + ScaleY(8);
-
-  Lbl := TNewStaticText.Create(DbPage);
-  Lbl.Parent := DbPage;
-  Lbl.Left := ScaleX(16);
-  Lbl.Top := TopY;
-  Lbl.AutoSize := True;
-  Lbl.Caption := 'Database (e.g. school):';
-  TopY := TopY + Lbl.Height + ScaleY(4);
-
-  DbDatabaseEdit := TNewEdit.Create(DbPage);
-  DbDatabaseEdit.Parent := DbPage;
-  DbDatabaseEdit.Left := ScaleX(16);
-  DbDatabaseEdit.Top := TopY;
-  DbDatabaseEdit.Width := ScaleX(300);
-  DbDatabaseEdit.Text := 'school';
-  TopY := TopY + DbDatabaseEdit.Height + ScaleY(8);
-
-  Lbl := TNewStaticText.Create(DbPage);
-  Lbl.Parent := DbPage;
-  Lbl.Left := ScaleX(16);
-  Lbl.Top := TopY;
-  Lbl.AutoSize := True;
-  Lbl.Caption := 'Username (e.g. sa):';
-  TopY := TopY + Lbl.Height + ScaleY(4);
-
-  DbUsernameEdit := TNewEdit.Create(DbPage);
-  DbUsernameEdit.Parent := DbPage;
-  DbUsernameEdit.Left := ScaleX(16);
-  DbUsernameEdit.Top := TopY;
-  DbUsernameEdit.Width := ScaleX(300);
-  DbUsernameEdit.Text := 'sa';
-  TopY := TopY + DbUsernameEdit.Height + ScaleY(8);
-
-  Lbl := TNewStaticText.Create(DbPage);
-  Lbl.Parent := DbPage;
-  Lbl.Left := ScaleX(16);
-  Lbl.Top := TopY;
-  Lbl.AutoSize := True;
-  Lbl.Caption := 'Password:';
-  TopY := TopY + Lbl.Height + ScaleY(4);
-
-  DbPasswordEdit := TNewEdit.Create(DbPage);
-  DbPasswordEdit.Parent := DbPage;
-  DbPasswordEdit.Left := ScaleX(16);
-  DbPasswordEdit.Top := TopY;
-  DbPasswordEdit.Width := ScaleX(300);
-  DbPasswordEdit.PasswordChar := '*';
-  TopY := TopY + DbPasswordEdit.Height + ScaleY(12);
-
-  DbTestButton := TNewButton.Create(DbPage);
-  DbTestButton.Parent := DbPage;
-  DbTestButton.Left := ScaleX(16);
-  DbTestButton.Top := TopY;
-  DbTestButton.Width := ScaleX(150);
-  DbTestButton.Height := ScaleY(23);
-  DbTestButton.Caption := 'Test Connection';
-  DbTestButton.OnClick := @DbTestButtonClick;
-  TopY := TopY + DbTestButton.Height + ScaleY(8);
-
-  DbTestResult := TNewStaticText.Create(DbPage);
-  DbTestResult.Parent := DbPage;
-  DbTestResult.Left := ScaleX(16);
-  DbTestResult.Top := TopY;
-  DbTestResult.Width := ScaleX(350);
-  DbTestResult.AutoSize := True;
-  DbTestResult.WordWrap := True;
-  DbTestResult.Caption := '';
+  DbPage := CreateInputQueryPage(PrevPageID,
+    'Database Server',
+    'Enter the SQL Server connection details.',
+    '');
+  DbPage.Add('Server (e.g. 127.0.0.1):', False);
+  DbPage.Add('Database (e.g. school):', False);
+  DbPage.Add('Username (e.g. sa):', False);
+  DbPage.Add('Password:', True);
+  DbPage.Values[0] := '127.0.0.1';
+  DbPage.Values[1] := 'school';
+  DbPage.Values[2] := 'sa';
 
   ApiUrlPage := CreateInputQueryPage(DbPage.ID,
     'SMS API Configuration',
@@ -123,50 +38,6 @@ begin
   ApiUrlPage.Add('API URL:', False);
   ApiUrlPage.Add('Bearer Token:', True);
   ApiUrlPage.Values[0] := 'https://fees.munywele.co.ke/api/v1/notifications';
-end;
-
-procedure DbTestButtonClick(Sender: TObject);
-var
-  Connected: Boolean;
-begin
-  if Trim(DbServerEdit.Text) = '' then
-  begin
-    MsgBox('Please enter the database server name first.', mbError, MB_OK);
-    Exit;
-  end;
-  if Trim(DbDatabaseEdit.Text) = '' then
-  begin
-    MsgBox('Please enter the database name first.', mbError, MB_OK);
-    Exit;
-  end;
-  if Trim(DbUsernameEdit.Text) = '' then
-  begin
-    MsgBox('Please enter the database username first.', mbError, MB_OK);
-    Exit;
-  end;
-  if Trim(DbPasswordEdit.Text) = '' then
-  begin
-    MsgBox('Please enter the database password first.', mbError, MB_OK);
-    Exit;
-  end;
-
-  DbTestResult.Caption := 'Testing connection...';
-  DbTestResult.Font.Color := clWindowText;
-
-  Connected := TestDbConnection(DbServerEdit.Text, DbDatabaseEdit.Text, DbUsernameEdit.Text, DbPasswordEdit.Text);
-
-  if Connected then
-  begin
-    DbTestResult.Caption := 'Connection successful!';
-    DbTestResult.Font.Color := clGreen;
-    Log('Database connection test: SUCCESS');
-  end
-  else
-  begin
-    DbTestResult.Caption := 'Connection failed. Please check your settings.';
-    DbTestResult.Font.Color := clRed;
-    Log('Database connection test: FAILED');
-  end;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -196,25 +67,25 @@ begin
 
   if CurPageID = DbPage.ID then
   begin
-    if Trim(DbServerEdit.Text) = '' then
+    if Trim(DbPage.Values[0]) = '' then
     begin
       MsgBox('The server name cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
-    if Trim(DbDatabaseEdit.Text) = '' then
+    if Trim(DbPage.Values[1]) = '' then
     begin
       MsgBox('The database name cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
-    if Trim(DbUsernameEdit.Text) = '' then
+    if Trim(DbPage.Values[2]) = '' then
     begin
       MsgBox('The username cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
     end;
-    if Trim(DbPasswordEdit.Text) = '' then
+    if Trim(DbPage.Values[3]) = '' then
     begin
       MsgBox('The password cannot be empty.', mbError, MB_OK);
       Result := False;
