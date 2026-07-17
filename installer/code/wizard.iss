@@ -28,6 +28,7 @@ begin
   DbPage.Add('Username (e.g. sa):', False);
   DbPage.Add('Password:', True);
   DbPage.Values[0] := '127.0.0.1';
+  DbPage.Values[1] := 'school';
   DbPage.Values[2] := 'sa';
 
   ApiUrlPage := CreateInputQueryPage(DbPage.ID,
@@ -90,17 +91,6 @@ begin
       Result := False;
       Exit;
     end;
-
-    if not TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]) then
-    begin
-      if MsgBox('Could not connect to the database. Do you want to continue anyway?' + #13#10 + #13#10 +
-                'The service may fail to start if the connection is invalid.',
-                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDNO then
-      begin
-        Result := False;
-        Exit;
-      end;
-    end;
   end;
 
   if CurPageID = ApiUrlPage.ID then
@@ -122,6 +112,17 @@ begin
       MsgBox('The authorization token cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
+    end;
+
+    if not TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]) then
+    begin
+      if MsgBox('Could not connect to the database. Do you want to continue anyway?' + #13#10 + #13#10 +
+                'The service may fail to start if the connection is invalid.',
+                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDNO then
+      begin
+        Result := False;
+        Exit;
+      end;
     end;
   end;
 end;
