@@ -1,5 +1,5 @@
 var
-  DbPage           : TInputQueryWizardPage;
+  DbPage           : TSetupForm;
   ApiUrlPage       : TInputQueryWizardPage;
   UpgradeMode      : Boolean;
   ConfigExists     : Boolean;
