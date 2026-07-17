@@ -32,10 +32,14 @@ var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<
 logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
 
 var prodConfigPath = Path.Combine(appDataDir, "appsettings.Production.json");
-if (File.Exists(prodConfigPath))
-    logger.LogInformation("[Config] Loading config from: {Path}", prodConfigPath);
+var appDirConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), "appsettings.Production.json");
+
+var resolvedConfigPath = ConfigPathResolver.FindConfigFile();
+if (File.Exists(resolvedConfigPath))
+    logger.LogInformation("[Config] Loading config from: {Path}", resolvedConfigPath);
 else
-    logger.LogInformation("[Config] No config file found at {Path} — using environment variables or defaults", prodConfigPath);
+    logger.LogInformation("[Config] No config file found — checked {ProgramData} and {AppDir} — using environment variables or defaults",
+        prodConfigPath, appDirConfigPath);
 
 DapperMapper.Register();
 
