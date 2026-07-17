@@ -219,7 +219,32 @@ begin
   StringChangeEx(Result, '"', '\"', True);  // then escape quotes
 end;
 
+// ============================================================================
+// [Code] - Pascal Script
+// ============================================================================
 [Code]
+
+// Tests SQL Server connectivity using ADO. Returns True on success.
+function TestDbConnection(const Server, Database, Username, Password: String): Boolean;
+var
+  ConnStr: String;
+  Conn: Variant;
+begin
+  Result := False;
+  ConnStr := 'Provider=SQLOLEDB.1;Server=' + Server + ';Database=' + Database +
+             ';User Id=' + Username + ';Password=' + Password + ';Connection Timeout=10;';
+  try
+    Conn := CreateOleObject('ADODB.Connection');
+    Conn.ConnectionTimeout := 10;
+    Conn.Open(ConnStr);
+    Conn.Close;
+    Conn := Unassigned;
+    Result := True;
+  except
+    Log('DB connection test failed: ' + GetExceptionMessage);
+  end;
+end;
+
 function BoolToStr(B: Boolean): String;
 begin
   if B then
@@ -630,6 +655,18 @@ begin
       MsgBox('The password cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
+    end;
+
+    // Test database connectivity
+    if not TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]) then
+    begin
+      if MsgBox('Could not connect to the database. Do you want to continue anyway?' + #13#10 + #13#10 +
+                'The service may fail to start if the connection is invalid.',
+                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDNO then
+      begin
+        Result := False;
+        Exit;
+      end;
     end;
   end;
 
