@@ -1,4 +1,4 @@
-# System Tray Application — Plan
+now # System Tray Application — Plan
 
 ## Overview
 
