@@ -39,5 +39,17 @@ public static class ConfigurationExtensions
 
         if (string.IsNullOrWhiteSpace(options.AuthorizationToken))
             throw new InvalidOperationException("[Config] SmsService:AuthorizationToken is not configured. Set via appsettings.json or SmsService__AuthorizationToken.");
+
+        if (options.RetryBackoffSeconds <= 0)
+            throw new InvalidOperationException($"[Config] SmsService:RetryBackoffSeconds must be > 0, got {options.RetryBackoffSeconds}.");
+
+        if (options.RetryPollIntervalSeconds <= 0)
+            throw new InvalidOperationException($"[Config] SmsService:RetryPollIntervalSeconds must be > 0, got {options.RetryPollIntervalSeconds}.");
+
+        if (options.LogRetentionDays <= 0)
+            throw new InvalidOperationException($"[Config] SmsService:LogRetentionDays must be > 0, got {options.LogRetentionDays}.");
+
+        if (options.MaxLogFileSizeMb <= 0)
+            throw new InvalidOperationException($"[Config] SmsService:MaxLogFileSizeMb must be > 0, got {options.MaxLogFileSizeMb}.");
     }
 }
