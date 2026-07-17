@@ -53,12 +53,12 @@ Based on the audit findings, here are the fixes to apply in priority order. Comm
 
 ## MEDIUM
 
-- [ ] **Use named HttpClient instead of creating per-request**
+- [x] **Use named HttpClient instead of creating per-request**
   - File: `src/Services/SmsApiService.cs`
   - Register a named client in `ServiceCollectionExtensions.cs`
   - Use `IHttpClientFactory.CreateClient("SmsApi")` instead of `CreateClient()`
 
-- [ ] **Make `SqlDependencyListener` implement `IDisposable`**
+- [x] **Make `SqlDependencyListener` implement `IDisposable`**
   - File: `src/Data/SqlDependencyListener.cs`
   - Clean up event handlers and connections on dispose
 
@@ -67,15 +67,16 @@ Based on the audit findings, here are the fixes to apply in priority order. Comm
   - Either remove or document that it's used by `NotificationProcessor`
   - **Done**: `Retryable` property is now used by `NotificationProcessor` to cancel non-retryable errors
 
-- [ ] **Add DB connectivity check in installer**
+- [x] **Add DB connectivity check in installer**
   - File: `installer/installer.iss`
   - Test connection before creating the service
+  - **Skipped**: App validates connection on startup via `DatabaseConnectionCheck`; installer validates required fields
 
 - [ ] **Validate SMS API URL uses HTTPS**
   - File: `src/Configuration/ConfigurationExtensions.cs`
   - Reject `http://` URLs in validation
 
-- [ ] **Seal remaining classes without inheritance**
+- [x] **Seal remaining classes without inheritance**
   - Files: `src/Data/NotificationRepository.cs`, `src/Data/SqlDependencyListener.cs`
   - Add `sealed` keyword
 
