@@ -35,6 +35,7 @@
 #define ConfigFile       "appsettings.Production.json"
 #define LogRetentionDays "7"
 #define MaxLogFileSizeMb "10"
+#define TrayDir          "Tray"
 
 ; ============================================================================
 ; [Setup] - Installer metadata, UI, compression, logging
@@ -95,20 +96,28 @@ Name: "{commonappdata}\{#ConfigDir}\data"; Permissions: admins-full system-full 
 ; ============================================================================
 [Files]
 Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\publish-tray\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\publish-tray\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; ============================================================================
 ; [Icons] - Start Menu shortcut
 ; ============================================================================
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#TrayAppName}.exe"; Comment: "Open SMS Notification Service tray app"; Check: ShouldInstallTrayApp
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#TrayDir}\{#TrayAppName}.exe"; Comment: "Open SMS Notification Service tray app"; Check: ShouldInstallTrayApp
+
+; Startup folder
+Name: "{userstartup}\{#TrayAppDisplay}"; \
+    Filename: "{app}\{#TrayDir}\{#TrayAppName}.exe"; \
+    WorkingDir: "{app}\{#TrayDir}"; \
+    Comment: "Start SMS Notification Service Tray"; \
+    Check: ShouldInstallTrayApp
+    
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 ; ============================================================================
 ; [Registry] - Auto-start tray app on user login
 ; ============================================================================
-[Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#TrayAppName}"; ValueData: """{app}\{#TrayAppName}.exe"""; Flags: uninsdeletevalue; Check: ShouldInstallTrayApp
+;[Registry]
+;Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#TrayAppName}"; ValueData: """{app}\{#TrayDir}\{#TrayAppName}.exe"""; Flags: uninsdeletevalue; Check: ShouldInstallTrayApp
 
 ; ============================================================================
 ; [Code] - Pascal Script (modular includes)
