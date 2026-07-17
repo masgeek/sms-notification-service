@@ -127,7 +127,7 @@ internal sealed class FileLogger : ILogger, IDisposable
 
     public void Dispose()
     {
-        _writer?.Flush();
-        _writer?.Dispose();
+        _writer.Flush();
+        _writer.Dispose();
     }
 }
