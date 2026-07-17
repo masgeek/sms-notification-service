@@ -61,9 +61,13 @@ internal sealed class FileLogger : ILogger, IDisposable
     private readonly string _logDirectory;
     private readonly string _categoryName;
     private readonly long _maxFileSizeBytes;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private string _filePath;
     private StreamWriter _writer;
+    private long _currentFileSize;
+    private int _linesSinceLastCheck;
+
+    private const int CheckInterval = 100;
 
     public FileLogger(string logDirectory, string categoryName, long maxFileSizeBytes)
     {
@@ -72,6 +76,7 @@ internal sealed class FileLogger : ILogger, IDisposable
         _maxFileSizeBytes = maxFileSizeBytes;
         _filePath = GetFilePath();
         _writer = CreateWriter();
+        _currentFileSize = new FileInfo(_filePath).Length;
     }
 
     private string GetFilePath()
@@ -88,9 +93,12 @@ internal sealed class FileLogger : ILogger, IDisposable
 
     private void RotateIfNeeded()
     {
-        if (!File.Exists(_filePath)) return;
-        var info = new FileInfo(_filePath);
-        if (info.Length < _maxFileSizeBytes) return;
+        _linesSinceLastCheck++;
+        if (_linesSinceLastCheck < CheckInterval) return;
+        _linesSinceLastCheck = 0;
+
+        _currentFileSize = new FileInfo(_filePath).Length;
+        if (_currentFileSize < _maxFileSizeBytes) return;
 
         _writer.Flush();
         _writer.Dispose();
@@ -101,6 +109,7 @@ internal sealed class FileLogger : ILogger, IDisposable
 
         _filePath = GetFilePath();
         _writer = CreateWriter();
+        _currentFileSize = 0;
     }
 
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
@@ -127,7 +136,7 @@ internal sealed class FileLogger : ILogger, IDisposable
 
     public void Dispose()
     {
-        _writer?.Flush();
-        _writer?.Dispose();
+        _writer.Flush();
+        _writer.Dispose();
     }
 }

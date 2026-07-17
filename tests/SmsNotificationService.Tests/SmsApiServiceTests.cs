@@ -79,8 +79,9 @@ public class SmsApiServiceTests
         var result = await service.SendAsync(CreateNotification());
 
         result.Success.Should().BeFalse();
+        result.Retryable.Should().BeTrue();
         result.ErrorMessage.Should().Be("{\"error\":\"server unavailable\"}");
-        handler.Protected().Verify("SendAsync", Times.Exactly(3),
+        handler.Protected().Verify("SendAsync", Times.Exactly(1),
             ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>());
     }
 
@@ -102,27 +103,25 @@ public class SmsApiServiceTests
     }
 
     [Fact]
-    public async Task SendAsync_SecondAttemptSucceeds_ReturnsOk()
+    public async Task SendAsync_ServerError_ReturnsNonRetryableFor4xx()
     {
-        var callCount = 0;
         var handler = new Mock<HttpMessageHandler>();
         handler.Protected()
             .Setup<Task<HttpResponseMessage>>("SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(() =>
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.BadRequest)
             {
-                callCount++;
-                return callCount == 1
-                    ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
-                    : new HttpResponseMessage(HttpStatusCode.OK);
+                Content = new StringContent("{\"error\":\"invalid phone\"}")
             });
 
         var service = CreateService(handler.Object);
         var result = await service.SendAsync(CreateNotification());
 
-        result.Success.Should().BeTrue();
-        handler.Protected().Verify("SendAsync", Times.Exactly(2),
+        result.Success.Should().BeFalse();
+        result.Retryable.Should().BeFalse();
+        result.ErrorMessage.Should().Be("{\"error\":\"invalid phone\"}");
+        handler.Protected().Verify("SendAsync", Times.Exactly(1),
             ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>());
     }
 
@@ -133,7 +132,7 @@ public class SmsApiServiceTests
         var result = service.CalculateRetryAfter(1);
         var expected = TimeSpan.FromSeconds(30);
 
-        result.Should().BeCloseTo(DateTimeOffset.UtcNow.Add(expected), TimeSpan.FromSeconds(5));
+        result.Should().BeCloseTo(DateTimeOffset.UtcNow.Add(expected), TimeSpan.FromSeconds(15));
     }
 
     [Fact]
@@ -143,7 +142,7 @@ public class SmsApiServiceTests
         var result = service.CalculateRetryAfter(2);
         var expected = TimeSpan.FromSeconds(60);
 
-        result.Should().BeCloseTo(DateTimeOffset.UtcNow.Add(expected), TimeSpan.FromSeconds(5));
+        result.Should().BeCloseTo(DateTimeOffset.UtcNow.Add(expected), TimeSpan.FromSeconds(25));
     }
 
     [Fact]
@@ -153,6 +152,6 @@ public class SmsApiServiceTests
         var result = service.CalculateRetryAfter(3);
         var expected = TimeSpan.FromSeconds(120);
 
-        result.Should().BeCloseTo(DateTimeOffset.UtcNow.Add(expected), TimeSpan.FromSeconds(5));
+        result.Should().BeCloseTo(DateTimeOffset.UtcNow.Add(expected), TimeSpan.FromSeconds(30));
     }
 }

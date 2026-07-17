@@ -4,7 +4,7 @@ using Dapper;
 
 namespace SmsNotificationService.Data;
 
-public class NotificationRepository(string connectionString, ILogger<NotificationRepository> logger) : INotificationRepository
+public sealed class NotificationRepository(string connectionString, ILogger<NotificationRepository> logger) : INotificationRepository
 {
 
     private readonly ILogger<NotificationRepository> _logger = logger;
@@ -14,7 +14,7 @@ public class NotificationRepository(string connectionString, ILogger<Notificatio
 
         using var connection = new SqlConnection(connectionString);
         var notifications = await connection.QueryAsync<SmsNotification>(
-            "SELECT * FROM sms_notifications WHERE status = @Status AND (retry_after IS NULL OR retry_after <= @Now)",
+            "SELECT TOP 100 * FROM sms_notifications WHERE status = @Status AND (retry_after IS NULL OR retry_after <= @Now)",
             new { Status = nameof(NotificationStatus.PENDING), Now = DateTime.UtcNow });
 
         return notifications.ToList();
@@ -44,7 +44,7 @@ public class NotificationRepository(string connectionString, ILogger<Notificatio
     {
         using var connection = new SqlConnection(connectionString);
         await connection.ExecuteAsync(
-            "UPDATE sms_notifications SET description = @Description, updated_at = @UpdatedAt WHERE id = @Id",
+            "UPDATE sms_notifications SET description_json = @Description, updated_at = @UpdatedAt WHERE id = @Id",
             new { Description = description, UpdatedAt = DateTime.UtcNow, Id = notificationId });
 
         _logger.LogDebug("[DB] Notification {Id} description updated", notificationId);

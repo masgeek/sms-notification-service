@@ -1,0 +1,4 @@
+*
+!*.iss
+!code/
+!code/*.iss

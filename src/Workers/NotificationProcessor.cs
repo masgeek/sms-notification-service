@@ -89,6 +89,15 @@ public sealed class NotificationProcessor
                 await _repository.UpdateDescriptionAsync(notifId, result.ErrorMessage);
             }
 
+            // Non-retryable errors (e.g. 400 Bad Request) — cancel immediately
+            if (!result.Retryable)
+            {
+                _logger.LogError("[SMS] Notification {Id} to {Phone} failed with non-retryable error — CANCELLED",
+                    notifId, phone);
+                await _repository.UpdateStatusAsync(notifId, NotificationStatus.CANCELLED);
+                return;
+            }
+
             var nextRetry = notification.RetryCount + 1;
             if (nextRetry >= notification.MaxRetries)
             {

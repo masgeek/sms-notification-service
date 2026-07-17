@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using SmsNotificationService.Configuration;
 using SmsNotificationService.Data;
 using SmsNotificationService.Services;
@@ -20,7 +19,7 @@ public static class ServiceCollectionExtensions
             options.ServiceName = "SmsNotificationService";
         });
 
-        services.AddHttpClient();
+        services.AddHttpClient("SmsApi");
 
         services.AddSingleton<INotificationRepository>(sp =>
         {

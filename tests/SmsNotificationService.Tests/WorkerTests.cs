@@ -77,7 +77,7 @@ public class NotificationProcessorTests
         _repositoryMock.Setup(r => r.GetPendingAsync())
             .ReturnsAsync(new List<SmsNotification> { notification });
         _smsSenderMock.Setup(s => s.SendAsync(notification))
-            .ReturnsAsync(SendResult.Fail("{\"error\":\"temporary failure\"}"));
+            .ReturnsAsync(SendResult.Fail("{\"error\":\"temporary failure\"}", retryable: true));
         _smsSenderMock.Setup(s => s.CalculateRetryAfter(2))
             .Returns(DateTimeOffset.UtcNow.AddMinutes(5));
 
