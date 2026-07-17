@@ -16,6 +16,7 @@ win-x86/
 osx-x64/
 linux-x64/
 publish/
+publish-tray/
 
 ## ======= User-Specific & Environment Secrets =======
 # Keep your local database connection strings and passwords safe
