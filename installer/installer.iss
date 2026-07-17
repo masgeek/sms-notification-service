@@ -318,7 +318,7 @@ begin
   CfgPath := ExpandConstant('{commonappdata}\{#ConfigDir}\{#ConfigFile}');
 
   // Build connection string from individual fields
-  ConnStr := 'Server=' + Server + ';Database=' + Database + ';User Id=' + Username + ';Password=' + Password + ';TrustServerCertificate=True;';
+  ConnStr := 'Server=' + JsonEscape(Server) + ';Database=' + JsonEscape(Database) + ';User Id=' + JsonEscape(Username) + ';Password=' + JsonEscape(Password) + ';TrustServerCertificate=True;';
 
   Log('CfgDir resolved to: ' + CfgDir);
   Log('CfgPath resolved to: ' + CfgPath);
@@ -340,9 +340,9 @@ begin
   JsonContent :=
     '{' + #13#10 +
     '  "SmsService": {' + #13#10 +
-    '    "ConnectionString": "' + ConnStr + '",' + #13#10 +
-    '    "SmsApiUrl": "' + ApiUrl + '",' + #13#10 +
-    '    "AuthorizationToken": "' + Token + '",' + #13#10 +
+    '    "ConnectionString": "' + JsonEscape(ConnStr) + '",' + #13#10 +
+    '    "SmsApiUrl": "' + JsonEscape(ApiUrl) + '",' + #13#10 +
+    '    "AuthorizationToken": "' + JsonEscape(Token) + '",' + #13#10 +
     '    "RetryBackoffSeconds": 30,' + #13#10 +
     '    "LogRetentionDays": ' + '{#LogRetentionDays}' + ',' + #13#10 +
     '    "MaxLogFileSizeMb": ' + '{#MaxLogFileSizeMb}' + #13#10 +
@@ -361,7 +361,7 @@ begin
 
   Exec(
     'icacls.exe',
-    '"' + CfgPath + '" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Everyone:(OI)(CI)R"',
+    '"' + CfgPath + '" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F"',
     '', SW_HIDE, ewWaitUntilTerminated, ExitCode
   );
   if ExitCode <> 0 then
