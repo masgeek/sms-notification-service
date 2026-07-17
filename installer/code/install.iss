@@ -6,17 +6,6 @@ begin
 
   if not KeepExistingCfg then
   begin
-    Log('Testing database connection...');
-    if TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]) then
-      Log('Database connection successful.')
-    else
-    begin
-      if MsgBox('Could not connect to the database. Do you want to continue anyway?' + #13#10 + #13#10 +
-                'The service may fail to start if the connection is invalid.',
-                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDNO then
-        RaiseException('Installation cancelled by user.');
-    end;
-
     RegisterEventLog;
     WriteConfigurationFile(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3], ApiUrlPage.Values[0], ApiUrlPage.Values[1]);
   end
@@ -59,17 +48,6 @@ begin
 
   if not KeepExistingCfg then
   begin
-    Log('Testing database connection...');
-    if TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]) then
-      Log('Database connection successful.')
-    else
-    begin
-      if MsgBox('Could not connect to the database. Do you want to continue anyway?' + #13#10 + #13#10 +
-                'The service may fail to start if the connection is invalid.',
-                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDNO then
-        RaiseException('Upgrade cancelled by user.');
-    end;
-
     Log('Writing updated configuration...');
     WriteConfigurationFile(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3], ApiUrlPage.Values[0], ApiUrlPage.Values[1]);
   end
