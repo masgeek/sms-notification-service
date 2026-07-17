@@ -32,8 +32,8 @@ public sealed class TableChangeListener : BackgroundService
             _listener.Start();
             _logger.LogInformation("[Listener] SqlDependency started, registering query...");
 
-            _listener.RegisterQueryWithRetry(
-                onChanges: () => _processor.ProcessPendingAsync(stoppingToken).GetAwaiter().GetResult(),
+            await _listener.RegisterQueryWithRetryAsync(
+                onChanges: () => _ = _processor.ProcessPendingAsync(stoppingToken),
                 stoppingToken: stoppingToken);
         }
         catch (Exception ex)

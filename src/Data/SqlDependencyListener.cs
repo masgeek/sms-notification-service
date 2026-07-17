@@ -18,7 +18,7 @@ public class SqlDependencyListener(string connectionString, ILogger<SqlDependenc
         SqlDependency.Stop(connectionString);
     }
 
-    public void RegisterQueryWithRetry(Action onChanges, CancellationToken stoppingToken)
+    public async Task RegisterQueryWithRetryAsync(Action onChanges, CancellationToken stoppingToken)
     {
         for (int attempt = 1; attempt <= MaxReRegisterAttempts; attempt++)
         {
@@ -36,7 +36,7 @@ public class SqlDependencyListener(string connectionString, ILogger<SqlDependenc
                 {
                     var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
                     _logger.LogInformation("[Listener] Retrying in {Delay}s...", delay.TotalSeconds);
-                    Thread.Sleep(delay);
+                    await Task.Delay(delay, stoppingToken);
                 }
             }
         }
@@ -67,7 +67,7 @@ public class SqlDependencyListener(string connectionString, ILogger<SqlDependenc
 
             if (!stoppingToken.IsCancellationRequested)
             {
-                RegisterQueryWithRetry(onChanges, stoppingToken);
+                _ = RegisterQueryWithRetryAsync(onChanges, stoppingToken);
             }
         };
 
