@@ -1,6 +1,12 @@
+var
+  DbTestButton     : TNewButton;
+  DbTestResult     : TNewStaticText;
+
 procedure InitializeWizard;
 var
   PrevPageID: Integer;
+  Lbl: TNewStaticText;
+  TopY: Integer;
 begin
   UpgradeMode := False;
   KeepExistingCfg := False;
@@ -31,6 +37,24 @@ begin
   DbPage.Values[1] := 'school';
   DbPage.Values[2] := 'sa';
 
+  DbTestButton := TNewButton.Create(DbPage);
+  DbTestButton.Parent := DbPage.Surface;
+  DbTestButton.Left := ScaleX(16);
+  DbTestButton.Top := ScaleY(140);
+  DbTestButton.Width := ScaleX(150);
+  DbTestButton.Height := ScaleY(23);
+  DbTestButton.Caption := 'Test Connection';
+  DbTestButton.OnClick := @DbTestButtonClick;
+
+  DbTestResult := TNewStaticText.Create(DbPage);
+  DbTestResult.Parent := DbPage.Surface;
+  DbTestResult.Left := ScaleX(16);
+  DbTestResult.Top := ScaleY(170);
+  DbTestResult.Width := ScaleX(350);
+  DbTestResult.AutoSize := True;
+  DbTestResult.WordWrap := True;
+  DbTestResult.Caption := '';
+
   ApiUrlPage := CreateInputQueryPage(DbPage.ID,
     'SMS API Configuration',
     'Enter the SMS API endpoint URL and authorization token.',
@@ -38,6 +62,50 @@ begin
   ApiUrlPage.Add('API URL:', False);
   ApiUrlPage.Add('Bearer Token:', True);
   ApiUrlPage.Values[0] := 'https://fees.munywele.co.ke/api/v1/notifications';
+end;
+
+procedure DbTestButtonClick(Sender: TObject);
+var
+  Connected: Boolean;
+begin
+  if Trim(DbPage.Values[0]) = '' then
+  begin
+    MsgBox('Please enter the database server name first.', mbError, MB_OK);
+    Exit;
+  end;
+  if Trim(DbPage.Values[1]) = '' then
+  begin
+    MsgBox('Please enter the database name first.', mbError, MB_OK);
+    Exit;
+  end;
+  if Trim(DbPage.Values[2]) = '' then
+  begin
+    MsgBox('Please enter the database username first.', mbError, MB_OK);
+    Exit;
+  end;
+  if Trim(DbPage.Values[3]) = '' then
+  begin
+    MsgBox('Please enter the database password first.', mbError, MB_OK);
+    Exit;
+  end;
+
+  DbTestResult.Caption := 'Testing connection...';
+  DbTestResult.Font.Color := clWindowText;
+
+  Connected := TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]);
+
+  if Connected then
+  begin
+    DbTestResult.Caption := 'Connection successful!';
+    DbTestResult.Font.Color := clGreen;
+    Log('Database connection test: SUCCESS');
+  end
+  else
+  begin
+    DbTestResult.Caption := 'Connection failed. Please check your settings.';
+    DbTestResult.Font.Color := clRed;
+    Log('Database connection test: FAILED');
+  end;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -55,8 +123,6 @@ begin
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
-var
-  TestResult: Integer;
 begin
   Result := True;
 
@@ -114,20 +180,6 @@ begin
       MsgBox('The authorization token cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
-    end;
-
-    TestResult := MsgBox('Test database connection now?', mbConfirmation, MB_YESNOCANCEL);
-    if TestResult = IDCANCEL then
-    begin
-      Result := False;
-      Exit;
-    end;
-    if TestResult = IDYES then
-    begin
-      if TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]) then
-        MsgBox('Database connection successful!', mbInformation, MB_OK)
-      else
-        MsgBox('Database connection failed. Please check your settings.', mbError, MB_OK);
     end;
   end;
 end;
