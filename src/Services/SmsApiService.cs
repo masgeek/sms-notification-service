@@ -15,7 +15,7 @@ namespace SmsNotificationService.Services;
 /// is the caller's responsibility (e.g. a queue worker), using <see cref="CalculateRetryAfter"/>
 /// to compute when to re-enqueue a failed notification.
 /// </summary>
-public class SmsApiService : ISmsSender
+public sealed class SmsApiService : ISmsSender
 {
     private readonly ILogger<SmsApiService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -44,7 +44,7 @@ public class SmsApiService : ISmsSender
     {
         try
         {
-            using var httpClient = _httpClientFactory.CreateClient();
+            using var httpClient = _httpClientFactory.CreateClient("SmsApi");
             httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", _authorizationToken);
 

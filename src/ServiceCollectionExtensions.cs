@@ -19,7 +19,7 @@ public static class ServiceCollectionExtensions
             options.ServiceName = "SmsNotificationService";
         });
 
-        services.AddHttpClient();
+        services.AddHttpClient("SmsApi");
 
         services.AddSingleton<INotificationRepository>(sp =>
         {

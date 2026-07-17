@@ -4,7 +4,7 @@ using Dapper;
 
 namespace SmsNotificationService.Data;
 
-public class NotificationRepository(string connectionString, ILogger<NotificationRepository> logger) : INotificationRepository
+public sealed class NotificationRepository(string connectionString, ILogger<NotificationRepository> logger) : INotificationRepository
 {
 
     private readonly ILogger<NotificationRepository> _logger = logger;

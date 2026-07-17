@@ -11,7 +11,7 @@ public interface ISmsSender
     DateTimeOffset CalculateRetryAfter(int retryCount);
 }
 
-public class SendResult
+public sealed class SendResult
 {
     public bool Success { get; private init; }
     public string? ErrorMessage { get; private init; }
