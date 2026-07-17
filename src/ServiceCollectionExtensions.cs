@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using SmsNotificationService.Configuration;
 using SmsNotificationService.Data;
 using SmsNotificationService.Services;
