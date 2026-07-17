@@ -84,10 +84,11 @@ Based on the audit findings, here are the fixes to apply in priority order. Comm
 
 ## LOW
 
-- [ ] **Reduce log rotation filesystem calls**
+- [x] **Reduce log rotation filesystem calls**
   - File: `src/Logging/FileLoggerProvider.cs`
   - Cache file size checks with a timer instead of checking every log line
+  - **Done**: Check every 100 lines, track `_currentFileSize` to avoid redundant FileInfo calls
 
-- [ ] **Add `Encrypt=True` check for connection string**
+- [x] **Add `Encrypt=True` check for connection string**
   - File: `src/Configuration/ConfigurationExtensions.cs`
   - Warn if not present in production
