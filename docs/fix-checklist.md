@@ -6,12 +6,12 @@ Based on the audit findings, here are the fixes to apply in priority order. Comm
 
 ## CRITICAL
 
-- [ ] **Fix `description_json` column mismatch**
+- [x] **Fix `description_json` column mismatch**
   - File: `src/Data/DapperMapper.cs`
   - Add mapping for `description_json` → `Description`
   - Verify SQL in `NotificationRepository.cs` uses correct column name
 
-- [ ] **Honor `Retryable` flag in NotificationProcessor**
+- [x] **Honor `Retryable` flag in NotificationProcessor**
   - File: `src/Workers/NotificationProcessor.cs`
   - Check `result.Retryable` before scheduling retry
   - Non-retryable failures should go straight to `CANCELLED`
@@ -20,32 +20,32 @@ Based on the audit findings, here are the fixes to apply in priority order. Comm
 
 ## HIGH
 
-- [ ] **Move config validation before `builder.Build()`**
+- [x] **Move config validation before `builder.Build()`**
   - File: `Program.cs`
   - Call `ValidateSmsServiceOptions` before line 44
 
-- [ ] **Add numeric config bounds validation**
+- [x] **Add numeric config bounds validation**
   - File: `src/Configuration/ConfigurationExtensions.cs`
   - Validate: `RetryBackoffSeconds > 0`, `RetryPollIntervalSeconds > 0`, `LogRetentionDays > 0`, `MaxLogFileSizeMb > 0`
 
-- [ ] **Escape installer connection string and JSON values**
+- [x] **Escape installer connection string and JSON values**
   - File: `installer/installer.iss`
   - Apply `JsonEscape` to all user inputs before writing config
 
-- [ ] **Restrict config file permissions**
+- [x] **Restrict config file permissions**
   - File: `installer/installer.iss`
   - Change from `everyone-readexec` to `admins-full system-full` only
 
-- [ ] **Replace `Thread.Sleep` with `await Task.Delay`**
+- [x] **Replace `Thread.Sleep` with `await Task.Delay`**
   - File: `src/Data/SqlDependencyListener.cs`
   - Make `RegisterQueryWithRetry` async
   - Use `await Task.Delay(delay, stoppingToken)` instead of `Thread.Sleep`
 
-- [ ] **Fix `.GetAwaiter().GetResult()` blocking**
+- [x] **Fix `.GetAwaiter().GetResult()` blocking**
   - File: `src/Workers/TableChangeListener.cs`
   - Make the `onChanges` callback async or use `Task.Run`
 
-- [ ] **Add `TOP 100` to pending query**
+- [x] **Add `TOP 100` to pending query**
   - File: `src/Data/NotificationRepository.cs`
   - Add `TOP (@Limit)` with a configurable batch size
 
@@ -62,9 +62,10 @@ Based on the audit findings, here are the fixes to apply in priority order. Comm
   - File: `src/Data/SqlDependencyListener.cs`
   - Clean up event handlers and connections on dispose
 
-- [ ] **Remove unused `Retryable` property or use it**
+- [x] **Remove unused `Retryable` property or use it**
   - File: `src/Services/ISmsSender.cs`
   - Either remove or document that it's used by `NotificationProcessor`
+  - **Done**: `Retryable` property is now used by `NotificationProcessor` to cancel non-retryable errors
 
 - [ ] **Add DB connectivity check in installer**
   - File: `installer/installer.iss`
