@@ -32,15 +32,11 @@ begin
 
   ApiUrlPage := CreateInputQueryPage(DbPage.ID,
     'SMS API Configuration',
-    'Enter the SMS API endpoint URL.',
-    'API URL:');
-  ApiUrlPage.Add('https://fees.munywele.co.ke/api/v1/notifications', False);
-
-  AuthPage := CreateInputQueryPage(ApiUrlPage.ID,
-    'Authorization',
-    'Enter the bearer token for the SMS API.',
-    'Token:');
-  AuthPage.Add('', True);
+    'Enter the SMS API endpoint URL and authorization token.',
+    '');
+  ApiUrlPage.Add('API URL:', False);
+  ApiUrlPage.Add('Bearer Token:', True);
+  ApiUrlPage.Values[0] := 'https://fees.munywele.co.ke/api/v1/notifications';
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -52,7 +48,7 @@ begin
 
   if KeepExistingCfg then
   begin
-    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = AuthPage.ID);
+    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID);
     Exit;
   end;
 end;
@@ -121,11 +117,7 @@ begin
       Result := False;
       Exit;
     end;
-  end;
-
-  if CurPageID = AuthPage.ID then
-  begin
-    if Trim(AuthPage.Values[0]) = '' then
+    if Trim(ApiUrlPage.Values[1]) = '' then
     begin
       MsgBox('The authorization token cannot be empty.', mbError, MB_OK);
       Result := False;
