@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Configuration;
-
 namespace SmsNotificationService.Configuration;
 
 public static class ConfigurationExtensions
