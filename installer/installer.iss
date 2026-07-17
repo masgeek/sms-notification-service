@@ -59,6 +59,7 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64os
 PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog
 SetupIconFile=..\favicon.ico
 UninstallDisplayIcon={app}\SmsNotificationService.exe
 UninstallDisplayName={#MyAppName} {#MyAppVersion}
