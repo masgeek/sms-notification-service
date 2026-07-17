@@ -1,8 +1,3 @@
-var
-  DbTestPage       : TNewNotebookPage;
-  TestButton       : TNewButton;
-  TestResultLabel  : TNewStaticText;
-
 procedure InitializeWizard;
 var
   PrevPageID: Integer;
@@ -43,65 +38,6 @@ begin
   ApiUrlPage.Add('API URL:', False);
   ApiUrlPage.Add('Bearer Token:', True);
   ApiUrlPage.Values[0] := 'https://fees.munywele.co.ke/api/v1/notifications';
-
-  DbTestPage := CreateCustomPage(ApiUrlPage.ID, 'Test Database Connection', 'Click the button below to test your database connection.');
-
-  TestButton := TNewButton.Create(DbTestPage);
-  TestButton.Parent := DbTestPage.Surface;
-  TestButton.Left := ScaleX(16);
-  TestButton.Top := ScaleY(16);
-  TestButton.Width := ScaleX(150);
-  TestButton.Height := ScaleY(23);
-  TestButton.Caption := 'Test Connection';
-  TestButton.OnClick := @TestButtonClick;
-
-  TestResultLabel := TNewStaticText.Create(DbTestPage);
-  TestResultLabel.Parent := DbTestPage.Surface;
-  TestResultLabel.Left := ScaleX(16);
-  TestResultLabel.Top := ScaleY(50);
-  TestResultLabel.Width := DbTestPage.SurfaceWidth - ScaleX(32);
-  TestResultLabel.AutoSize := True;
-  TestResultLabel.WordWrap := True;
-  TestResultLabel.Caption := '';
-end;
-
-procedure TestButtonClick(Sender: TObject);
-begin
-  if Trim(DbPage.Values[0]) = '' then
-  begin
-    MsgBox('Please go back and enter the database server name.', mbError, MB_OK);
-    Exit;
-  end;
-  if Trim(DbPage.Values[1]) = '' then
-  begin
-    MsgBox('Please go back and enter the database name.', mbError, MB_OK);
-    Exit;
-  end;
-  if Trim(DbPage.Values[2]) = '' then
-  begin
-    MsgBox('Please go back and enter the database username.', mbError, MB_OK);
-    Exit;
-  end;
-  if Trim(DbPage.Values[3]) = '' then
-  begin
-    MsgBox('Please go back and enter the database password.', mbError, MB_OK);
-    Exit;
-  end;
-
-  TestResultLabel.Caption := 'Testing connection...';
-  TestResultLabel.Font.Color := clWindowText;
-  Update;
-
-  if TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]) then
-  begin
-    TestResultLabel.Caption := 'Connection successful!';
-    TestResultLabel.Font.Color := clGreen;
-  end
-  else
-  begin
-    TestResultLabel.Caption := 'Connection failed. Please check your settings and try again.';
-    TestResultLabel.Font.Color := clRed;
-  end;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -113,12 +49,14 @@ begin
 
   if KeepExistingCfg then
   begin
-    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = DbTestPage.ID);
+    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID);
     Exit;
   end;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  TestResult: Integer;
 begin
   Result := True;
 
@@ -176,6 +114,20 @@ begin
       MsgBox('The authorization token cannot be empty.', mbError, MB_OK);
       Result := False;
       Exit;
+    end;
+
+    TestResult := MsgBox('Test database connection now?', mbConfirmation, MB_YESNOCANCEL);
+    if TestResult = IDCANCEL then
+    begin
+      Result := False;
+      Exit;
+    end;
+    if TestResult = IDYES then
+    begin
+      if TestDbConnection(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3]) then
+        MsgBox('Database connection successful!', mbInformation, MB_OK)
+      else
+        MsgBox('Database connection failed. Please check your settings.', mbError, MB_OK);
     end;
   end;
 end;
