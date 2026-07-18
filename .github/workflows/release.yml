@@ -136,11 +136,16 @@ jobs:
         run: choco install innosetup -y
 
       - name: Build installers
+        shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           Write-Host "Building self-contained installer..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" "installer\installer.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Self-contained installer build failed with exit code $LASTEXITCODE" }
           Write-Host "Building framework-dependent installer..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" "installer\installer-framework.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Framework-dependent installer build failed with exit code $LASTEXITCODE" }
+          Write-Host "Both installers built successfully."
 
       - name: Verify version in build
         run: |
@@ -163,7 +168,11 @@ jobs:
 
       - name: Copy installers to root
         shell: bash
-        run: cp installer/output/SmsNotificationService-*-Setup-*.exe .
+        run: |
+          cp installer/output/SmsNotificationService-Setup-*.exe . 2>/dev/null || echo "Self-contained installer not found"
+          cp installer/output/SmsNotificationService-Framework-Setup-*.exe . 2>/dev/null || echo "Framework installer not found"
+          echo "=== Root directory ==="
+          ls -la *.exe 2>/dev/null || echo "No .exe files found"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
@@ -171,7 +180,7 @@ jobs:
           name: release-artifacts
           path: |
             SmsNotificationService-win-x64.zip
-            SmsNotificationService-Setup-*.exe
+            SmsNotificationService*-Setup-*.exe
           retention-days: 1
 
   release:
