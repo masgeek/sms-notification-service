@@ -124,7 +124,9 @@ jobs:
 
       - name: Zip artifacts
         shell: bash
-        run: 7z a -tzip SmsNotificationService-win-x64.zip "./publish/*" "./publish-tray/*"
+        run: |
+          cp -r publish-tray publish/tray
+          7z a -tzip SmsNotificationService-win-x64.zip "./publish/*"
 
       - name: Install Inno Setup
         run: choco install innosetup -y
