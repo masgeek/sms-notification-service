@@ -118,12 +118,13 @@ jobs:
       - name: Build
         run: dotnet build -c Release --no-restore
 
-      - name: Publish win-x64
-        run: dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o publish
+      - name: Publish all
+        shell: pwsh
+        run: ./publish.ps1
 
       - name: Zip artifacts
         shell: bash
-        run: 7z a -tzip SmsNotificationService-win-x64.zip "./publish/*"
+        run: 7z a -tzip SmsNotificationService-win-x64.zip "./publish/*" "./publish-tray/*"
 
       - name: Install Inno Setup
         run: choco install innosetup -y

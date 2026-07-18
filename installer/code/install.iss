@@ -1,6 +1,16 @@
-procedure DoFreshInstall;
+procedure MaybeStartTrayApp;
 var
-  ExitCode: Integer;
+  ResultCode: Integer;
+begin
+  if InstallTrayApp and StartTrayAfter then
+  begin
+    Log('Starting tray app...');
+    ShellExec('', ExpandConstant('{app}\{#TrayDir}\{#TrayAppName}.exe'), '', ExpandConstant('{app}\{#TrayDir}'), SW_SHOWNORMAL, ewNoWait, ResultCode);
+    Log('Tray app launched.');
+  end;
+end;
+
+procedure DoFreshInstall;
 begin
   Log('=== Fresh install started ===');
 
@@ -33,6 +43,7 @@ begin
            'Check Windows Event Log for details.', mbInformation, MB_OK);
 
   Log('=== Fresh install completed ===');
+  MaybeStartTrayApp;
 end;
 
 procedure DoUpgrade;
@@ -68,6 +79,7 @@ begin
            'Check Windows Event Log for details.', mbInformation, MB_OK);
 
   Log('=== Upgrade completed ===');
+  MaybeStartTrayApp;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
