@@ -168,7 +168,11 @@ jobs:
 
       - name: Copy installers to root
         shell: bash
-        run: cp installer/output/SmsNotificationService-*-Setup-*.exe .
+        run: |
+          cp installer/output/SmsNotificationService-Setup-*.exe . 2>/dev/null || echo "Self-contained installer not found"
+          cp installer/output/SmsNotificationService-Framework-Setup-*.exe . 2>/dev/null || echo "Framework installer not found"
+          echo "=== Root directory ==="
+          ls -la *.exe 2>/dev/null || echo "No .exe files found"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
