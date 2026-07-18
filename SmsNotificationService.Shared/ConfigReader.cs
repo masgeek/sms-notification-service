@@ -58,14 +58,6 @@ public static class ConfigReader
 
     public static string BuildConnectionString(string server, string database, string userId, string password)
     {
-        var builder = new SqlConnectionStringBuilder
-        {
-            DataSource = server,
-            InitialCatalog = database,
-            UserID = userId,
-            Password = password,
-            TrustServerCertificate = true
-        };
-        return builder.ConnectionString;
+        return $"Server={server};Database={database};User Id={userId};Password={password};TrustServerCertificate=True";
     }
 }
