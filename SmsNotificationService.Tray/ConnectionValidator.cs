@@ -1,10 +1,8 @@
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
-using System.Text.Json;
 using Dapper;
 using Microsoft.Data.SqlClient;
-using SmsNotificationService.Tray.Helpers;
+using SmsNotificationService.Shared;
 
 namespace SmsNotificationService.Tray;
 
@@ -18,8 +16,9 @@ internal sealed class ConnectionValidator
         if (DateTime.UtcNow - _lastValidation < TimeSpan.FromSeconds(30) && _lastResult is not null)
             return _lastResult;
 
-        var connectionString = LoadConnectionString();
-        var apiUrl = LoadApiUrl();
+        var configPath = ConfigPathResolver.FindConfigFile();
+        var connectionString = ConfigReader.LoadConnectionString(configPath);
+        var apiUrl = ConfigReader.LoadApiUrl(configPath);
 
         var dbTask = ValidateDbAsync(connectionString);
         var apiTask = ValidateApiAsync(apiUrl);
@@ -116,35 +115,6 @@ internal sealed class ConnectionValidator
         }
     }
 
-    private static string LoadConnectionString()
-    {
-        try
-        {
-            if (!File.Exists(Paths.ConfigFile)) return string.Empty;
-            var json = File.ReadAllText(Paths.ConfigFile);
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("ConnectionStrings", out var cs) &&
-                cs.TryGetProperty("DefaultConnection", out var conn))
-                return conn.GetString() ?? string.Empty;
-        }
-        catch { /* ignore */ }
-        return string.Empty;
-    }
-
-    private static string LoadApiUrl()
-    {
-        try
-        {
-            if (!File.Exists(Paths.ConfigFile)) return string.Empty;
-            var json = File.ReadAllText(Paths.ConfigFile);
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("SmsService", out var sms) &&
-                sms.TryGetProperty("SmsApiUrl", out var url))
-                return url.GetString() ?? string.Empty;
-        }
-        catch { /* ignore */ }
-        return string.Empty;
-    }
 }
 
 internal sealed class ValidationResult

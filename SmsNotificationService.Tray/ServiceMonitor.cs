@@ -1,15 +1,13 @@
 using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
-using SmsNotificationService.Tray.Helpers;
+using SmsNotificationService.Shared;
 using SmsNotificationService.Tray.Models;
 
 namespace SmsNotificationService.Tray;
 
 public sealed class ServiceMonitor : IDisposable
 {
-    private const string ServiceName = "SmsNotificationService";
-    private const string ProcessName = "SmsNotificationService";
     private static readonly TimeSpan LogStaleThreshold = TimeSpan.FromSeconds(60);
 
     private readonly PeriodicTimer _timer;
@@ -92,7 +90,7 @@ public sealed class ServiceMonitor : IDisposable
     {
         try
         {
-            using var controller = new ServiceController(ServiceName);
+            using var controller = new ServiceController(Constants.ServiceName);
             var status = controller.Status;
             return new ServiceStatusInfo
             {
@@ -110,7 +108,7 @@ public sealed class ServiceMonitor : IDisposable
     {
         try
         {
-            var processes = Process.GetProcessesByName(ProcessName);
+            var processes = Process.GetProcessesByName(Constants.ServiceName);
             if (processes.Length == 0)
                 return null;
 
@@ -138,7 +136,7 @@ public sealed class ServiceMonitor : IDisposable
     {
         try
         {
-            var logDir = Paths.LogDir;
+            var logDir = ConfigPathResolver.GetLogDir();
             if (!Directory.Exists(logDir))
                 return false;
 
@@ -178,7 +176,7 @@ public sealed class ServiceMonitor : IDisposable
 
     private static void Execute(string action)
     {
-        try { Process.Start("sc.exe", $"{action} {ServiceName}"); }
+        try { Process.Start("sc.exe", $"{action} {Constants.ServiceName}"); }
         catch { /* Best effort */ }
     }
 
@@ -186,7 +184,7 @@ public sealed class ServiceMonitor : IDisposable
     {
         try
         {
-            foreach (var proc in Process.GetProcessesByName(ProcessName))
+            foreach (var proc in Process.GetProcessesByName(Constants.ServiceName))
             {
                 try { proc.Kill(); }
                 catch { /* process may have already exited */ }

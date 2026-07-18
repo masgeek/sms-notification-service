@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Threading;
+using SmsNotificationService.Shared;
 
 namespace SmsNotificationService.Tray;
 
@@ -30,11 +31,11 @@ public partial class StatusWindow : Window
         if (StatusText is null) return;
 
         var info = _monitor.Current;
-        StatusText.Text = FormatStatus(info.Status);
-        UptimeText.Text = FormatUptime(info.Uptime);
+        StatusText.Text = StatusHelper.FormatStatus(info.Status);
+        UptimeText.Text = StatusHelper.FormatUptime(info.Uptime);
         VersionText.Text = info.Version;
         LastCheckText.Text = info.LastCheck.ToString("yyyy-MM-dd HH:mm:ss");
-        DetectionText.Text = FormatDetection(info.DetectionMethod);
+        DetectionText.Text = StatusHelper.FormatDetection(info.DetectionMethod);
 
         StartButton.IsEnabled = info.Status is System.ServiceProcess.ServiceControllerStatus.Stopped
             or System.ServiceProcess.ServiceControllerStatus.Paused;
@@ -52,29 +53,4 @@ public partial class StatusWindow : Window
         Hide();
         base.OnClosing(e);
     }
-
-    private static string FormatStatus(System.ServiceProcess.ServiceControllerStatus status) => status switch
-    {
-        System.ServiceProcess.ServiceControllerStatus.Running => "Running",
-        System.ServiceProcess.ServiceControllerStatus.Stopped => "Stopped",
-        System.ServiceProcess.ServiceControllerStatus.Paused => "Paused",
-        System.ServiceProcess.ServiceControllerStatus.StartPending => "Starting...",
-        System.ServiceProcess.ServiceControllerStatus.StopPending => "Stopping...",
-        _ => "Unknown"
-    };
-
-    private static string FormatUptime(TimeSpan ts) => ts.TotalDays >= 1
-        ? $"{(int)ts.TotalDays}d {ts.Hours}h {ts.Minutes}m"
-        : ts.TotalHours >= 1
-            ? $"{(int)ts.TotalHours}h {ts.Minutes}m"
-            : $"{ts.Minutes}m {ts.Seconds}s";
-
-    private static string FormatDetection(string method) => method switch
-    {
-        "ServiceController" => "Windows Service",
-        "Process" => "Process (non-service mode)",
-        "NotRunning" => "Not running",
-        "Error" => "Detection failed",
-        _ => method
-    };
 }

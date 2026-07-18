@@ -1,14 +1,13 @@
 using System.Drawing;
-using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Reflection;
 using System.ServiceProcess;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
+using SmsNotificationService.Shared;
 using SmsNotificationService.Tray.Models;
 
 namespace SmsNotificationService.Tray;
@@ -56,7 +55,7 @@ internal sealed class TrayIcon : IDisposable
         Application.Current.Dispatcher.Invoke(() =>
         {
             _icon.Icon = CreateIcon(info.Status);
-            _icon.ToolTipText = $"SmsNotificationService — {FormatStatus(info.Status)} (v{info.Version})";
+            _icon.ToolTipText = $"SmsNotificationService — {StatusHelper.FormatStatus(info.Status)} (v{info.Version})";
 
             if (info.Status == ServiceControllerStatus.Stopped)
             {
@@ -142,28 +141,26 @@ internal sealed class TrayIcon : IDisposable
 
     private void Exit() => Application.Current.Shutdown();
 
-    private static string FormatStatus(ServiceControllerStatus status) => status switch
-    {
-        ServiceControllerStatus.Running => "Running",
-        ServiceControllerStatus.Stopped => "Stopped",
-        ServiceControllerStatus.Paused => "Paused",
-        ServiceControllerStatus.StartPending => "Starting",
-        ServiceControllerStatus.StopPending => "Stopping",
-        _ => "Unknown"
-    };
-
     private static Icon CreateIcon(ServiceControllerStatus status)
     {
         var color = status switch
         {
-            ServiceControllerStatus.Running => Color.Green,
-            ServiceControllerStatus.Stopped => Color.Red,
-            _ => Color.Yellow
+            ServiceControllerStatus.Running => Color.FromArgb(34, 197, 94),
+            ServiceControllerStatus.Stopped => Color.FromArgb(239, 68, 68),
+            _ => Color.FromArgb(234, 179, 8)
         };
 
         var bitmap = new Bitmap(16, 16);
         using var graphics = Graphics.FromImage(bitmap);
-        graphics.Clear(color);
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.Clear(Color.Transparent);
+
+        using var brush = new SolidBrush(color);
+        graphics.FillEllipse(brush, 1, 1, 14, 14);
+
+        using var pen = new Pen(Color.FromArgb(80, 0, 0, 0), 1);
+        graphics.DrawEllipse(pen, 1, 1, 14, 14);
+
         return Icon.FromHandle(bitmap.GetHicon());
     }
 

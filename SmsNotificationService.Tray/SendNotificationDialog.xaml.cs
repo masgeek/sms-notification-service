@@ -1,10 +1,8 @@
 using System.ComponentModel;
-using System.IO;
-using System.Text.Json;
 using System.Windows;
 using Dapper;
 using Microsoft.Data.SqlClient;
-using SmsNotificationService.Tray.Helpers;
+using SmsNotificationService.Shared;
 
 namespace SmsNotificationService.Tray;
 
@@ -31,7 +29,8 @@ public partial class SendNotificationDialog : Window
             return;
         }
 
-        var connectionString = LoadConnectionString();
+        var configPath = ConfigPathResolver.FindConfigFile();
+        var connectionString = ConfigReader.LoadConnectionString(configPath);
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             MessageText.Text = "Cannot load connection string from config.";
@@ -48,7 +47,7 @@ public partial class SendNotificationDialog : Window
             using var conn = new SqlConnection(connectionString);
             await conn.OpenAsync();
 
-            var sql = @"INSERT INTO sms_notifications
+            var sql = $@"INSERT INTO {Constants.TableName}
                 (adm_no, stud_names, phone_number, mpesa_code, receipt_no, status, created_at, retry_count)
                 VALUES
                 (@AdmNo, @StudNames, @PhoneNumber, @MpesaCode, @ReceiptNo, 'PENDING', GETDATE(), 0)";
@@ -95,21 +94,6 @@ public partial class SendNotificationDialog : Window
         StudentNameBox.Text = string.Empty;
         AmountBox.Text = string.Empty;
         AdmNoBox.Text = string.Empty;
-    }
-
-    private static string LoadConnectionString()
-    {
-        try
-        {
-            if (!File.Exists(Paths.ConfigFile)) return string.Empty;
-            var json = File.ReadAllText(Paths.ConfigFile);
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("ConnectionStrings", out var cs) &&
-                cs.TryGetProperty("DefaultConnection", out var conn))
-                return conn.GetString() ?? string.Empty;
-        }
-        catch { }
-        return string.Empty;
     }
 
     protected override void OnClosing(CancelEventArgs e)

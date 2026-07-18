@@ -4,7 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
-using SmsNotificationService.Tray.Helpers;
+using SmsNotificationService.Shared;
 
 namespace SmsNotificationService.Tray;
 
@@ -33,13 +33,13 @@ public partial class LogViewer : Window
         {
             if (LogTextBox is null) return;
 
-            if (!Directory.Exists(Paths.LogDir))
+            if (!Directory.Exists(ConfigPathResolver.GetLogDir()))
             {
                 LogTextBox.Text = "No log directory found.";
                 return;
             }
 
-            var logFiles = Directory.GetFiles(Paths.LogDir, "*.log")
+            var logFiles = Directory.GetFiles(ConfigPathResolver.GetLogDir(), "*.log")
                 .OrderByDescending(f => f)
                 .Take(1)
                 .ToList();
@@ -50,7 +50,17 @@ public partial class LogViewer : Window
                 return;
             }
 
-            var lines = File.ReadLines(logFiles[0]).Reverse().Take(500).Reverse().ToList();
+            using var stream = new FileStream(logFiles[0], FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(stream);
+            var allLines = new List<string>();
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+                if (line is not null)
+                    allLines.Add(line);
+            }
+
+            var lines = allLines.Reverse<string>().Take(500).Reverse().ToList();
 
             if (!string.IsNullOrEmpty(_selectedFilter))
             {
@@ -89,8 +99,8 @@ public partial class LogViewer : Window
 
     private void OpenFolderButton_Click(object sender, RoutedEventArgs e)
     {
-        if (Directory.Exists(Paths.LogDir))
-            Process.Start("explorer.exe", Paths.LogDir);
+        if (Directory.Exists(ConfigPathResolver.GetLogDir()))
+            Process.Start("explorer.exe", ConfigPathResolver.GetLogDir());
     }
 
     protected override void OnClosing(CancelEventArgs e)

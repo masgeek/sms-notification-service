@@ -17,11 +17,21 @@
   </ItemGroup>
 
   <ItemGroup>
+
     <PackageReference Include="Dapper" Version="2.1.79" />
+
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.2.0" />
+
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.10" />
+
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmsNotificationService.Shared\SmsNotificationService.Shared.csproj" />
+
   </ItemGroup>
 
 </Project>

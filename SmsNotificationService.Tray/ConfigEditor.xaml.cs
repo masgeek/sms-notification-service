@@ -6,7 +6,7 @@ using System.Security.Principal;
 using System.Text.Json;
 using System.Windows;
 using Microsoft.Data.SqlClient;
-using SmsNotificationService.Tray.Helpers;
+using SmsNotificationService.Shared;
 
 namespace SmsNotificationService.Tray;
 
@@ -23,7 +23,7 @@ public partial class ConfigEditor : Window
 
         Loaded += (_, _) =>
         {
-            ConfigPathText.Text = Paths.ConfigFile;
+            ConfigPathText.Text = ConfigPathResolver.FindConfigFile();
             LoadConfig();
         };
     }
@@ -32,8 +32,9 @@ public partial class ConfigEditor : Window
     {
         try
         {
-            if (!File.Exists(Paths.ConfigFile)) return;
-            var json = File.ReadAllText(Paths.ConfigFile);
+            var configPath = ConfigPathResolver.FindConfigFile();
+            if (!File.Exists(configPath)) return;
+            var json = File.ReadAllText(configPath);
             using var doc = JsonDocument.Parse(json);
 
             if (doc.RootElement.TryGetProperty("ConnectionStrings", out var cs) &&
@@ -84,14 +85,14 @@ public partial class ConfigEditor : Window
     {
         try
         {
-            var builder = new SqlConnectionStringBuilder(connectionString);
-            DbServerBox.Text = builder.DataSource;
-            DbNameBox.Text = builder.InitialCatalog;
-            DbUserIdBox.Text = builder.UserID;
-            DbPasswordBox.Password = builder.Password;
-            if (builder.Encrypt == SqlConnectionEncryptOption.Mandatory)
+            var (server, database, userId, password, encrypt) = ConfigReader.ParseConnectionString(connectionString);
+            DbServerBox.Text = server;
+            DbNameBox.Text = database;
+            DbUserIdBox.Text = userId;
+            DbPasswordBox.Password = password;
+            if (encrypt == SqlConnectionEncryptOption.Mandatory)
                 DbEncryptBox.SelectedIndex = 0;
-            else if (builder.Encrypt == SqlConnectionEncryptOption.Optional)
+            else if (encrypt == SqlConnectionEncryptOption.Optional)
                 DbEncryptBox.SelectedIndex = 1;
             else
                 DbEncryptBox.SelectedIndex = 2;
@@ -104,22 +105,15 @@ public partial class ConfigEditor : Window
 
     private string BuildConnectionString()
     {
-        var builder = new SqlConnectionStringBuilder
+        var encrypt = DbEncryptBox.SelectedIndex switch
         {
-            DataSource = DbServerBox.Text,
-            InitialCatalog = DbNameBox.Text,
-            UserID = DbUserIdBox.Text,
-            Password = DbPasswordBox.Password,
+            1 => SqlConnectionEncryptOption.Optional,
+            2 => SqlConnectionEncryptOption.Strict,
+            _ => SqlConnectionEncryptOption.Mandatory
         };
 
-        if (DbEncryptBox.SelectedIndex == 1)
-            builder.Encrypt = SqlConnectionEncryptOption.Optional;
-        else if (DbEncryptBox.SelectedIndex == 2)
-            builder.Encrypt = SqlConnectionEncryptOption.Strict;
-        else
-            builder.Encrypt = SqlConnectionEncryptOption.Mandatory;
-
-        return builder.ConnectionString;
+        return ConfigReader.BuildConnectionString(
+            DbServerBox.Text, DbNameBox.Text, DbUserIdBox.Text, DbPasswordBox.Password, encrypt);
     }
 
     private void ToggleTokenButton_Click(object sender, RoutedEventArgs e)
@@ -167,13 +161,15 @@ public partial class ConfigEditor : Window
     {
         try
         {
-            if (!File.Exists(Paths.ConfigFile))
+            var configPath = ConfigPathResolver.FindConfigFile();
+
+            if (!File.Exists(configPath))
             {
                 MessageBox.Show("Config file not found. Cannot save.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
-            if (Paths.IsInProgramData(Paths.ConfigFile) && !IsRunningAsAdmin())
+            if (ConfigPathResolver.IsInProgramData(configPath) && !IsRunningAsAdmin())
             {
                 var elevateResult = MessageBox.Show(
                     "Saving to ProgramData requires administrator privileges.\n\n" +
@@ -190,7 +186,7 @@ public partial class ConfigEditor : Window
 
             var connectionString = BuildConnectionString();
 
-            var json = await File.ReadAllTextAsync(Paths.ConfigFile);
+            var json = await File.ReadAllTextAsync(configPath);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement.Clone();
 
@@ -223,7 +219,7 @@ public partial class ConfigEditor : Window
             }
 
             var output = JsonSerializer.Serialize(mutable, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(Paths.ConfigFile, output);
+            await File.WriteAllTextAsync(configPath, output);
 
             var result = MessageBox.Show(
                 "Configuration saved. Restart service now?",
