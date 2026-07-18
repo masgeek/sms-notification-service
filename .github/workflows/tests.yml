@@ -106,7 +106,7 @@ jobs:
           find publish-tray -type f | wc -l
 
   validate-installer:
-    name: Validate Inno Setup Script
+    name: Validate Self-Contained Installer
     runs-on: windows-latest
     timeout-minutes: 10
     needs: build-tray
@@ -123,6 +123,24 @@ jobs:
           echo placeholder > publish\Tray\SmsNotificationService.Tray.exe
           mkdir publish-tray
           echo placeholder > publish-tray\SmsNotificationService.Tray.exe
+
+      - name: Compile and validate
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
+        with:
+          path: installer/installer.iss
+
+  validate-installer-framework:
+    name: Validate Framework-Dependent Installer
+    runs-on: windows-latest
+    timeout-minutes: 10
+    needs: build-tray
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Create dummy publish folders
+        run: |
           mkdir publish-framework
           echo placeholder > publish-framework\SmsNotificationService.exe
           mkdir publish-framework\Tray
@@ -130,12 +148,7 @@ jobs:
           mkdir publish-tray-framework
           echo placeholder > publish-tray-framework\SmsNotificationService.Tray.exe
 
-      - name: Validate self-contained installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
-        with:
-          path: installer/installer.iss
-
-      - name: Validate framework-dependent installer
+      - name: Compile and validate
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: installer/installer-framework.iss
@@ -143,7 +156,7 @@ jobs:
   summary:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [test, build-tray, validate-installer]
+    needs: [test, build-tray, validate-installer, validate-installer-framework]
     if: always()
     steps:
       - name: Evaluate job results
@@ -157,7 +170,11 @@ jobs:
             exit 1
           fi
           if [ "${{ needs.validate-installer.result }}" != "success" ]; then
-            echo "::error::Installer validation failed"
+            echo "::error::Self-contained installer validation failed"
+            exit 1
+          fi
+          if [ "${{ needs.validate-installer-framework.result }}" != "success" ]; then
+            echo "::error::Framework-dependent installer validation failed"
             exit 1
           fi
           echo "All checks passed"
