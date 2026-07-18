@@ -87,7 +87,7 @@ internal sealed class FileLogger : ILogger, IDisposable
 
     private StreamWriter CreateWriter()
     {
-        var stream = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.Read);
+        var stream = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
         return new StreamWriter(stream) { AutoFlush = true };
     }
 
