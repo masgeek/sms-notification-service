@@ -1,3 +1,5 @@
+using SmsNotificationService.Shared;
+
 namespace SmsNotificationService.Configuration;
 
 public static class ConfigurationExtensions
@@ -5,8 +7,8 @@ public static class ConfigurationExtensions
     public static IConfigurationBuilder AddProductionConfig(
         this IConfigurationBuilder builder, string appDataDir)
     {
-        var prodConfigPath = Path.Combine(appDataDir, "appsettings.Production.json");
-        var appDirConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), "appsettings.Production.json");
+        var prodConfigPath = Path.Combine(appDataDir, Constants.ConfigFileName);
+        var appDirConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), Constants.ConfigFileName);
 
         foreach (var configPath in new[] { prodConfigPath, appDirConfigPath }.Distinct())
         {
