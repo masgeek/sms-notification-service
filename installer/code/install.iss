@@ -87,6 +87,16 @@ begin
   case CurStep of
     ssInstall:
       begin
+        #ifdef FrameworkInstall
+        if not CheckDotNetRuntime then
+        begin
+          MsgBox('.NET 10 Runtime is required but was not detected.' + #13#10 +
+                 'Please install the .NET 10 Runtime and try again.' + #13#10#13#10 +
+                 'https://dotnet.microsoft.com/download/dotnet/10.0',
+                 mbError, MB_OK);
+          Abort;
+        end;
+        #endif
         if UpgradeMode then
           DoUpgrade;
       end;

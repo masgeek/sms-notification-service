@@ -122,6 +122,10 @@ jobs:
         shell: pwsh
         run: ./publish.ps1
 
+      - name: Publish framework-dependent
+        shell: pwsh
+        run: ./publish-framework.ps1
+
       - name: Zip artifacts
         shell: bash
         run: |
@@ -131,10 +135,12 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup -y
 
-      - name: Build installer
+      - name: Build installers
         run: |
-          Write-Host "ISCC version: $env:VERSION"
+          Write-Host "Building self-contained installer..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" "installer\installer.iss"
+          Write-Host "Building framework-dependent installer..."
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" "installer\installer-framework.iss"
 
       - name: Verify version in build
         run: |
@@ -155,9 +161,9 @@ jobs:
           ls -la installer/output/
           echo "=== Version: $VERSION ==="
 
-      - name: Copy installer to root
+      - name: Copy installers to root
         shell: bash
-        run: cp installer/output/SmsNotificationService-Setup-*.exe .
+        run: cp installer/output/SmsNotificationService-*-Setup-*.exe .
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
@@ -197,3 +203,4 @@ jobs:
           artifacts: |
             artifacts/SmsNotificationService-win-x64.zip
             artifacts/SmsNotificationService-Setup-*.exe
+            artifacts/SmsNotificationService-Framework-Setup-*.exe

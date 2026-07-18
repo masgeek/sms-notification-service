@@ -81,3 +81,45 @@ begin
   Exec('sc.exe', 'failure ' + SvcName + ' reset= 86400 actions= restart/300000/restart/5000/restart/5000', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
   Log('Failure recovery configured (5min, 5s, 5s).');
 end;
+
+function CheckDotNetRuntime: Boolean;
+var
+  ExitCode: Integer;
+  OutputFile: String;
+  Content: AnsiString;
+begin
+  Result := True;
+  OutputFile := ExpandConstant('{tmp}\dotnet-runtimes.txt');
+
+  Exec('cmd.exe', '/C dotnet --list-runtimes > "' + OutputFile + '" 2>&1',
+    '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+
+  if ExitCode <> 0 then
+  begin
+    Log('dotnet --list-runtimes failed (exit code ' + IntToStr(ExitCode) + ').');
+    Result := False;
+    Exit;
+  end;
+
+  if not FileExists(OutputFile) then
+  begin
+    Log('dotnet runtime output file not found.');
+    Result := False;
+    Exit;
+  end;
+
+  if not LoadStringFromFile(OutputFile, Content) then
+  begin
+    Log('Could not read dotnet runtime output.');
+    Result := False;
+    Exit;
+  end;
+
+  if Pos('Microsoft.NETCore.App 10', Content) = 0 then
+  begin
+    Log('.NET 10 runtime not found in installed runtimes.');
+    Result := False;
+  end
+  else
+    Log('.NET 10 runtime detected.');
+end;
