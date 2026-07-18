@@ -29,6 +29,8 @@ SQL Server                     SMS API
 - `Microsoft.Data.SqlClient` — SQL Server connectivity
 - `Dapper` — lightweight ORM
 - `SqlDependency` — real-time change notifications via Service Broker
+- WPF System Tray App — service management and monitoring
+- `H.NotifyIcon.Wpf` — tray icon library
 - `xUnit` + `Moq` + `FluentAssertions` — unit testing
 
 ## Prerequisites
@@ -117,14 +119,20 @@ dotnet run
 
 **Installer (recommended):**
 
-Download the latest release from [GitHub Releases](../../releases) and run `SmsNotificationService-Setup-<version>.exe` as Administrator. The installer will:
+Download the latest release from [GitHub Releases](../../releases). Two installer variants are available:
+
+- `SmsNotificationService-Setup-<version>.exe` — self-contained (no .NET runtime needed)
+- `SmsNotificationService-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime)
+
+Run the installer as Administrator. It will:
 
 - Install files to `C:\Program Files\SmsNotificationService\`
 - Prompt for database connection, API URL, and auth token
 - Create the Windows Service (delayed auto-start)
-- Write config to `ProgramData\Munywele\SmsNotificationService\appsettings.Production.json`
+- Write config to `C:\Program Files\SmsNotificationService\appsettings.Production.json`
 - Register an Event Log source
 - Configure service recovery (restart on failure)
+- Optionally install the system tray app
 
 **Manual:**
 
@@ -196,13 +204,14 @@ Fully automated pipeline. No manual tagging required.
 Tests (all branches)  ──>  Release (main only)
                               ├── Auto-generate tag from conventional commits
                               ├── Build win-x64 + Inno Setup installer
-                              └── Create/update GitHub Release
+                              ├── Create/update GitHub Release
+                              └── Upload both self-contained and framework-dependent installers
 ```
 
 | Workflow | Trigger | What |
 |---|---|---|
-| `tests.yml` | All pushes | Build + unit tests (cached by SHA) |
-| `release.yml` | After tests pass on `main` | Auto-tag, build zip + installer, GitHub Release |
+| `tests.yml` | All pushes | Build + unit tests + validate both installer scripts |
+| `release.yml` | After tests pass on `main` | Auto-tag, build both installers, GitHub Release |
 
 **Idempotent:** Re-running on the same commit republishes the existing release with updated artifacts.
 
@@ -259,20 +268,67 @@ SmsNotificationService/
 │   │   └── DatabaseConnectionCheck.cs      # Startup DB check (10s timeout)
 │   └── Logging/
 │       └── FileLoggerProvider.cs           # File logging with daily rotation
+├── SmsNotificationService.Shared/
+│   ├── SmsNotificationService.Shared.csproj
+│   ├── Constants.cs                        # Service name, table name, paths
+│   ├── ConfigPathResolver.cs               # Find config file (app dir → ProgramData)
+│   ├── VersionHelper.cs                    # Assembly version info
+│   ├── ConfigReader.cs                     # Load config values
+│   └── StatusHelper.cs                     # Format status strings
+├── SmsNotificationService.Tray/
+│   ├── SmsNotificationService.Tray.csproj  # WPF WinExe
+│   ├── App.xaml / App.xaml.cs              # WPF app entry, ShutdownMode
+│   ├── TrayIcon.cs                         # GDI+ icons, context menu
+│   ├── ServiceMonitor.cs                   # 3-tier service detection, control
+│   ├── UpdateChecker.cs                    # GitHub Releases polling
+│   ├── ConnectionValidator.cs              # DB/API/Broker connectivity checks
+│   ├── StatusWindow.xaml / .cs             # Service status display
+│   ├── LogViewer.xaml / .cs                # Log file tailing
+│   ├── ConfigEditor.xaml / .cs             # Edit all SmsService settings
+│   └── SendNotificationDialog.xaml / .cs   # Manual SMS insert
 ├── tests/
 │   └── SmsNotificationService.Tests/
 │       ├── WorkerTests.cs                  # Worker unit tests
 │       └── SmsApiServiceTests.cs           # SMS service unit tests
 ├── installer/
-│   └── installer.iss                       # Inno Setup (dynamic version via /D)
+│   ├── installer.iss                       # Self-contained installer
+│   ├── installer-framework.iss             # Framework-dependent installer
+│   └── code/
+│       ├── globals.iss                     # Global variables, wizard pages
+│       ├── utils.iss                       # RunCmd, BoolToStr, JsonEscape
+│       ├── services.iss                    # Windows Service management
+│       ├── eventlog.iss                    # Event Log helpers
+│       ├── config.iss                      # Config writer
+│       ├── wizard.iss                      # UI pages, validation
+│       ├── install.iss                     # Install/upgrade logic
+│       └── uninstall.iss                   # Uninstall logic
 ├── .github/workflows/
-│   ├── tests.yml                           # Test on all branches
-│   └── release.yml                         # Auto-tag + build + release on main
+│   ├── tests.yml                           # Tests + validate both installers
+│   ├── release.yml                         # Build both installers + GitHub Release
+│   ├── create-release-pr.yml               # Auto PR develop→main
+│   └── auto-review.yml                     # Auto-approve after checks pass
 ├── docs/
 │   ├── deployment.md                       # Deployment guide
 │   └── plan.md                             # Feature plan
+├── publish.ps1                             # Self-contained publish script
+├── publish-framework.ps1                   # Framework-dependent publish script
 └── SmsNotificationService.slnx             # Solution file
 ```
+
+## Tray App
+
+The system tray app (`SmsNotificationService.Tray.exe`) provides real-time service management:
+
+- **Status monitoring** — real-time service status, uptime, version, detection method
+- **Service control** — start, stop, restart from the tray menu
+- **Log viewer** — view and filter service log files
+- **Send notification** — insert test notifications directly into the database
+- **Config editor** — edit all settings with individual fields (server, database, user, password, API URL, token)
+- **Connection validator** — test DB, API, and Service Broker connectivity in parallel
+- **Update checker** — polls GitHub Releases every 4 hours for new versions
+- **GDI+ styled icons** — anti-aliased circles: green (running), red (stopped), yellow (unknown)
+
+The tray app is optional during installation and auto-starts on login via `HKCU\...\Run`.
 
 ## API Payload
 
@@ -294,6 +350,8 @@ The SMS API receives raw data fields (snake_case):
 ## Logging
 
 **File logs** are written to `ProgramData\Munywele\SmsNotificationService\logs\` with daily rotation and configurable retention (default 7 days).
+
+**Config location:** `C:\Program Files\SmsNotificationService\appsettings.Production.json` (app directory, not ProgramData).
 
 **Console output:**
 

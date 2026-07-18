@@ -2,7 +2,12 @@
 
 ## Quick Start
 
-Download the latest installer from [GitHub Releases](../../releases) and run `SmsNotificationService-Setup-<version>.exe` as Administrator.
+Download the latest installer from [GitHub Releases](../../releases). Two variants are available:
+
+- `SmsNotificationService-Setup-<version>.exe` — self-contained (no .NET runtime needed)
+- `SmsNotificationService-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime on target machine)
+
+Run the installer as Administrator.
 
 The installer deploys:
 - **SmsNotificationService** — background worker (Windows Service)
@@ -60,6 +65,16 @@ Output:
 
 Both are self-contained — no .NET runtime needed on the target machine.
 
+Or publish as framework-dependent:
+
+```bash
+./publish-framework.ps1
+```
+
+Output:
+- `publish-framework\` — service binaries (requires .NET 10 runtime)
+- `publish-tray-framework\` — tray app binaries (requires .NET 10 runtime)
+
 Or publish individually:
 
 ```bash
@@ -70,15 +85,20 @@ dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c
 ### Build Installer
 
 ```bash
-# Command line
+# Self-contained installer (bundles .NET runtime)
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 installer\installer.iss
 
-# Or open installer/installer.iss in Inno Setup Compiler > Build > Compile
+# Framework-dependent installer (requires .NET 10 runtime on target)
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 /DFrameworkInstall installer\installer-framework.iss
 ```
 
-**Requirements:** Both `publish\` and `publish-tray\` directories must exist before compiling.
+**Requirements:** 
+- Self-contained: `publish\` and `publish-tray\` directories must exist
+- Framework-dependent: `publish-framework\` and `publish-tray-framework\` directories must exist
 
-Output: `installer/output/SmsNotificationService-Setup-<version>.exe`
+Output:
+- `installer/output/SmsNotificationService-Setup-<version>.exe` (self-contained)
+- `installer/output/SmsNotificationService-Framework-Setup-<version>.exe` (framework-dependent)
 
 The installer version is set dynamically via `/DMyAppVersion=<version>`. If omitted, defaults to `1.0.0`.
 
@@ -96,34 +116,40 @@ dotnet test -c Release --filter "FullyQualifiedName~NotificationProcessorTests"
 dotnet test -c Release --filter "FullyQualifiedName~SmsApiServiceTests"
 ```
 
-### Validate Installer Script (without building)
+### Validate Installer Scripts (without building)
 
-Create dummy publish folders and compile the ISS script:
+Create dummy publish folders and compile both ISS scripts:
 
 ```bash
+# Self-contained installer
 mkdir publish && echo placeholder > publish\SmsNotificationService.exe
 mkdir publish-tray && echo placeholder > publish-tray\SmsNotificationService.Tray.exe
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
+
+# Framework-dependent installer
+mkdir publish-framework && echo placeholder > publish-framework\SmsNotificationService.exe
+mkdir publish-tray-framework && echo placeholder > publish-tray-framework\SmsNotificationService.Tray.exe
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer-framework.iss
 ```
 
 ## What the Installer Does
 
 1. Detects fresh install vs upgrade (checks for existing service)
 2. Prompts to keep or update existing configuration
-3. Writes `appsettings.Production.json` to `ProgramData\Munywele\SmsNotificationService\`
-4. Copies both service and tray app binaries to `Program Files\SmsNotificationService\`
+3. Writes `appsettings.Production.json` to `C:\Program Files\SmsNotificationService\`
+4. Copies both service and tray app binaries to `C:\Program Files\SmsNotificationService\`
 5. Creates Windows Service (`delayed-auto`, `LocalSystem`)
 6. Configures service recovery (restart on failure: 5min, 5s, 5s)
 7. Registers Event Log source
 8. Creates Start Menu shortcuts (service + uninstall; tray app if selected)
 9. Adds tray app to Windows auto-start if selected (`HKCU\...\Run`)
-10. Starts the service
+10. Optionally starts the service and tray app
 
 > The tray app is optional — the installer includes a "System Tray App" page where you can toggle it on/off. The binaries are always copied but the shortcut and auto-start are only created if selected.
 
 ## Configuration
 
-Config is stored in `ProgramData\Munywele\SmsNotificationService\appsettings.Production.json`:
+Config is stored in `C:\Program Files\SmsNotificationService\appsettings.Production.json`:
 
 ```json
 {
@@ -284,26 +310,29 @@ Tests ──> .NET Tests
     ├──> Build Tray App
     │     (publish tray app, verify binary exists)
     │
-    ├──> Validate Inno Setup Script
+    ├──> Validate Self-Contained Installer
     │     (compile ISS with dummy publish folders)
+    │
+    ├──> Validate Framework-Dependent Installer
+    │     (compile framework ISS with dummy publish folders)
     │
     └──> All Checks Passed (summary)
               │
               v
 Release (main branch only, after tests pass)
     ├── Generate version tag from conventional commits
-    ├── Build win-x64 self-contained publish (service + tray app)
-    ├── Build Inno Setup installer
+    ├── Build win-x64 publish (both self-contained and framework-dependent)
+    ├── Build both Inno Setup installers
     ├── Create zip archive (service + tray app binaries)
-    └── Create/update GitHub Release with artifacts
+    └── Create/update GitHub Release with all artifacts
 ```
 
 ### Workflow Files
 
 | File | Purpose | Trigger |
 |------|---------|---------|
-| `tests.yml` | Build validation, unit tests, installer script check | Push, PR, manual |
-| `release.yml` | Version tag, build, package, publish release | After tests pass on `main` |
+| `tests.yml` | Build validation, unit tests, both installer script checks | Push, PR, manual |
+| `release.yml` | Version tag, build both installers, publish release | After tests pass on `main` |
 | `create-release-pr.yml` | Auto-create PR from `develop` to `main` | After tests pass on `develop` |
 | `auto-review.yml` | Auto-approve PRs after checks pass | After tests pass |
 
@@ -313,7 +342,8 @@ Each release produces:
 
 | Artifact | Description |
 |----------|-------------|
-| `SmsNotificationService-Setup-<version>.exe` | Inno Setup installer (service + tray app) |
+| `SmsNotificationService-Setup-<version>.exe` | Self-contained installer (bundles .NET runtime) |
+| `SmsNotificationService-Framework-Setup-<version>.exe` | Framework-dependent installer (requires .NET 10 runtime) |
 | `SmsNotificationService-win-x64.zip` | Zip of `publish/` + `publish-tray/` directories |
 
 ## Troubleshooting
@@ -322,7 +352,7 @@ Each release produces:
 
 1. Check config file exists:
    ```powershell
-   Test-Path "C:\ProgramData\Munywele\SmsNotificationService\appsettings.Production.json"
+   Test-Path "C:\Program Files\SmsNotificationService\appsettings.Production.json"
    ```
 2. Check Service Broker is enabled:
    ```sql
