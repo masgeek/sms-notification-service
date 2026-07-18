@@ -95,8 +95,8 @@ Name: "{commonappdata}\{#ConfigDir}\data"; Permissions: admins-full system-full 
 ;           Tray app binaries are always copied; shortcut/registry are optional
 ; ============================================================================
 [Files]
-Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\publish-tray\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\publish-tray\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 
 ; ============================================================================
 ; [Icons] - Start Menu shortcut
