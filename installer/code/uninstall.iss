@@ -1,8 +1,16 @@
 procedure DoUninstall;
 var
   PreserveCfg: Integer;
+  ExitCode: Integer;
 begin
   Log('=== Uninstall started ===');
+
+  Log('Closing tray app...');
+  Exec('taskkill.exe', '/f /im {#TrayAppName}.exe', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+  if ExitCode = 0 then
+    Log('Tray app closed.')
+  else
+    Log('Tray app was not running.');
 
   Log('Stopping service...');
   StopService('{#ServiceName}');
@@ -28,6 +36,15 @@ begin
     Log('Service deleted successfully.');
 
   RemoveEventLog;
+
+  Log('Removing tray app auto-start registry entry (if present)...');
+  if RegValueExists(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#TrayAppName}') then
+  begin
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#TrayAppName}');
+    Log('Tray app registry entry removed.');
+  end
+  else
+    Log('Tray app registry entry not found — skipping.');
 
   PreserveCfg := MsgBox(
     'Do you want to preserve the configuration file?' + #13#10 + #13#10 +

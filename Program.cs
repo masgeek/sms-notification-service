@@ -1,14 +1,13 @@
-using System.Reflection;
 using SmsNotificationService;
 using SmsNotificationService.Checks;
 using SmsNotificationService.Configuration;
 using SmsNotificationService.Data;
 using SmsNotificationService.Logging;
+using SmsNotificationService.Shared;
 
 if (args.Contains("--version") || args.Contains("-v"))
 {
-    var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "unknown";
-    Console.WriteLine(version);
+    Console.WriteLine(VersionHelper.GetCurrentVersion());
     return;
 }
 
@@ -16,11 +15,8 @@ var builder = Host.CreateApplicationBuilder(args);
 
 var environment = builder.Environment.EnvironmentName;
 
-var appDataDir = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-    "Munywele", "SmsNotificationService");
-
-var logDir = Path.Combine(appDataDir, "logs");
+var appDataDir = ConfigPathResolver.GetProgramDataDir();
+var logDir = ConfigPathResolver.GetLogDir();
 
 builder.Configuration.AddProductionConfig(appDataDir);
 
@@ -31,11 +27,11 @@ builder.Logging.AddProvider(new FileLoggerProvider(logDir, svcOptions.LogRetenti
 var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
 logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
 
-var prodConfigPath = Path.Combine(appDataDir, "appsettings.Production.json");
-if (File.Exists(prodConfigPath))
-    logger.LogInformation("[Config] Loading config from: {Path}", prodConfigPath);
+var resolvedConfigPath = ConfigPathResolver.FindConfigFile();
+if (File.Exists(resolvedConfigPath))
+    logger.LogInformation("[Config] Loading config from: {Path}", resolvedConfigPath);
 else
-    logger.LogInformation("[Config] No config file found at {Path} — using environment variables or defaults", prodConfigPath);
+    logger.LogInformation("[Config] No config file found — checked ProgramData and AppDir — using environment variables or defaults");
 
 DapperMapper.Register();
 

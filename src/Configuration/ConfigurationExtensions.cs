@@ -1,3 +1,5 @@
+using SmsNotificationService.Shared;
+
 namespace SmsNotificationService.Configuration;
 
 public static class ConfigurationExtensions
@@ -5,21 +7,31 @@ public static class ConfigurationExtensions
     public static IConfigurationBuilder AddProductionConfig(
         this IConfigurationBuilder builder, string appDataDir)
     {
-        var prodConfigPath = Path.Combine(appDataDir, "appsettings.Production.json");
-        try
+        var prodConfigPath = Path.Combine(appDataDir, Constants.ConfigFileName);
+        var appDirConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), Constants.ConfigFileName);
+
+        foreach (var configPath in new[] { prodConfigPath, appDirConfigPath }.Distinct())
         {
-            if (File.Exists(prodConfigPath))
-                builder.AddJsonFile(prodConfigPath, optional: true, reloadOnChange: false);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            Console.WriteLine($"[Config] Warning: Access denied to {prodConfigPath} — using environment variables or defaults");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Config] Warning: Could not load {prodConfigPath}: {ex.Message} — using environment variables or defaults");
+            try
+            {
+                if (File.Exists(configPath))
+                {
+                    Console.WriteLine($"[Config] Loading config from: {configPath}");
+                    builder.AddJsonFile(configPath, optional: true, reloadOnChange: false);
+                    return builder;
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine($"[Config] Warning: Access denied to {configPath} — trying next location");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Config] Warning: Could not load {configPath}: {ex.Message} — trying next location");
+            }
         }
 
+        Console.WriteLine("[Config] No config file found — using environment variables or defaults");
         return builder;
     }
 

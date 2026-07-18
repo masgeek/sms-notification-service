@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WarningsAsErrors>nullable;CS8655</WarningsAsErrors>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="favicon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+
+    <PackageReference Include="Dapper" Version="2.1.79" />
+
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.2.0" />
+
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.10" />
+
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmsNotificationService.Shared\SmsNotificationService.Shared.csproj" />
+
+  </ItemGroup>
+
+</Project>

@@ -51,9 +51,17 @@ begin
 
   Exec(
     'icacls.exe',
-    '"' + CfgPath + '" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F"',
+    '"' + CfgDir + '" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Users:(OI)(CI)(R,W)"',
     '', SW_HIDE, ewWaitUntilTerminated, ExitCode
   );
   if ExitCode <> 0 then
-    Log('Warning: icacls returned exit code ' + IntToStr(ExitCode));
+    Log('Warning: icacls on directory returned exit code ' + IntToStr(ExitCode));
+
+  Exec(
+    'icacls.exe',
+    '"' + CfgPath + '" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Users:(OI)(CI)(R,W)"',
+    '', SW_HIDE, ewWaitUntilTerminated, ExitCode
+  );
+  if ExitCode <> 0 then
+    Log('Warning: icacls on file returned exit code ' + IntToStr(ExitCode));
 end;
