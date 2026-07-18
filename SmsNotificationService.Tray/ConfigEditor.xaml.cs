@@ -37,15 +37,11 @@ public partial class ConfigEditor : Window
             var json = File.ReadAllText(configPath);
             using var doc = JsonDocument.Parse(json);
 
-            if (doc.RootElement.TryGetProperty("ConnectionStrings", out var cs) &&
-                cs.TryGetProperty("DefaultConnection", out var conn))
-            {
-                var connectionString = conn.GetString() ?? string.Empty;
-                ParseConnectionString(connectionString);
-            }
-
             if (doc.RootElement.TryGetProperty("SmsService", out var sms))
             {
+                if (sms.TryGetProperty("ConnectionString", out var connStr))
+                    ParseConnectionString(connStr.GetString() ?? string.Empty);
+
                 if (sms.TryGetProperty("SmsApiUrl", out var url))
                     ApiUrlBox.Text = url.GetString() ?? string.Empty;
 
@@ -59,16 +55,12 @@ public partial class ConfigEditor : Window
                 if (sms.TryGetProperty("RetryPollIntervalSeconds", out var poll) &&
                     poll.TryGetInt32(out var pollVal))
                     PollIntervalBox.Text = pollVal.ToString();
-            }
 
-            if (doc.RootElement.TryGetProperty("Logging", out var logging) &&
-                logging.TryGetProperty("FileLogging", out var fileLog))
-            {
-                if (fileLog.TryGetProperty("RetentionDays", out var retention) &&
+                if (sms.TryGetProperty("LogRetentionDays", out var retention) &&
                     retention.TryGetInt32(out var retentionVal))
                     RetentionBox.Text = retentionVal.ToString();
 
-                if (fileLog.TryGetProperty("MaxFileSizeMb", out var maxSize) &&
+                if (sms.TryGetProperty("MaxLogFileSizeMb", out var maxSize) &&
                     maxSize.TryGetInt64(out var maxSizeVal))
                     MaxSizeBox.Text = maxSizeVal.ToString();
             }
@@ -195,15 +187,6 @@ public partial class ConfigEditor : Window
             foreach (var prop in root.EnumerateObject())
                 mutable[prop.Name] = prop.Value.Clone();
 
-            if (mutable.TryGetValue("ConnectionStrings", out var csObj) && csObj is JsonElement csElement)
-            {
-                var csDict = new Dictionary<string, string?>();
-                foreach (var prop in csElement.EnumerateObject())
-                    csDict[prop.Name] = prop.Value.GetString();
-                csDict["DefaultConnection"] = connectionString;
-                mutable["ConnectionStrings"] = csDict;
-            }
-
             if (mutable.TryGetValue("SmsService", out var smsObj) && smsObj is JsonElement smsElement)
             {
                 var smsDict = new Dictionary<string, object?>();
@@ -211,10 +194,13 @@ public partial class ConfigEditor : Window
                     smsDict[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
                         ? (object)prop.Value.GetString()!
                         : prop.Value.GetRawText();
+                smsDict["ConnectionString"] = connectionString;
                 smsDict["SmsApiUrl"] = ApiUrlBox.Text;
                 smsDict["AuthorizationToken"] = _rawToken;
                 if (int.TryParse(BackoffBox.Text, out var backoff)) smsDict["RetryBackoffSeconds"] = backoff;
                 if (int.TryParse(PollIntervalBox.Text, out var poll)) smsDict["RetryPollIntervalSeconds"] = poll;
+                if (int.TryParse(RetentionBox.Text, out var retention)) smsDict["LogRetentionDays"] = retention;
+                if (int.TryParse(MaxSizeBox.Text, out var maxSize)) smsDict["MaxLogFileSizeMb"] = maxSize;
                 mutable["SmsService"] = smsDict;
             }
 
