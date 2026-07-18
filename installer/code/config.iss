@@ -51,7 +51,7 @@ begin
 
   Exec(
     'icacls.exe',
-    '"' + CfgPath + '" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F"',
+    '"' + CfgPath + '" /inheritance:r /grant:r "Administrators:(OI)(CI)F" "SYSTEM:(OI)(CI)F" "Users:(OI)(CI)F"',
     '', SW_HIDE, ewWaitUntilTerminated, ExitCode
   );
   if ExitCode <> 0 then
