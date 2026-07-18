@@ -15,10 +15,9 @@ var builder = Host.CreateApplicationBuilder(args);
 
 var environment = builder.Environment.EnvironmentName;
 
-var appDataDir = ConfigPathResolver.GetProgramDataDir();
 var logDir = ConfigPathResolver.GetLogDir();
 
-builder.Configuration.AddProductionConfig(appDataDir);
+builder.Configuration.AddProductionConfig();
 
 var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName)
     .Get<SmsServiceOptions>() ?? new();
@@ -31,7 +30,7 @@ var resolvedConfigPath = ConfigPathResolver.FindConfigFile();
 if (File.Exists(resolvedConfigPath))
     logger.LogInformation("[Config] Loading config from: {Path}", resolvedConfigPath);
 else
-    logger.LogInformation("[Config] No config file found — checked ProgramData and AppDir — using environment variables or defaults");
+    logger.LogInformation("[Config] No config file found — using environment variables or defaults");
 
 DapperMapper.Register();
 
