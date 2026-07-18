@@ -9,29 +9,35 @@ public static class ConfigurationExtensions
     {
         var prodConfigPath = Path.Combine(appDataDir, Constants.ConfigFileName);
         var appDirConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), Constants.ConfigFileName);
+        var devConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), "appsettings.Development.json");
 
-        foreach (var configPath in new[] { prodConfigPath, appDirConfigPath }.Distinct())
+        var candidates = new[] { devConfigPath, prodConfigPath, appDirConfigPath }.Distinct();
+        var loaded = false;
+
+        foreach (var configPath in candidates)
         {
             try
             {
                 if (File.Exists(configPath))
                 {
-                    Console.WriteLine($"[Config] Loading config from: {configPath}");
+                    Console.WriteLine($"[Config] Found: {configPath}");
                     builder.AddJsonFile(configPath, optional: true, reloadOnChange: false);
-                    return builder;
+                    loaded = true;
                 }
             }
             catch (UnauthorizedAccessException)
             {
-                Console.WriteLine($"[Config] Warning: Access denied to {configPath} — trying next location");
+                Console.WriteLine($"[Config] Warning: Access denied to {configPath} — skipping");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Config] Warning: Could not load {configPath}: {ex.Message} — trying next location");
+                Console.WriteLine($"[Config] Warning: Could not load {configPath}: {ex.Message} — skipping");
             }
         }
 
-        Console.WriteLine("[Config] No config file found — using environment variables or defaults");
+        if (!loaded)
+            Console.WriteLine("[Config] No config file found — using environment variables or defaults");
+
         return builder;
     }
 
