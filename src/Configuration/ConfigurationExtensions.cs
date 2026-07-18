@@ -5,33 +5,46 @@ namespace SmsNotificationService.Configuration;
 public static class ConfigurationExtensions
 {
     public static IConfigurationBuilder AddProductionConfig(
-        this IConfigurationBuilder builder, string appDataDir)
+        this IConfigurationBuilder builder, string environment)
     {
-        var prodConfigPath = Path.Combine(appDataDir, Constants.ConfigFileName);
-        var appDirConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), Constants.ConfigFileName);
+        var appDir = ConfigPathResolver.GetAppDir();
+        var candidates = new List<string>();
 
-        foreach (var configPath in new[] { prodConfigPath, appDirConfigPath }.Distinct())
+        if (environment.Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            var programDataPath = Path.Combine(ConfigPathResolver.GetProgramDataDir(), Constants.ConfigFileName);
+            candidates.Add(programDataPath);
+        }
+
+        candidates.Add(Path.Combine(appDir, "appsettings.Development.json"));
+        candidates.Add(Path.Combine(appDir, Constants.ConfigFileName));
+
+        var loaded = false;
+
+        foreach (var configPath in candidates)
         {
             try
             {
                 if (File.Exists(configPath))
                 {
-                    Console.WriteLine($"[Config] Loading config from: {configPath}");
+                    Console.WriteLine($"[Config] Found: {configPath}");
                     builder.AddJsonFile(configPath, optional: true, reloadOnChange: false);
-                    return builder;
+                    loaded = true;
                 }
             }
             catch (UnauthorizedAccessException)
             {
-                Console.WriteLine($"[Config] Warning: Access denied to {configPath} — trying next location");
+                Console.WriteLine($"[Config] Warning: Access denied to {configPath} — skipping");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Config] Warning: Could not load {configPath}: {ex.Message} — trying next location");
+                Console.WriteLine($"[Config] Warning: Could not load {configPath}: {ex.Message} — skipping");
             }
         }
 
-        Console.WriteLine("[Config] No config file found — using environment variables or defaults");
+        if (!loaded)
+            Console.WriteLine("[Config] No config file found — using environment variables or defaults");
+
         return builder;
     }
 
@@ -43,8 +56,8 @@ public static class ConfigurationExtensions
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
             throw new InvalidOperationException("[Config] SmsService:ConnectionString is not configured. Set via appsettings.json or SmsService__ConnectionString.");
 
-        if (options.ConnectionString.Contains("Encrypt=", StringComparison.OrdinalIgnoreCase) == false)
-            Console.WriteLine("[Config] Warning: Connection string does not contain 'Encrypt=True'. Consider adding it for secure connections.");
+        if (options.ConnectionString.Contains("TrustServerCertificate=", StringComparison.OrdinalIgnoreCase) == false)
+            Console.WriteLine("[Config] Warning: Connection string does not contain 'TrustServerCertificate=True'. Consider adding it for secure connections.");
 
         if (string.IsNullOrWhiteSpace(options.SmsApiUrl))
             throw new InvalidOperationException("[Config] SmsService:SmsApiUrl is not configured. Set via appsettings.json or SmsService__SmsApiUrl.");

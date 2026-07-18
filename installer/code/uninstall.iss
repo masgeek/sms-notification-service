@@ -47,21 +47,21 @@ begin
     Log('Tray app registry entry not found — skipping.');
 
   PreserveCfg := MsgBox(
-    'Do you want to preserve the configuration file?' + #13#10 + #13#10 +
+    'Do you want to preserve the configuration and log files?' + #13#10 + #13#10 +
     'Location: ' + ExpandConstant('{commonappdata}\{#ConfigDir}') + #13#10 + #13#10 +
-    'Click Yes to keep configuration for future reinstall.' + #13#10 +
-    'Click No to remove all configuration files.',
+    'Click Yes to keep files for future reinstall.' + #13#10 +
+    'Click No to remove all files.',
     mbConfirmation,
     MB_YESNO or MB_DEFBUTTON2
   );
 
   if PreserveCfg = IDNO then
   begin
-    Log('Removing configuration directory...');
+    Log('Removing log directory...');
     DelTree(ExpandConstant('{commonappdata}\{#ConfigDir}'), True, True, True);
   end
   else
-    Log('Preserving configuration directory.');
+    Log('Preserving log directory.');
 
   RegDeleteKeyIncludingSubkeys(HKLM, 'SYSTEM\CurrentControlSet\Services\{#ServiceName}');
   Log('Registry cleanup completed.');

@@ -1,8 +1,5 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
-using System.Reflection;
-using System.Security.Principal;
 using System.Text.Json;
 using System.Windows;
 using Microsoft.Data.SqlClient;
@@ -77,17 +74,11 @@ public partial class ConfigEditor : Window
     {
         try
         {
-            var (server, database, userId, password, encrypt) = ConfigReader.ParseConnectionString(connectionString);
+            var (server, database, userId, password, _) = ConfigReader.ParseConnectionString(connectionString);
             DbServerBox.Text = server;
             DbNameBox.Text = database;
             DbUserIdBox.Text = userId;
             DbPasswordBox.Password = password;
-            if (encrypt == SqlConnectionEncryptOption.Mandatory)
-                DbEncryptBox.SelectedIndex = 0;
-            else if (encrypt == SqlConnectionEncryptOption.Optional)
-                DbEncryptBox.SelectedIndex = 1;
-            else
-                DbEncryptBox.SelectedIndex = 2;
         }
         catch
         {
@@ -97,15 +88,8 @@ public partial class ConfigEditor : Window
 
     private string BuildConnectionString()
     {
-        var encrypt = DbEncryptBox.SelectedIndex switch
-        {
-            1 => SqlConnectionEncryptOption.Optional,
-            2 => SqlConnectionEncryptOption.Strict,
-            _ => SqlConnectionEncryptOption.Mandatory
-        };
-
         return ConfigReader.BuildConnectionString(
-            DbServerBox.Text, DbNameBox.Text, DbUserIdBox.Text, DbPasswordBox.Password, encrypt);
+            DbServerBox.Text, DbNameBox.Text, DbUserIdBox.Text, DbPasswordBox.Password);
     }
 
     private void ToggleTokenButton_Click(object sender, RoutedEventArgs e)
@@ -161,21 +145,6 @@ public partial class ConfigEditor : Window
                 return;
             }
 
-            if (ConfigPathResolver.IsInProgramData(configPath) && !IsRunningAsAdmin())
-            {
-                var elevateResult = MessageBox.Show(
-                    "Saving to ProgramData requires administrator privileges.\n\n" +
-                    "Re-launch the config editor as administrator?",
-                    "Elevated Permissions Required",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (elevateResult == MessageBoxResult.Yes)
-                    RelaunchAsAdmin();
-
-                return;
-            }
-
             var connectionString = BuildConnectionString();
 
             var json = await File.ReadAllTextAsync(configPath);
@@ -223,35 +192,6 @@ public partial class ConfigEditor : Window
     }
 
     private void CancelButton_Click(object sender, RoutedEventArgs e) => Close();
-
-    private static bool IsRunningAsAdmin()
-    {
-        using var identity = WindowsIdentity.GetCurrent();
-        var principal = new WindowsPrincipal(identity);
-        return principal.IsInRole(WindowsBuiltInRole.Administrator);
-    }
-
-    private static void RelaunchAsAdmin()
-    {
-        try
-        {
-            var exePath = Environment.ProcessPath ?? Assembly.GetEntryAssembly()?.Location;
-            if (string.IsNullOrEmpty(exePath)) return;
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = exePath,
-                Verb = "runas",
-                UseShellExecute = true
-            });
-
-            Application.Current.Shutdown();
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            MessageBox.Show("Administrator elevation was denied.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 
     protected override void OnClosing(CancelEventArgs e)
     {

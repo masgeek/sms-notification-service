@@ -1,14 +1,13 @@
 ; ============================================================================
-; SmsNotificationService - Production Inno Setup Installer
+; SmsNotificationService - Framework-Dependent Installer
 ; ============================================================================
-; Requires: Inno Setup 6.4+
-; Build:    dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o publish
-;           dotnet publish SmsNotificationService.Tray\SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o publish-tray
+; Requires: Inno Setup 6.4+ and .NET 10 Runtime on target machine
+; Build:    ./publish-framework.ps1
 ; Compile:  Open in Inno Setup Compiler -> Build -> Compile
-; Output:   installer\output\SmsNotificationService-Setup-<version>.exe
+; Output:   installer\output\SmsNotificationService-Framework-Setup-<version>.exe
 ; ============================================================================
 ;
-; Modular structure:
+; Modular structure (shared with installer.iss):
 ;   code/globals.iss    - Global variables and initialization
 ;   code/utils.iss      - Utility functions (RunCmd, BoolToStr, JsonEscape)
 ;   code/services.iss   - Windows Service management
@@ -36,20 +35,21 @@
 #define LogRetentionDays "7"
 #define MaxLogFileSizeMb "10"
 #define TrayDir          "Tray"
+#define FrameworkInstall true
 
 ; ============================================================================
 ; [Setup] - Installer metadata, UI, compression, logging
 ; ============================================================================
 [Setup]
-AppId={{B8E3F2A1-7C4D-4E6F-8A2B-1D3C5E7F9A0B}
-AppName={#MyAppName}
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+AppName={#MyAppName} (Framework-dependent)
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL=https://munywele.co.ke
 AppSupportURL=https://github.com/masgeek/sms-notification-service/issues
 AppUpdatesURL=https://github.com/masgeek/sms-notification-service/releases
 AppCopyright={#MyAppCopyright}
-AppVerName={#MyAppName} {#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion} (Framework)
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
@@ -57,7 +57,7 @@ VersionInfoCopyright={#MyAppCopyright}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=output
-OutputBaseFilename=SmsNotificationService-Setup-{#MyAppVersion}
+OutputBaseFilename=SmsNotificationService-Framework-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -66,7 +66,7 @@ PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
 SetupIconFile=..\favicon.ico
 UninstallDisplayIcon={app}\SmsNotificationService.exe
-UninstallDisplayName={#MyAppName} {#MyAppVersion}
+UninstallDisplayName={#MyAppName} {#MyAppVersion} (Framework)
 WizardStyle=modern
 WizardSizePercent=110
 DisableProgramGroupPage=yes
@@ -89,12 +89,11 @@ Name: "{app}"; Permissions: everyone-readexec
 Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full everyone-readexec
 
 ; ============================================================================
-; [Files] - Application binaries (always overwrite)
-;           Tray app binaries are always copied; shortcut/registry are optional
+; [Files] - Framework-dependent binaries
 ; ============================================================================
 [Files]
-Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
-Source: "..\publish-tray\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\publish-framework\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\publish-tray-framework\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 
 ; ============================================================================
 ; [Icons] - Start Menu shortcut
@@ -108,14 +107,8 @@ Name: "{commonstartup}\{#TrayAppDisplay}"; \
     WorkingDir: "{app}\{#TrayDir}"; \
     Comment: "Start SMS Notification Service Tray"; \
     Check: ShouldInstallTrayApp
-    
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
-; ============================================================================
-; [Registry] - Auto-start tray app on user login
-; ============================================================================
-;[Registry]
-;Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#TrayAppName}"; ValueData: """{app}\{#TrayDir}\{#TrayAppName}.exe"""; Flags: uninsdeletevalue; Check: ShouldInstallTrayApp
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 ; ============================================================================
 ; [Code] - Pascal Script (modular includes)

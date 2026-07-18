@@ -30,7 +30,6 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Server:" VerticalAlignment="Center" Width="90"/>
@@ -44,13 +43,6 @@
 
                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Password:" VerticalAlignment="Center" Width="90"/>
                 <PasswordBox Grid.Row="3" Grid.Column="1" x:Name="DbPasswordBox" Margin="0,2"/>
-
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="Encrypt:" VerticalAlignment="Center" Width="90"/>
-                <ComboBox Grid.Row="4" Grid.Column="1" x:Name="DbEncryptBox" Margin="0,2" Width="120" HorizontalAlignment="Left">
-                    <ComboBoxItem Content="Mandatory" IsSelected="True"/>
-                    <ComboBoxItem Content="Optional"/>
-                    <ComboBoxItem Content="Strict"/>
-                </ComboBox>
             </Grid>
         </StackPanel>
 
