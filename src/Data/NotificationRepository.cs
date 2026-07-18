@@ -4,14 +4,13 @@ using Dapper;
 
 namespace SmsNotificationService.Data;
 
-public sealed class NotificationRepository(string connectionString, ILogger<NotificationRepository> logger) : INotificationRepository
+public sealed class NotificationRepository(string connectionString, ILogger<NotificationRepository> logger)
+    : INotificationRepository
 {
-
     private readonly ILogger<NotificationRepository> _logger = logger;
 
     public async Task<List<SmsNotification>> GetPendingAsync()
     {
-
         using var connection = new SqlConnection(connectionString);
         var notifications = await connection.QueryAsync<SmsNotification>(
             "SELECT TOP 100 * FROM sms_notifications WHERE status = @Status AND (retry_after IS NULL OR retry_after <= @Now)",
@@ -23,9 +22,26 @@ public sealed class NotificationRepository(string connectionString, ILogger<Noti
     public async Task UpdateStatusAsync(long notificationId, NotificationStatus status)
     {
         using var connection = new SqlConnection(connectionString);
+
+        const string query = @"
+        UPDATE sms_notifications
+        SET
+            status = @Status,
+            updated_at = @UpdatedAt,
+            description_json = CASE
+                WHEN @Status = 'PROCESSED' THEN NULL
+                ELSE description_json
+            END
+        WHERE id = @Id;";
+
         await connection.ExecuteAsync(
-            "UPDATE sms_notifications SET status = @Status, updated_at = @UpdatedAt WHERE id = @Id",
-            new { Status = status.ToString(), UpdatedAt = DateTime.UtcNow, Id = notificationId });
+            query,
+            new
+            {
+                Status = status.ToString(),
+                UpdatedAt = DateTime.UtcNow,
+                Id = notificationId
+            });
 
         _logger.LogDebug("[DB] Notification {Id} status → {Status}", notificationId, status);
     }
@@ -37,7 +53,8 @@ public sealed class NotificationRepository(string connectionString, ILogger<Noti
             "UPDATE sms_notifications SET retry_count = @RetryCount, retry_after = @RetryAfter, updated_at = @UpdatedAt WHERE id = @Id",
             new { RetryCount = retryCount, RetryAfter = retryAfter, UpdatedAt = DateTime.UtcNow, Id = notificationId });
 
-        _logger.LogDebug("[DB] Notification {Id} retry → {Count}, next attempt at {RetryAfter}", notificationId, retryCount, retryAfter);
+        _logger.LogDebug("[DB] Notification {Id} retry → {Count}, next attempt at {RetryAfter}", notificationId,
+            retryCount, retryAfter);
     }
 
     public async Task UpdateDescriptionAsync(long notificationId, string description)
