@@ -5,13 +5,20 @@ namespace SmsNotificationService.Configuration;
 public static class ConfigurationExtensions
 {
     public static IConfigurationBuilder AddProductionConfig(
-        this IConfigurationBuilder builder)
+        this IConfigurationBuilder builder, string environment)
     {
         var appDir = ConfigPathResolver.GetAppDir();
-        var devConfigPath = Path.Combine(appDir, "appsettings.Development.json");
-        var prodConfigPath = Path.Combine(appDir, Constants.ConfigFileName);
+        var candidates = new List<string>();
 
-        var candidates = new[] { prodConfigPath, devConfigPath }.Distinct();
+        if (environment.Equals("Production", StringComparison.OrdinalIgnoreCase))
+        {
+            var programDataPath = Path.Combine(ConfigPathResolver.GetProgramDataDir(), Constants.ConfigFileName);
+            candidates.Add(programDataPath);
+        }
+
+        candidates.Add(Path.Combine(appDir, "appsettings.Development.json"));
+        candidates.Add(Path.Combine(appDir, Constants.ConfigFileName));
+
         var loaded = false;
 
         foreach (var configPath in candidates)

@@ -17,7 +17,7 @@ var environment = builder.Environment.EnvironmentName;
 
 var logDir = ConfigPathResolver.GetLogDir();
 
-builder.Configuration.AddProductionConfig();
+builder.Configuration.AddProductionConfig(environment);
 
 var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName)
     .Get<SmsServiceOptions>() ?? new();
