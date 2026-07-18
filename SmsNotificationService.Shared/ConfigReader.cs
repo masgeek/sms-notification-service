@@ -56,7 +56,7 @@ public static class ConfigReader
         return (builder.DataSource, builder.InitialCatalog, builder.UserID, builder.Password, builder.Encrypt);
     }
 
-    public static string BuildConnectionString(string server, string database, string userId, string password, SqlConnectionEncryptOption encrypt)
+    public static string BuildConnectionString(string server, string database, string userId, string password)
     {
         var builder = new SqlConnectionStringBuilder
         {
@@ -64,7 +64,6 @@ public static class ConfigReader
             InitialCatalog = database,
             UserID = userId,
             Password = password,
-            Encrypt = encrypt,
             TrustServerCertificate = true
         };
         return builder.ConnectionString;

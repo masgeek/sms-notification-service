@@ -77,17 +77,11 @@ public partial class ConfigEditor : Window
     {
         try
         {
-            var (server, database, userId, password, encrypt) = ConfigReader.ParseConnectionString(connectionString);
+            var (server, database, userId, password, _) = ConfigReader.ParseConnectionString(connectionString);
             DbServerBox.Text = server;
             DbNameBox.Text = database;
             DbUserIdBox.Text = userId;
             DbPasswordBox.Password = password;
-            if (encrypt == SqlConnectionEncryptOption.Mandatory)
-                DbEncryptBox.SelectedIndex = 0;
-            else if (encrypt == SqlConnectionEncryptOption.Optional)
-                DbEncryptBox.SelectedIndex = 1;
-            else
-                DbEncryptBox.SelectedIndex = 2;
         }
         catch
         {
@@ -97,15 +91,8 @@ public partial class ConfigEditor : Window
 
     private string BuildConnectionString()
     {
-        var encrypt = DbEncryptBox.SelectedIndex switch
-        {
-            1 => SqlConnectionEncryptOption.Optional,
-            2 => SqlConnectionEncryptOption.Strict,
-            _ => SqlConnectionEncryptOption.Mandatory
-        };
-
         return ConfigReader.BuildConnectionString(
-            DbServerBox.Text, DbNameBox.Text, DbUserIdBox.Text, DbPasswordBox.Password, encrypt);
+            DbServerBox.Text, DbNameBox.Text, DbUserIdBox.Text, DbPasswordBox.Password);
     }
 
     private void ToggleTokenButton_Click(object sender, RoutedEventArgs e)
