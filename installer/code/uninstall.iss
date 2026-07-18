@@ -1,8 +1,16 @@
 procedure DoUninstall;
 var
   PreserveCfg: Integer;
+  ExitCode: Integer;
 begin
   Log('=== Uninstall started ===');
+
+  Log('Closing tray app...');
+  Exec('taskkill.exe', '/f /im {#TrayAppName}.exe', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+  if ExitCode = 0 then
+    Log('Tray app closed.')
+  else
+    Log('Tray app was not running.');
 
   Log('Stopping service...');
   StopService('{#ServiceName}');
