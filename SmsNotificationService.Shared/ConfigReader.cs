@@ -12,8 +12,8 @@ public static class ConfigReader
             if (!File.Exists(configPath)) return string.Empty;
             var json = File.ReadAllText(configPath);
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("ConnectionStrings", out var cs) &&
-                cs.TryGetProperty("DefaultConnection", out var conn))
+            if (doc.RootElement.TryGetProperty("SmsService", out var sms) &&
+                sms.TryGetProperty("ConnectionString", out var conn))
                 return conn.GetString() ?? string.Empty;
         }
         catch { /* ignore */ }
