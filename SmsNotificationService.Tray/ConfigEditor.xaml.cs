@@ -117,7 +117,7 @@ public partial class ConfigEditor : Window
 
     private void UpdateTokenDisplay()
     {
-        TokenBox.Password = _tokenVisible ? _rawToken : new string('*', Math.Min(_rawToken.Length, 20));
+        TokenBox.Text = _tokenVisible ? _rawToken : new string('*', Math.Min(_rawToken.Length, 20));
     }
 
     private async void TestButton_Click(object sender, RoutedEventArgs e)
