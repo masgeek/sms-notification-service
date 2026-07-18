@@ -1,16 +1,16 @@
 name: Release
 
 on:
-  # workflow_run:
-  #   workflows: ["Tests"]
-  #   types: [completed]
-  #   branches: [main]
-  push:
-    branches:
-      - develop
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+    branches: [main]
+  # push:
+  #   branches:
+  #     - develop
+  #   paths-ignore:
+  #     - "**.md"
+  #     - "docs/**"
   workflow_dispatch:
 
 permissions:
