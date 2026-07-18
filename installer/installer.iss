@@ -104,8 +104,8 @@ Source: "..\publish-tray\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion r
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#TrayDir}\{#TrayAppName}.exe"; Comment: "Open SMS Notification Service tray app"; Check: ShouldInstallTrayApp
 
-; Startup folder
-Name: "{userstartup}\{#TrayAppDisplay}"; \
+; Startup folder (all-users — matches admin install mode)
+Name: "{commonstartup}\{#TrayAppDisplay}"; \
     Filename: "{app}\{#TrayDir}\{#TrayAppName}.exe"; \
     WorkingDir: "{app}\{#TrayDir}"; \
     Comment: "Start SMS Notification Service Tray"; \

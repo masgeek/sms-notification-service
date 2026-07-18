@@ -1,6 +1,4 @@
 procedure DoFreshInstall;
-var
-  ExitCode: Integer;
 begin
   Log('=== Fresh install started ===');
 
