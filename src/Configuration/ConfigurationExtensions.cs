@@ -11,7 +11,7 @@ public static class ConfigurationExtensions
         var appDirConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), Constants.ConfigFileName);
         var devConfigPath = Path.Combine(ConfigPathResolver.GetAppDir(), "appsettings.Development.json");
 
-        var candidates = new[] { devConfigPath, prodConfigPath, appDirConfigPath }.Distinct();
+        var candidates = new[] { prodConfigPath, devConfigPath, appDirConfigPath }.Distinct();
         var loaded = false;
 
         foreach (var configPath in candidates)
@@ -49,8 +49,8 @@ public static class ConfigurationExtensions
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
             throw new InvalidOperationException("[Config] SmsService:ConnectionString is not configured. Set via appsettings.json or SmsService__ConnectionString.");
 
-        if (options.ConnectionString.Contains("Encrypt=", StringComparison.OrdinalIgnoreCase) == false)
-            Console.WriteLine("[Config] Warning: Connection string does not contain 'Encrypt=True'. Consider adding it for secure connections.");
+        if (options.ConnectionString.Contains("TrustServerCertificate=", StringComparison.OrdinalIgnoreCase) == false)
+            Console.WriteLine("[Config] Warning: Connection string does not contain 'TrustServerCertificate=True'. Consider adding it for secure connections.");
 
         if (string.IsNullOrWhiteSpace(options.SmsApiUrl))
             throw new InvalidOperationException("[Config] SmsService:SmsApiUrl is not configured. Set via appsettings.json or SmsService__SmsApiUrl.");
