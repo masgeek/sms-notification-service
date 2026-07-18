@@ -2,10 +2,12 @@ var
   DbPage           : TInputQueryWizardPage;
   ApiUrlPage       : TInputQueryWizardPage;
   TrayPage         : TInputOptionWizardPage;
+  StartTrayPage    : TInputOptionWizardPage;
   UpgradeMode      : Boolean;
   ConfigExists     : Boolean;
   KeepExistingCfg  : Boolean;
   InstallTrayApp   : Boolean;
+  StartTrayAfter   : Boolean;
   ConfigPromptPage : TInputOptionWizardPage;
 
 function InitializeSetup: Boolean;

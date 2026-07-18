@@ -48,6 +48,14 @@ begin
     True, False);
   TrayPage.Add('Install system tray app (recommended)');
   TrayPage.Values[0] := True;
+
+  StartTrayPage := CreateInputOptionPage(TrayPage.ID,
+    'Start Tray App',
+    'Start the tray app after installation?',
+    'The tray app will appear in your system tray notification area.',
+    True, False);
+  StartTrayPage.Add('Start tray app now');
+  StartTrayPage.Values[0] := True;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -58,17 +66,21 @@ begin
   begin
     if UpgradeMode and (PageID = TrayPage.ID) then
       Result := True;
+    if (PageID = StartTrayPage.ID) then
+      Result := not InstallTrayApp;
     Exit;
   end;
 
   if KeepExistingCfg then
   begin
-    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = TrayPage.ID);
+    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = TrayPage.ID) or (PageID = StartTrayPage.ID);
     Exit;
   end;
 
   if UpgradeMode and (PageID = TrayPage.ID) then
     Result := True;
+  if (PageID = StartTrayPage.ID) then
+    Result := not InstallTrayApp;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -136,5 +148,11 @@ begin
   begin
     InstallTrayApp := TrayPage.Values[0];
     Log('Tray app install: ' + BoolToStr(InstallTrayApp));
+  end;
+
+  if CurPageID = StartTrayPage.ID then
+  begin
+    StartTrayAfter := StartTrayPage.Values[0];
+    Log('Start tray after install: ' + BoolToStr(StartTrayAfter));
   end;
 end;
