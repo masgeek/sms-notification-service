@@ -19,9 +19,10 @@ internal sealed class ConnectionValidator
         var configPath = ConfigPathResolver.FindConfigFile();
         var connectionString = ConfigReader.LoadConnectionString(configPath);
         var apiUrl = ConfigReader.LoadApiUrl(configPath);
+        var authToken = ConfigReader.LoadAuthorizationToken(configPath);
 
         var dbTask = ValidateDbAsync(connectionString);
-        var apiTask = ValidateApiAsync(apiUrl);
+        var apiTask = ValidateApiAsync(apiUrl, authToken);
         var brokerTask = ValidateBrokerAsync(connectionString);
 
         await Task.WhenAll(dbTask, apiTask, brokerTask);
@@ -66,7 +67,7 @@ internal sealed class ConnectionValidator
         }
     }
 
-    private static async Task<CheckResult> ValidateApiAsync(string apiUrl)
+    private static async Task<CheckResult> ValidateApiAsync(string apiUrl, string authToken)
     {
         if (string.IsNullOrWhiteSpace(apiUrl))
             return new CheckResult { Passed = false, Details = "No API URL configured" };
@@ -75,6 +76,8 @@ internal sealed class ConnectionValidator
         {
             var sw = Stopwatch.StartNew();
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            if (!string.IsNullOrWhiteSpace(authToken))
+                http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authToken);
             var response = await http.GetAsync(apiUrl);
             sw.Stop();
 

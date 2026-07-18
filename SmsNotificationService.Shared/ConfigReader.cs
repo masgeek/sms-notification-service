@@ -35,6 +35,21 @@ public static class ConfigReader
         return string.Empty;
     }
 
+    public static string LoadAuthorizationToken(string configPath)
+    {
+        try
+        {
+            if (!File.Exists(configPath)) return string.Empty;
+            var json = File.ReadAllText(configPath);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("SmsService", out var sms) &&
+                sms.TryGetProperty("AuthorizationToken", out var token))
+                return token.GetString() ?? string.Empty;
+        }
+        catch { /* ignore */ }
+        return string.Empty;
+    }
+
     public static (string Server, string Database, string UserId, string Password, SqlConnectionEncryptOption Encrypt) ParseConnectionString(string connectionString)
     {
         var builder = new SqlConnectionStringBuilder(connectionString);
