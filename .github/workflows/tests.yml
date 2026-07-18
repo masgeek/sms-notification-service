@@ -119,13 +119,26 @@ jobs:
         run: |
           mkdir publish
           echo placeholder > publish\SmsNotificationService.exe
+          mkdir publish\Tray
+          echo placeholder > publish\Tray\SmsNotificationService.Tray.exe
           mkdir publish-tray
           echo placeholder > publish-tray\SmsNotificationService.Tray.exe
+          mkdir publish-framework
+          echo placeholder > publish-framework\SmsNotificationService.exe
+          mkdir publish-framework\Tray
+          echo placeholder > publish-framework\Tray\SmsNotificationService.Tray.exe
+          mkdir publish-tray-framework
+          echo placeholder > publish-tray-framework\SmsNotificationService.Tray.exe
 
-      - name: Compile and validate ISS script
+      - name: Validate self-contained installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: installer/installer.iss
+
+      - name: Validate framework-dependent installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
+        with:
+          path: installer/installer-framework.iss
 
   summary:
     name: All Checks Passed
