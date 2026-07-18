@@ -64,7 +64,8 @@ public static class ConfigReader
             InitialCatalog = database,
             UserID = userId,
             Password = password,
-            Encrypt = encrypt
+            Encrypt = encrypt,
+            TrustServerCertificate = true
         };
         return builder.ConnectionString;
     }
