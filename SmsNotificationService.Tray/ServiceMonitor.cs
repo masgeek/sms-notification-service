@@ -22,6 +22,7 @@ public sealed class ServiceMonitor : IDisposable
     {
         _startTime = DateTime.Now;
         _timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        TrayLogger.Info("ServiceMonitor initialized");
     }
 
     public async Task StartAsync()
@@ -54,8 +55,9 @@ public sealed class ServiceMonitor : IDisposable
                 Current = info;
                 StatusChanged?.Invoke(info);
             }
-            catch
+            catch (Exception ex)
             {
+                TrayLogger.Error("Error polling service status", ex);
                 var info = new ServiceStatusInfo
                 {
                     Status = (ServiceControllerStatus)(-1),
@@ -156,16 +158,22 @@ public sealed class ServiceMonitor : IDisposable
         }
     }
 
-    public void StartService() => Execute("start");
+    public void StartService()
+    {
+        TrayLogger.Info("Starting service...");
+        Execute("start");
+    }
 
     public void StopService()
     {
+        TrayLogger.Info("Stopping service...");
         Execute("stop");
         KillProcesses();
     }
 
     public void RestartService()
     {
+        TrayLogger.Info("Restarting service...");
         StopService();
         _ = Task.Run(async () =>
         {
@@ -176,8 +184,15 @@ public sealed class ServiceMonitor : IDisposable
 
     private static void Execute(string action)
     {
-        try { Process.Start("sc.exe", $"{action} {Constants.ServiceName}"); }
-        catch { /* Best effort */ }
+        try
+        {
+            TrayLogger.Info($"Executing: sc.exe {action} {Constants.ServiceName}");
+            Process.Start("sc.exe", $"{action} {Constants.ServiceName}");
+        }
+        catch (Exception ex)
+        {
+            TrayLogger.Error($"Failed to {action} service", ex);
+        }
     }
 
     private static void KillProcesses()
@@ -195,6 +210,7 @@ public sealed class ServiceMonitor : IDisposable
 
     public void Dispose()
     {
+        TrayLogger.Info("Disposing ServiceMonitor");
         _cts.Cancel();
         _cts.Dispose();
         _timer.Dispose();

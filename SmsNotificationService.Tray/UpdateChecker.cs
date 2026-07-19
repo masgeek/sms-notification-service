@@ -16,6 +16,7 @@ internal sealed class UpdateChecker : IDisposable
     public UpdateChecker()
     {
         _timer = new PeriodicTimer(TimeSpan.FromHours(4));
+        TrayLogger.Info("UpdateChecker initialized");
     }
 
     public async Task StartAsync()
@@ -32,15 +33,24 @@ internal sealed class UpdateChecker : IDisposable
         try
         {
             var current = VersionHelper.GetCurrentVersion();
+            TrayLogger.Info($"Checking for updates (current: {current})");
             var latest = await GetLatestVersion(ct);
 
             if (latest is not null && latest != current && latest != _lastNotifiedVersion)
             {
                 _lastNotifiedVersion = latest;
+                TrayLogger.Info($"Update available: {current} → {latest}");
                 UpdateAvailable?.Invoke(current, latest);
             }
+            else
+            {
+                TrayLogger.Info($"No update available (latest: {latest})");
+            }
         }
-        catch { /* Network error — silent */ }
+        catch (Exception ex)
+        {
+            TrayLogger.Warn($"Update check failed: {ex.Message}");
+        }
     }
 
     private static async Task<string?> GetLatestVersion(CancellationToken ct)
@@ -63,6 +73,7 @@ internal sealed class UpdateChecker : IDisposable
 
     public void Dispose()
     {
+        TrayLogger.Info("Disposing UpdateChecker");
         _cts.Cancel();
         _cts.Dispose();
         _timer.Dispose();

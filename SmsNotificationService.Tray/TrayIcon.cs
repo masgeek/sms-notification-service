@@ -26,6 +26,8 @@ internal sealed class TrayIcon : IDisposable
 
     public TrayIcon()
     {
+        TrayLogger.Info("Initializing TrayIcon...");
+
         _monitor = new ServiceMonitor();
         _updater = new UpdateChecker();
 
@@ -52,6 +54,8 @@ internal sealed class TrayIcon : IDisposable
 
     private void OnStatusChanged(ServiceStatusInfo info)
     {
+        TrayLogger.Info($"Status changed: {StatusHelper.FormatStatus(info.Status)} (via {info.DetectionMethod})");
+
         Application.Current.Dispatcher.Invoke(() =>
         {
             _icon.Icon = CreateIcon(info.Status);
@@ -69,6 +73,8 @@ internal sealed class TrayIcon : IDisposable
 
     private void OnUpdateAvailable(string current, string latest)
     {
+        TrayLogger.Info($"Update available: current={current}, latest={latest}");
+
         Application.Current.Dispatcher.Invoke(() =>
         {
             _icon.ShowNotification(
@@ -166,6 +172,7 @@ internal sealed class TrayIcon : IDisposable
 
     public void Dispose()
     {
+        TrayLogger.Info("Disposing TrayIcon");
         _monitor.Dispose();
         _updater.Dispose();
         _icon.Dispose();
