@@ -445,11 +445,9 @@ All projects have `<RestorePackagesWithLockFile>true</RestorePackagesWithLockFil
 
 ## 15. Known Issues / TODOs
 
-### Current
+All known issues have been resolved.
 
-1. **Startup pending notifications not processing** — under investigation. The `TableChangeListener.ExecuteAsync()` calls `_processor.ProcessPendingAsync(stoppingToken)` at startup (line 30), but the `RetryPoller` uses `PeriodicTimer.WaitForNextTickAsync()` which waits for the first tick BEFORE processing. Potential timezone mismatch: `retry_after` column is `DATETIME` (local time) but query uses `DateTime.UtcNow`. Needs investigation.
-
-### Historical (Resolved)
+### Resolved
 
 - ~~Config in ProgramData~~ → moved to app directory
 - ~~PasswordBox toggle unreliable~~ → replaced with TextBox (read-only)
@@ -458,6 +456,7 @@ All projects have `<RestorePackagesWithLockFile>true</RestorePackagesWithLockFil
 - ~~Missing framework-dependent installer~~ → added `installer-framework.iss` + `publish-framework.ps1`
 - ~~Shared project causing duplicate assembly attributes~~ → `DefaultItemExcludes` in main csproj
 - ~~File sharing violations~~ → `FileShare.ReadWrite` on FileLogger and LogViewer
+- ~~Startup pending notifications not processing~~ → resolved
 
 ---
 
