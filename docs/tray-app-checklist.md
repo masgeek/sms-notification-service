@@ -195,7 +195,7 @@ Temporary working document. Delete after implementation is complete.
 
 - [x] Update `installer/installer.iss`:
   - Added `TrayAppName` and `TrayAppDisplay` constants
-  - Added `[Files]` entry for `publish-tray\*`
+  - Added `[Files]` entry for `build\tray\*`
   - Added `[Icons]` Start Menu shortcut for tray app
   - Added `[Registry]` auto-start entry (`HKCU\...\Run`)
 - [x] Update `installer/code/uninstall.iss`:
@@ -208,8 +208,8 @@ Temporary working document. Delete after implementation is complete.
 
 - [x] Publish commands documented in `installer/installer.iss` header:
   ```bash
-  dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o publish
-  dotnet publish SmsNotificationService.Tray\SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o publish-tray
+  dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o build\service
+  dotnet publish SmsNotificationService.Tray\SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
   ```
 - [x] Solution builds cleanly: 0 warnings, 0 errors
 - [x] All three projects build successfully (main, tray, tests)

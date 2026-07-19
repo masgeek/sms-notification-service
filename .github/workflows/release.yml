@@ -1,16 +1,16 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["Tests"]
-    types: [completed]
-    branches: [main]
-  # push:
-  #   branches:
-  #     - develop
-  #   paths-ignore:
-  #     - "**.md"
-  #     - "docs/**"
+  # workflow_run:
+  #   workflows: ["Tests"]
+  #   types: [completed]
+  #   branches: [main]
+  push:
+    branches:
+      - develop
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   workflow_dispatch:
 
 permissions:
@@ -128,9 +128,7 @@ jobs:
 
       - name: Zip artifacts
         shell: bash
-        run: |
-          cp -r publish-tray publish/tray
-          7z a -tzip SmsNotificationService-win-x64.zip "./publish/*"
+        run: 7z a -tzip SmsNotificationService-win-x64.zip "./build/service/*" "./build/tray/*" "./build/console/*"
 
       - name: Install Inno Setup
         run: choco install innosetup -y
@@ -149,7 +147,7 @@ jobs:
 
       - name: Verify version in build
         run: |
-          $builtVersion = & publish\SmsNotificationService.exe --version
+          $builtVersion = & build\service\SmsNotificationService.exe --version
           Write-Host "Built version: $builtVersion"
           Write-Host "Expected version: $env:VERSION"
           if ($builtVersion -ne $env:VERSION) {

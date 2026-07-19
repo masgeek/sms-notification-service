@@ -52,18 +52,19 @@ Purchase a code signing certificate:
 ### Publish Both Projects
 
 ```bash
-# Single command — publishes both projects
+# Single command — publishes all three projects
 ./publish.ps1
 
-# With clean (removes bin/obj/publish first)
+# With clean (removes bin/obj/build first)
 ./publish.ps1 -Clean
 ```
 
 Output:
-- `publish\` — service binaries (SmsNotificationService.exe + dependencies)
-- `publish-tray\` — tray app binaries (SmsNotificationService.Tray.exe + dependencies)
+- `build\service\` — service binaries (SmsNotificationService.exe + dependencies)
+- `build\tray\` — tray app binaries (SmsNotificationService.Tray.exe + dependencies)
+- `build\console\` — console monitor binaries (SmsNotificationService.Console.exe + dependencies)
 
-Both are self-contained — no .NET runtime needed on the target machine.
+All are self-contained — no .NET runtime needed on the target machine.
 
 Or publish as framework-dependent:
 
@@ -72,14 +73,16 @@ Or publish as framework-dependent:
 ```
 
 Output:
-- `publish-framework\` — service binaries (requires .NET 10 runtime)
-- `publish-tray-framework\` — tray app binaries (requires .NET 10 runtime)
+- `build\service-framework\` — service binaries (requires .NET 10 runtime)
+- `build\tray-framework\` — tray app binaries (requires .NET 10 runtime)
+- `build\console-framework\` — console monitor binaries (requires .NET 10 runtime)
 
 Or publish individually:
 
 ```bash
-dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o publish
-dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o publish-tray
+dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o build\service
+dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
+dotnet publish SmsNotificationService.Console/SmsNotificationService.Console.csproj -c Release -r win-x64 --self-contained -o build\console
 ```
 
 ### Build Installer
@@ -93,8 +96,8 @@ dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c
 ```
 
 **Requirements:** 
-- Self-contained: `publish\` and `publish-tray\` directories must exist
-- Framework-dependent: `publish-framework\` and `publish-tray-framework\` directories must exist
+- Self-contained: `build\service\`, `build\tray\`, and `build\console\` directories must exist
+- Framework-dependent: `build\service-framework\`, `build\tray-framework\`, and `build\console-framework\` directories must exist
 
 Output:
 - `installer/output/SmsNotificationService-Setup-<version>.exe` (self-contained)
@@ -118,17 +121,19 @@ dotnet test -c Release --filter "FullyQualifiedName~SmsApiServiceTests"
 
 ### Validate Installer Scripts (without building)
 
-Create dummy publish folders and compile both ISS scripts:
+Create dummy build folders and compile both ISS scripts:
 
 ```bash
 # Self-contained installer
-mkdir publish && echo placeholder > publish\SmsNotificationService.exe
-mkdir publish-tray && echo placeholder > publish-tray\SmsNotificationService.Tray.exe
+mkdir build\service && echo placeholder > build\service\SmsNotificationService.exe
+mkdir build\tray && echo placeholder > build\tray\SmsNotificationService.Tray.exe
+mkdir build\console && echo placeholder > build\console\SmsNotificationService.Console.exe
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
 
 # Framework-dependent installer
-mkdir publish-framework && echo placeholder > publish-framework\SmsNotificationService.exe
-mkdir publish-tray-framework && echo placeholder > publish-tray-framework\SmsNotificationService.Tray.exe
+mkdir build\service-framework && echo placeholder > build\service-framework\SmsNotificationService.exe
+mkdir build\tray-framework && echo placeholder > build\tray-framework\SmsNotificationService.Tray.exe
+mkdir build\console-framework && echo placeholder > build\console-framework\SmsNotificationService.Console.exe
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer-framework.iss
 ```
 
@@ -310,11 +315,14 @@ Tests ──> .NET Tests
     ├──> Build Tray App
     │     (publish tray app, verify binary exists)
     │
+    ├──> Build Console App
+    │     (publish console app, verify binary exists)
+    │
     ├──> Validate Self-Contained Installer
-    │     (compile ISS with dummy publish folders)
+    │     (compile ISS with dummy build folders)
     │
     ├──> Validate Framework-Dependent Installer
-    │     (compile framework ISS with dummy publish folders)
+    │     (compile framework ISS with dummy build folders)
     │
     └──> All Checks Passed (summary)
               │
@@ -323,7 +331,7 @@ Release (main branch only, after tests pass)
     ├── Generate version tag from conventional commits
     ├── Build win-x64 publish (both self-contained and framework-dependent)
     ├── Build both Inno Setup installers
-    ├── Create zip archive (service + tray app binaries)
+    ├── Create zip archive (service + tray + console app binaries)
     └── Create/update GitHub Release with all artifacts
 ```
 
@@ -344,7 +352,7 @@ Each release produces:
 |----------|-------------|
 | `SmsNotificationService-Setup-<version>.exe` | Self-contained installer (bundles .NET runtime) |
 | `SmsNotificationService-Framework-Setup-<version>.exe` | Framework-dependent installer (requires .NET 10 runtime) |
-| `SmsNotificationService-win-x64.zip` | Zip of `publish/` + `publish-tray/` directories |
+| `SmsNotificationService-win-x64.zip` | Zip of `build\service\`, `build\tray\`, and `build\console\` directories |
 
 ## Troubleshooting
 

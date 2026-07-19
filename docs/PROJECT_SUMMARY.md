@@ -24,6 +24,7 @@ SmsNotificationService.slnx
 ├── SmsNotificationService.csproj              # Main worker service (net10.0)
 ├── SmsNotificationService.Shared/             # Shared class library (net10.0)
 ├── SmsNotificationService.Tray/               # WPF tray app (net10.0-windows)
+├── SmsNotificationService.Console/            # Console monitor app (net10.0)
 ├── tests/SmsNotificationService.Tests/        # xUnit unit tests
 ├── installer/                                 # Inno Setup (two variants)
 ├── .github/workflows/                         # CI/CD pipelines
@@ -39,6 +40,7 @@ SmsNotificationService.slnx
 |---------|-----------|-------|
 | `SmsNotificationService` (main) | Shared | `DefaultItemExcludes` excludes `SmsNotificationService.Shared\**` to avoid duplicate assembly attributes |
 | `SmsNotificationService.Tray` | Shared | WPF, `net10.0-windows`, `UseWPF`, `WinExe` |
+| `SmsNotificationService.Console` | Shared | `net10.0`, `OutputType: Exe`, references Shared only |
 | `SmsNotificationService.Shared` | Dapper, SqlClient, ServiceController | `NoWarn: CA1416` (Windows-only APIs used from net10.0 TFM) |
 | `SmsNotificationService.Tests` | main, Moq, FluentAssertions, xUnit | |
 
@@ -288,27 +290,27 @@ WPF application (`net10.0-windows`) with system tray icon.
 
 | Installer | Output | AppId | Bundles From | Runtime Check |
 |-----------|--------|-------|-------------|---------------|
-| `installer.iss` | `SmsNotificationService-Setup-{ver}.exe` | `{B8E3F2A1-...}` | `publish/` + `publish-tray/` | None (self-contained) |
-| `installer-framework.iss` | `SmsNotificationService-Framework-Setup-{ver}.exe` | `{A1F2E3B4-...}` | `publish-framework/` + `publish-tray-framework/` | `CheckDotNetRuntime` (checks `dotnet --list-runtimes` for `Microsoft.NETCore.App 10`) |
+| `installer.iss` | `SmsNotificationService-Setup-{ver}.exe` | `{B8E3F2A1-...}` | `build/service/` + `build/tray/` + `build/console/` | None (self-contained) |
+| `installer-framework.iss` | `SmsNotificationService-Framework-Setup-{ver}.exe` | `{A1F2E3B4-...}` | `build/service-framework/` + `build/tray-framework/` + `build/console-framework/` | `CheckDotNetRuntime` (checks `dotnet --list-runtimes` for `Microsoft.NETCore.App 10`) |
 
 ### Modular Code Structure (installer/code/)
 
 | File | Purpose | Dependencies |
 |------|---------|--------------|
-| `globals.iss` | Global variables, `InitializeSetup`, `ShouldInstallTrayApp` | — |
+| `globals.iss` | Global variables, `InitializeSetup`, `ShouldInstallTrayApp`, `ShouldInstallConsoleApp` | — |
 | `utils.iss` | `RunCmd`, `BoolToStr`, `JsonEscape` | — |
 | `services.iss` | `ServiceExists`, `StopService`, `StartService`, `WaitForServiceState`, `DeleteService`, `ConfigureServiceDescription`, `ConfigureRecovery`, `ConfigureDelayedAutoStart`, `CheckDotNetRuntime` | `utils.iss` |
 | `eventlog.iss` | `RegisterEventLog`, `RemoveEventLog` | — |
 | `config.iss` | `WriteConfigurationFile` (writes to `{app}` dir, NOT ProgramData) | `utils.iss` |
-| `wizard.iss` | `InitializeWizard`, `ShouldSkipPage`, `NextButtonClick` (config prompt, DB inputs, API inputs, tray app checkbox, start-after-install checkbox) | `globals.iss`, `config.iss` |
-| `install.iss` | `DoFreshInstall`, `DoUpgrade`, `DoPostUpgrade`, `CurStepChanged`, `MaybeStartTrayApp`. `#ifdef FrameworkInstall` gates .NET runtime check. | All above |
-| `uninstall.iss` | `DoUninstall`, `CurUninstallStepChanged`. Kills tray app via `taskkill` before uninstall. | `services.iss`, `eventlog.iss` |
+| `wizard.iss` | `InitializeWizard`, `ShouldSkipPage`, `NextButtonClick` (config prompt, DB inputs, API inputs, tray app checkbox, console app checkbox, start-after-install checkbox) | `globals.iss`, `config.iss` |
+| `install.iss` | `DoFreshInstall`, `DoUpgrade`, `DoPostUpgrade`, `CurStepChanged`, `MaybeStartTrayApp`, `MaybeStartConsoleApp`. `#ifdef FrameworkInstall` gates .NET runtime check. | All above |
+| `uninstall.iss` | `DoUninstall`, `CurUninstallStepChanged`. Kills tray app and console app via `taskkill` before uninstall. | `services.iss`, `eventlog.iss` |
 
 ### Key Installer Details
 
 - `PrivilegesRequired=admin` + `PrivilegesRequiredOverridesAllowed=dialog` → UAC elevation prompt
 - `CloseApplications=force` — kills running instances during install
-- Tray app is **optional** — wizard page with checkbox; `[Files]` always copies binaries; `[Icons]` and `[Registry]` use `Check: ShouldInstallTrayApp`
+- Tray app and console app are **optional** — wizard pages with checkboxes; `[Files]` always copies binaries; `[Icons]` and `[Registry]` use `Check: ShouldInstallTrayApp`; console app launched via `MaybeStartConsoleApp` if selected
 - `appsettings.Development.json` excluded from installer bundles (`Excludes` flag)
 - Config file written to `{app}\appsettings.Production.json` (NOT ProgramData)
 - **Inno Setup `#include` files must NOT have `;` comment headers** — causes "BEGIN expected" compilation error
@@ -334,7 +336,7 @@ WPF application (`net10.0-windows`) with system tray icon.
 ```
 .NET Tests (build, format check, unit tests, vulnerability scan)
      ↓
-Build Tray App (publish, verify binary exists)
+Build Tray App (publish, verify binary exists) + Build Console App (publish, verify binary exists)
      ↓
 Validate Self-Contained Installer + Validate Framework-Dependent Installer (parallel)
      ↓
@@ -343,7 +345,7 @@ All Checks Passed (summary gate)
 
 - Test results cached by SHA (`.test-passed` sentinel file)
 - `actions/checkout@v7`, `actions/setup-dotnet@v6`, `actions/cache/restore@v6`, `actions/upload-artifact@v7`
-- Both installer validation jobs create dummy publish folders and compile ISS scripts
+- Both installer validation jobs create dummy `build/` folders and compile ISS scripts
 - `Minionguyjpro/Inno-Setup-Action@v1.2.9` for CI validation
 
 ### workflows/release.yml (after tests pass on main)
@@ -354,9 +356,9 @@ Generate Version Tag (masgeek/github-tag-action@release, tag_prefix: "")
 Build and Package
   ├─ Update Directory.Build.props with version
   ├─ dotnet restore → build → publish.ps1 → publish-framework.ps1
-  ├─ Zip artifacts
+  ├─ Zip build/ directory (service + tray + console)
   ├─ Build both installers via ISCC.exe
-  ├─ Verify version matches (publish\SmsNotificationService.exe --version)
+  ├─ Verify version matches (build\service\SmsNotificationService.exe --version)
   └─ Upload artifact
      ↓
 Publish GitHub Release (ncipollo/release-action@v1.21.0)
@@ -395,14 +397,14 @@ Test tolerance must account for jitter: e.g., 30s base → tolerance ≥15s.
 ### publish.ps1 (Self-Contained)
 
 ```
-./publish.ps1          # Publishes service to publish/, tray to publish-tray/
-./publish.ps1 -Clean   # Removes bin/obj/publish first
+./publish.ps1          # Publishes to build/service/, build/tray/, build/console/
+./publish.ps1 -Clean   # Removes bin/obj/build first
 ```
 
 ### publish-framework.ps1 (Framework-Dependent)
 
 ```
-./publish-framework.ps1   # Publishes to publish-framework/, publish-tray-framework/
+./publish-framework.ps1   # Publishes to build/service-framework/, build/tray-framework/, build/console-framework/
 ```
 
 ### Version Support

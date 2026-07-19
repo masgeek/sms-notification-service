@@ -95,21 +95,48 @@ jobs:
           cache: true
 
       - name: Publish tray app
-        run: dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o publish-tray
+        run: dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
 
       - name: Verify tray app binary
         shell: bash
         run: |
           echo "=== Tray app build output ==="
-          ls -la publish-tray/SmsNotificationService.Tray.exe 2>/dev/null || echo "Tray app binary not found"
+          ls -la build/tray/SmsNotificationService.Tray.exe 2>/dev/null || echo "Tray app binary not found"
           echo "=== File count ==="
-          find publish-tray -type f | wc -l
+          find build/tray -type f | wc -l
+
+  build-console:
+    name: Build Console App
+    runs-on: windows-latest
+    timeout-minutes: 10
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+          cache: true
+
+      - name: Publish console app
+        run: dotnet publish SmsNotificationService.Console/SmsNotificationService.Console.csproj -c Release -r win-x64 --self-contained -o build\console
+
+      - name: Verify console app binary
+        shell: bash
+        run: |
+          echo "=== Console app build output ==="
+          ls -la build/console/SmsNotificationService.Console.exe 2>/dev/null || echo "Console app binary not found"
+          echo "=== File count ==="
+          find build/console -type f | wc -l
 
   validate-installer:
     name: Validate Self-Contained Installer
     runs-on: windows-latest
     timeout-minutes: 10
-    needs: build-tray
+    needs: [build-tray, build-console]
 
     steps:
       - name: Checkout code
@@ -117,12 +144,12 @@ jobs:
 
       - name: Create dummy publish folders
         run: |
-          mkdir publish
-          echo placeholder > publish\SmsNotificationService.exe
-          mkdir publish\Tray
-          echo placeholder > publish\Tray\SmsNotificationService.Tray.exe
-          mkdir publish-tray
-          echo placeholder > publish-tray\SmsNotificationService.Tray.exe
+          mkdir build\service
+          echo placeholder > build\service\SmsNotificationService.exe
+          mkdir build\tray
+          echo placeholder > build\tray\SmsNotificationService.Tray.exe
+          mkdir build\console
+          echo placeholder > build\console\SmsNotificationService.Console.exe
 
       - name: Compile and validate
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
@@ -133,7 +160,7 @@ jobs:
     name: Validate Framework-Dependent Installer
     runs-on: windows-latest
     timeout-minutes: 10
-    needs: build-tray
+    needs: [build-tray, build-console]
 
     steps:
       - name: Checkout code
@@ -141,12 +168,12 @@ jobs:
 
       - name: Create dummy publish folders
         run: |
-          mkdir publish-framework
-          echo placeholder > publish-framework\SmsNotificationService.exe
-          mkdir publish-framework\Tray
-          echo placeholder > publish-framework\Tray\SmsNotificationService.Tray.exe
-          mkdir publish-tray-framework
-          echo placeholder > publish-tray-framework\SmsNotificationService.Tray.exe
+          mkdir build\service-framework
+          echo placeholder > build\service-framework\SmsNotificationService.exe
+          mkdir build\tray-framework
+          echo placeholder > build\tray-framework\SmsNotificationService.Tray.exe
+          mkdir build\console-framework
+          echo placeholder > build\console-framework\SmsNotificationService.Console.exe
 
       - name: Compile and validate
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
@@ -156,7 +183,7 @@ jobs:
   summary:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [test, build-tray, validate-installer, validate-installer-framework]
+    needs: [test, build-tray, build-console, validate-installer, validate-installer-framework]
     if: always()
     steps:
       - name: Evaluate job results
@@ -167,6 +194,10 @@ jobs:
           fi
           if [ "${{ needs.build-tray.result }}" != "success" ]; then
             echo "::error::Tray app build failed"
+            exit 1
+          fi
+          if [ "${{ needs.build-console.result }}" != "success" ]; then
+            echo "::error::Console app build failed"
             exit 1
           fi
           if [ "${{ needs.validate-installer.result }}" != "success" ]; then
