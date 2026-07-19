@@ -104,7 +104,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           check-name: "All Checks Passed"
           repo-token: ${{ steps.app-token.outputs.token }}
-          wait-interval: 30
+          wait-interval: 120
           allowed-conclusions: success
 
       - name: Approve PR
