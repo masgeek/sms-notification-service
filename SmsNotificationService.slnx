@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/tests/">
     <Project Path="tests/SmsNotificationService.Tests/SmsNotificationService.Tests.csproj" />
+    <Project Path="tests/SmsNotificationService.Tray.Tests/SmsNotificationService.Tray.Tests.csproj" />
   </Folder>
   <Project Path="SmsNotificationService.csproj" />
   <Project Path="SmsNotificationService.Shared/SmsNotificationService.Shared.csproj" />
