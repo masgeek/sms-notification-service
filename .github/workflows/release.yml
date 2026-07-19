@@ -161,8 +161,8 @@ jobs:
       - name: Verify artifacts
         shell: bash
         run: |
-          echo "=== Build output ==="
-          ls -la SmsNotificationService-win-x64.zip
+          echo "=== Zip artifacts ==="
+          ls -la SmsNotificationService-*-win-x64.zip
           echo "=== Installer output ==="
           ls -la installer/output/
           echo "=== Version: $VERSION ==="
