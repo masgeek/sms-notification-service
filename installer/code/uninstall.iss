@@ -12,6 +12,13 @@ begin
   else
     Log('Tray app was not running.');
 
+  Log('Closing console app...');
+  Exec('taskkill.exe', '/f /im {#ConsoleAppName}.exe', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+  if ExitCode = 0 then
+    Log('Console app closed.')
+  else
+    Log('Console app was not running.');
+
   Log('Stopping service...');
   StopService('{#ServiceName}');
   WaitForServiceState('{#ServiceName}', 'STOPPED', 30000);

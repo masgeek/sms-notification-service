@@ -129,8 +129,9 @@ jobs:
       - name: Zip artifacts
         shell: bash
         run: |
-          cp -r publish-tray publish/tray
-          7z a -tzip SmsNotificationService-win-x64.zip "./publish/*"
+          7z a -tzip SmsNotificationService-service-win-x64.zip "./build/service/*"
+          7z a -tzip SmsNotificationService-tray-win-x64.zip "./build/tray/*"
+          7z a -tzip SmsNotificationService-console-win-x64.zip "./build/console/*"
 
       - name: Install Inno Setup
         run: choco install innosetup -y
@@ -149,7 +150,7 @@ jobs:
 
       - name: Verify version in build
         run: |
-          $builtVersion = & publish\SmsNotificationService.exe --version
+          $builtVersion = & build\service\SmsNotificationService.exe --version
           Write-Host "Built version: $builtVersion"
           Write-Host "Expected version: $env:VERSION"
           if ($builtVersion -ne $env:VERSION) {
@@ -160,8 +161,8 @@ jobs:
       - name: Verify artifacts
         shell: bash
         run: |
-          echo "=== Build output ==="
-          ls -la SmsNotificationService-win-x64.zip
+          echo "=== Zip artifacts ==="
+          ls -la SmsNotificationService-*-win-x64.zip
           echo "=== Installer output ==="
           ls -la installer/output/
           echo "=== Version: $VERSION ==="
@@ -179,7 +180,7 @@ jobs:
         with:
           name: release-artifacts
           path: |
-            SmsNotificationService-win-x64.zip
+            SmsNotificationService-*-win-x64.zip
             SmsNotificationService*-Setup-*.exe
           retention-days: 1
 
@@ -210,6 +211,8 @@ jobs:
           generateReleaseNotes: true
           skipIfReleaseExists: false
           artifacts: |
-            artifacts/SmsNotificationService-win-x64.zip
+            artifacts/SmsNotificationService-service-win-x64.zip
+            artifacts/SmsNotificationService-tray-win-x64.zip
+            artifacts/SmsNotificationService-console-win-x64.zip
             artifacts/SmsNotificationService-Setup-*.exe
             artifacts/SmsNotificationService-Framework-Setup-*.exe

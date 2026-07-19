@@ -1,10 +1,9 @@
 using System.Net.Http;
 using System.Net.Http.Json;
-using SmsNotificationService.Shared;
 
-namespace SmsNotificationService.Tray;
+namespace SmsNotificationService.Shared;
 
-internal sealed class UpdateChecker : IDisposable
+public sealed class UpdateChecker : IDisposable
 {
     private const string RepoUrl = "https://api.github.com/repos/masgeek/sms-notification-service";
     private readonly PeriodicTimer _timer;
@@ -16,6 +15,7 @@ internal sealed class UpdateChecker : IDisposable
     public UpdateChecker()
     {
         _timer = new PeriodicTimer(TimeSpan.FromHours(4));
+        AppLogger.Info("Updater", "UpdateChecker initialized");
     }
 
     public async Task StartAsync()
@@ -32,15 +32,24 @@ internal sealed class UpdateChecker : IDisposable
         try
         {
             var current = VersionHelper.GetCurrentVersion();
+            AppLogger.Info("Updater", $"Checking for updates (current: {current})");
             var latest = await GetLatestVersion(ct);
 
             if (latest is not null && latest != current && latest != _lastNotifiedVersion)
             {
                 _lastNotifiedVersion = latest;
+                AppLogger.Info("Updater", $"Update available: {current} → {latest}");
                 UpdateAvailable?.Invoke(current, latest);
             }
+            else
+            {
+                AppLogger.Info("Updater", $"No update available (latest: {latest})");
+            }
         }
-        catch { /* Network error — silent */ }
+        catch (Exception ex)
+        {
+            AppLogger.Warn("Updater", $"Update check failed: {ex.Message}");
+        }
     }
 
     private static async Task<string?> GetLatestVersion(CancellationToken ct)
@@ -63,6 +72,7 @@ internal sealed class UpdateChecker : IDisposable
 
     public void Dispose()
     {
+        AppLogger.Info("Updater", "Disposing UpdateChecker");
         _cts.Cancel();
         _cts.Dispose();
         _timer.Dispose();

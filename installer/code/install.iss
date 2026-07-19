@@ -10,6 +10,18 @@ begin
   end;
 end;
 
+procedure MaybeStartConsoleApp;
+var
+  ResultCode: Integer;
+begin
+  if InstallConsoleApp then
+  begin
+    Log('Starting console app...');
+    ShellExec('', ExpandConstant('{app}\{#ConsoleDir}\{#ConsoleAppName}.exe'), '', ExpandConstant('{app}\{#ConsoleDir}'), SW_SHOWNORMAL, ewNoWait, ResultCode);
+    Log('Console app launched.');
+  end;
+end;
+
 procedure DoFreshInstall;
 begin
   Log('=== Fresh install started ===');
@@ -44,6 +56,7 @@ begin
 
   Log('=== Fresh install completed ===');
   MaybeStartTrayApp;
+  MaybeStartConsoleApp;
 end;
 
 procedure DoUpgrade;
@@ -80,6 +93,7 @@ begin
 
   Log('=== Upgrade completed ===');
   MaybeStartTrayApp;
+  MaybeStartConsoleApp;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

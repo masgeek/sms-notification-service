@@ -1,10 +1,9 @@
 using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
-using SmsNotificationService.Shared;
-using SmsNotificationService.Tray.Models;
+using SmsNotificationService.Shared.Models;
 
-namespace SmsNotificationService.Tray;
+namespace SmsNotificationService.Shared;
 
 public sealed class ServiceMonitor : IDisposable
 {
@@ -22,6 +21,7 @@ public sealed class ServiceMonitor : IDisposable
     {
         _startTime = DateTime.Now;
         _timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        AppLogger.Info("Monitor", "ServiceMonitor initialized");
     }
 
     public async Task StartAsync()
@@ -54,8 +54,9 @@ public sealed class ServiceMonitor : IDisposable
                 Current = info;
                 StatusChanged?.Invoke(info);
             }
-            catch
+            catch (Exception ex)
             {
+                AppLogger.Error("Monitor", "Error polling service status", ex);
                 var info = new ServiceStatusInfo
                 {
                     Status = (ServiceControllerStatus)(-1),
@@ -156,16 +157,22 @@ public sealed class ServiceMonitor : IDisposable
         }
     }
 
-    public void StartService() => Execute("start");
+    public void StartService()
+    {
+        AppLogger.Info("Monitor", "Starting service...");
+        Execute("start");
+    }
 
     public void StopService()
     {
+        AppLogger.Info("Monitor", "Stopping service...");
         Execute("stop");
         KillProcesses();
     }
 
     public void RestartService()
     {
+        AppLogger.Info("Monitor", "Restarting service...");
         StopService();
         _ = Task.Run(async () =>
         {
@@ -176,8 +183,15 @@ public sealed class ServiceMonitor : IDisposable
 
     private static void Execute(string action)
     {
-        try { Process.Start("sc.exe", $"{action} {Constants.ServiceName}"); }
-        catch { /* Best effort */ }
+        try
+        {
+            AppLogger.Info("Monitor", $"Executing: sc.exe {action} {Constants.ServiceName}");
+            Process.Start("sc.exe", $"{action} {Constants.ServiceName}");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Monitor", $"Failed to {action} service", ex);
+        }
     }
 
     private static void KillProcesses()
@@ -195,6 +209,7 @@ public sealed class ServiceMonitor : IDisposable
 
     public void Dispose()
     {
+        AppLogger.Info("Monitor", "Disposing ServiceMonitor");
         _cts.Cancel();
         _cts.Dispose();
         _timer.Dispose();

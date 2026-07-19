@@ -1,6 +1,4 @@
 using System.Drawing;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.ServiceProcess;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,7 +6,7 @@ using System.Windows.Threading;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
 using SmsNotificationService.Shared;
-using SmsNotificationService.Tray.Models;
+using SmsNotificationService.Shared.Models;
 
 namespace SmsNotificationService.Tray;
 
@@ -26,6 +24,8 @@ internal sealed class TrayIcon : IDisposable
 
     public TrayIcon()
     {
+        AppLogger.Info("Tray", "Initializing TrayIcon...");
+
         _monitor = new ServiceMonitor();
         _updater = new UpdateChecker();
 
@@ -52,6 +52,8 @@ internal sealed class TrayIcon : IDisposable
 
     private void OnStatusChanged(ServiceStatusInfo info)
     {
+        AppLogger.Info("Tray", $"Status changed: {StatusHelper.FormatStatus(info.Status)} (via {info.DetectionMethod})");
+
         Application.Current.Dispatcher.Invoke(() =>
         {
             _icon.Icon = CreateIcon(info.Status);
@@ -69,6 +71,8 @@ internal sealed class TrayIcon : IDisposable
 
     private void OnUpdateAvailable(string current, string latest)
     {
+        AppLogger.Info("Tray", $"Update available: current={current}, latest={latest}");
+
         Application.Current.Dispatcher.Invoke(() =>
         {
             _icon.ShowNotification(
@@ -166,6 +170,7 @@ internal sealed class TrayIcon : IDisposable
 
     public void Dispose()
     {
+        AppLogger.Info("Tray", "Disposing TrayIcon");
         _monitor.Dispose();
         _updater.Dispose();
         _icon.Dispose();

@@ -691,7 +691,7 @@ public class CheckResult
 ## Build & Publish
 
 ```bash
-dotnet publish SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o publish-tray
+dotnet publish SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
 ```
 
 The tray app can be:

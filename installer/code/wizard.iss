@@ -5,6 +5,7 @@ begin
   UpgradeMode := False;
   KeepExistingCfg := False;
   InstallTrayApp := True;
+  InstallConsoleApp := True;
   PrevPageID := wpSelectDir;
 
   if ConfigExists then
@@ -49,7 +50,16 @@ begin
   TrayPage.Add('Install system tray app (recommended)');
   TrayPage.Values[0] := True;
 
-  StartTrayPage := CreateInputOptionPage(TrayPage.ID,
+  ConsolePage := CreateInputOptionPage(TrayPage.ID,
+    'Console Monitor App',
+    'Optional: Install the console monitor app.',
+    'The console app displays live service status in a terminal window.' + #13#10 +
+    'It can be installed or removed later by re-running the installer.',
+    True, False);
+  ConsolePage.Add('Install console monitor app');
+  ConsolePage.Values[0] := True;
+
+  StartTrayPage := CreateInputOptionPage(ConsolePage.ID,
     'Start Tray App',
     'Start the tray app after installation?',
     'The tray app will appear in your system tray notification area.',
@@ -66,6 +76,8 @@ begin
   begin
     if UpgradeMode and (PageID = TrayPage.ID) then
       Result := True;
+    if UpgradeMode and (PageID = ConsolePage.ID) then
+      Result := True;
     if (PageID = StartTrayPage.ID) then
       Result := not InstallTrayApp;
     Exit;
@@ -73,11 +85,13 @@ begin
 
   if KeepExistingCfg then
   begin
-    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = TrayPage.ID) or (PageID = StartTrayPage.ID);
+    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = TrayPage.ID) or (PageID = ConsolePage.ID) or (PageID = StartTrayPage.ID);
     Exit;
   end;
 
   if UpgradeMode and (PageID = TrayPage.ID) then
+    Result := True;
+  if UpgradeMode and (PageID = ConsolePage.ID) then
     Result := True;
   if (PageID = StartTrayPage.ID) then
     Result := not InstallTrayApp;
@@ -148,6 +162,12 @@ begin
   begin
     InstallTrayApp := TrayPage.Values[0];
     Log('Tray app install: ' + BoolToStr(InstallTrayApp));
+  end;
+
+  if CurPageID = ConsolePage.ID then
+  begin
+    InstallConsoleApp := ConsolePage.Values[0];
+    Log('Console app install: ' + BoolToStr(InstallConsoleApp));
   end;
 
   if CurPageID = StartTrayPage.ID then

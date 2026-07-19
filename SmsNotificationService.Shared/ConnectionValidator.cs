@@ -2,11 +2,10 @@ using System.Diagnostics;
 using System.Net.Http;
 using Dapper;
 using Microsoft.Data.SqlClient;
-using SmsNotificationService.Shared;
 
-namespace SmsNotificationService.Tray;
+namespace SmsNotificationService.Shared;
 
-internal sealed class ConnectionValidator
+public sealed class ConnectionValidator
 {
     private DateTime _lastValidation = DateTime.MinValue;
     private ValidationResult? _lastResult;
@@ -117,10 +116,9 @@ internal sealed class ConnectionValidator
             return new CheckResult { Passed = false, Details = ex.Message };
         }
     }
-
 }
 
-internal sealed class ValidationResult
+public sealed class ValidationResult
 {
     public CheckResult DbStatus { get; set; } = new();
     public CheckResult ApiStatus { get; set; } = new();
@@ -136,7 +134,7 @@ internal sealed class ValidationResult
     });
 }
 
-internal sealed class CheckResult
+public sealed class CheckResult
 {
     public bool Passed { get; set; }
     public long ResponseTime { get; set; }

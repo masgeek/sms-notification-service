@@ -10,13 +10,7 @@ obj/
 *.sln.docstates
 
 ## ======= Publish Output Directories =======
-# This ensures self-contained publish folders don't get committed
-win-x64/
-win-x86/
-osx-x64/
-linux-x64/
-publish*
-publish-tray*
+build/
 
 ## ======= User-Specific & Environment Secrets =======
 # Keep your local database connection strings and passwords safe
