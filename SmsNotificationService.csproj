@@ -7,7 +7,7 @@
     <WarningsAsErrors>nullable</WarningsAsErrors>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <DefaultItemExcludes>$(DefaultItemExcludes);tests\**;SmsNotificationService.Tray\**;SmsNotificationService.Shared\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests\**;SmsNotificationService.Tray\**;SmsNotificationService.Shared\**;SmsNotificationService.Console\**</DefaultItemExcludes>
     <UserSecretsId>dotnet-SmsNotificationService-8049dd06-d3d1-4fae-a2e0-5b26db80a79b</UserSecretsId>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
   </PropertyGroup>

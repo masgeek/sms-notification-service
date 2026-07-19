@@ -11,18 +11,19 @@ public partial class App : Application
     {
         try
         {
-            TrayLogger.Info($"SmsNotificationService Tray starting (v{VersionHelper.GetCurrentVersion()})");
-            TrayLogger.Info($"OS: {Environment.OSVersion}, .NET: {Environment.Version}");
+            AppLogger.Initialize("TrayApp");
+            AppLogger.Info("App", $"SmsNotificationService Tray starting (v{VersionHelper.GetCurrentVersion()})");
+            AppLogger.Info("App", $"OS: {Environment.OSVersion}, .NET: {Environment.Version}");
 
             base.OnStartup(e);
 
             _trayIcon = new TrayIcon();
 
-            TrayLogger.Info("Tray app initialized successfully");
+            AppLogger.Info("App", "Tray app initialized successfully");
         }
         catch (Exception ex)
         {
-            TrayLogger.Error("Fatal error during startup", ex);
+            AppLogger.Error("App", "Fatal error during startup", ex);
             MessageBox.Show($"Startup failed: {ex.Message}", "SmsNotificationService Tray", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
@@ -32,21 +33,21 @@ public partial class App : Application
     {
         try
         {
-            TrayLogger.Info("Tray app shutting down");
+            AppLogger.Info("App", "Tray app shutting down");
             _trayIcon?.Dispose();
         }
         catch (Exception ex)
         {
-            TrayLogger.Error("Error during shutdown", ex);
+            AppLogger.Error("App", "Error during shutdown", ex);
         }
 
-        TrayLogger.Dispose();
+        AppLogger.Dispose();
         base.OnExit(e);
     }
 
     private void Application_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
-        TrayLogger.Error("Unhandled exception", e.Exception);
+        AppLogger.Error("App", "Unhandled exception", e.Exception);
         e.Handled = true;
     }
 }

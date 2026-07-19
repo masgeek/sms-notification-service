@@ -1,6 +1,6 @@
 using System.ServiceProcess;
 
-namespace SmsNotificationService.Tray.Models;
+namespace SmsNotificationService.Shared.Models;
 
 public sealed class ServiceStatusInfo
 {

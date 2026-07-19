@@ -1,10 +1,9 @@
 using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
-using SmsNotificationService.Shared;
-using SmsNotificationService.Tray.Models;
+using SmsNotificationService.Shared.Models;
 
-namespace SmsNotificationService.Tray;
+namespace SmsNotificationService.Shared;
 
 public sealed class ServiceMonitor : IDisposable
 {
@@ -22,7 +21,7 @@ public sealed class ServiceMonitor : IDisposable
     {
         _startTime = DateTime.Now;
         _timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
-        TrayLogger.Info("ServiceMonitor initialized");
+        AppLogger.Info("Monitor", "ServiceMonitor initialized");
     }
 
     public async Task StartAsync()
@@ -57,7 +56,7 @@ public sealed class ServiceMonitor : IDisposable
             }
             catch (Exception ex)
             {
-                TrayLogger.Error("Error polling service status", ex);
+                AppLogger.Error("Monitor", "Error polling service status", ex);
                 var info = new ServiceStatusInfo
                 {
                     Status = (ServiceControllerStatus)(-1),
@@ -160,20 +159,20 @@ public sealed class ServiceMonitor : IDisposable
 
     public void StartService()
     {
-        TrayLogger.Info("Starting service...");
+        AppLogger.Info("Monitor", "Starting service...");
         Execute("start");
     }
 
     public void StopService()
     {
-        TrayLogger.Info("Stopping service...");
+        AppLogger.Info("Monitor", "Stopping service...");
         Execute("stop");
         KillProcesses();
     }
 
     public void RestartService()
     {
-        TrayLogger.Info("Restarting service...");
+        AppLogger.Info("Monitor", "Restarting service...");
         StopService();
         _ = Task.Run(async () =>
         {
@@ -186,12 +185,12 @@ public sealed class ServiceMonitor : IDisposable
     {
         try
         {
-            TrayLogger.Info($"Executing: sc.exe {action} {Constants.ServiceName}");
+            AppLogger.Info("Monitor", $"Executing: sc.exe {action} {Constants.ServiceName}");
             Process.Start("sc.exe", $"{action} {Constants.ServiceName}");
         }
         catch (Exception ex)
         {
-            TrayLogger.Error($"Failed to {action} service", ex);
+            AppLogger.Error("Monitor", $"Failed to {action} service", ex);
         }
     }
 
@@ -210,7 +209,7 @@ public sealed class ServiceMonitor : IDisposable
 
     public void Dispose()
     {
-        TrayLogger.Info("Disposing ServiceMonitor");
+        AppLogger.Info("Monitor", "Disposing ServiceMonitor");
         _cts.Cancel();
         _cts.Dispose();
         _timer.Dispose();
