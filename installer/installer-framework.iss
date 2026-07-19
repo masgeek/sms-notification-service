@@ -29,12 +29,15 @@
 #define ServiceDesc      "Listens to SQL Server for SMS notifications and sends them via HTTP API"
 #define TrayAppName      "SmsNotificationService.Tray"
 #define TrayAppDisplay   "SmsNotificationService Tray"
+#define ConsoleAppName   "SmsNotificationService.Console"
+#define ConsoleAppDisplay "SmsNotificationService Console"
 #define EventLogSource   "SmsNotificationService"
 #define ConfigDir        "Munywele\SmsNotificationService"
 #define ConfigFile       "appsettings.Production.json"
 #define LogRetentionDays "7"
 #define MaxLogFileSizeMb "10"
 #define TrayDir          "Tray"
+#define ConsoleDir       "Console"
 #define FrameworkInstall true
 
 ; ============================================================================
@@ -92,8 +95,9 @@ Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full 
 ; [Files] - Framework-dependent binaries
 ; ============================================================================
 [Files]
-Source: "..\publish-framework\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
-Source: "..\publish-tray-framework\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\service-framework\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\tray-framework\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\console-framework\*"; DestDir: "{app}\{#ConsoleDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 
 ; ============================================================================
 ; [Icons] - Start Menu shortcut

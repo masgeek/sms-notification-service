@@ -2,8 +2,8 @@
 ; SmsNotificationService - Production Inno Setup Installer
 ; ============================================================================
 ; Requires: Inno Setup 6.4+
-; Build:    dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o publish
-;           dotnet publish SmsNotificationService.Tray\SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o publish-tray
+; Build:    dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o build\service
+;           dotnet publish SmsNotificationService.Tray\SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
 ; Compile:  Open in Inno Setup Compiler -> Build -> Compile
 ; Output:   installer\output\SmsNotificationService-Setup-<version>.exe
 ; ============================================================================
@@ -30,12 +30,15 @@
 #define ServiceDesc      "Listens to SQL Server for SMS notifications and sends them via HTTP API"
 #define TrayAppName      "SmsNotificationService.Tray"
 #define TrayAppDisplay   "SmsNotificationService Tray"
+#define ConsoleAppName   "SmsNotificationService.Console"
+#define ConsoleAppDisplay "SmsNotificationService Console"
 #define EventLogSource   "SmsNotificationService"
 #define ConfigDir        "Munywele\SmsNotificationService"
 #define ConfigFile       "appsettings.Production.json"
 #define LogRetentionDays "7"
 #define MaxLogFileSizeMb "10"
 #define TrayDir          "Tray"
+#define ConsoleDir       "Console"
 
 ; ============================================================================
 ; [Setup] - Installer metadata, UI, compression, logging
@@ -93,8 +96,9 @@ Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full 
 ;           Tray app binaries are always copied; shortcut/registry are optional
 ; ============================================================================
 [Files]
-Source: "..\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
-Source: "..\publish-tray\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\service\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\tray\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\console\*"; DestDir: "{app}\{#ConsoleDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 
 ; ============================================================================
 ; [Icons] - Start Menu shortcut
