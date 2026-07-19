@@ -331,7 +331,7 @@ Release (main branch only, after tests pass)
     ├── Generate version tag from conventional commits
     ├── Build win-x64 publish (both self-contained and framework-dependent)
     ├── Build both Inno Setup installers
-    ├── Create zip archive (service + tray + console app binaries)
+    ├── Create separate zip archives (service, tray, console)
     └── Create/update GitHub Release with all artifacts
 ```
 
@@ -352,7 +352,9 @@ Each release produces:
 |----------|-------------|
 | `SmsNotificationService-Setup-<version>.exe` | Self-contained installer (bundles .NET runtime) |
 | `SmsNotificationService-Framework-Setup-<version>.exe` | Framework-dependent installer (requires .NET 10 runtime) |
-| `SmsNotificationService-win-x64.zip` | Zip of `build\service\`, `build\tray\`, and `build\console\` directories |
+| `SmsNotificationService-service-win-x64.zip` | Service binaries (self-contained) |
+| `SmsNotificationService-tray-win-x64.zip` | Tray app binaries (self-contained) |
+| `SmsNotificationService-console-win-x64.zip` | Console monitor binaries (self-contained) |
 
 ## Troubleshooting
 

@@ -128,7 +128,10 @@ jobs:
 
       - name: Zip artifacts
         shell: bash
-        run: 7z a -tzip SmsNotificationService-win-x64.zip "./build/service/*" "./build/tray/*" "./build/console/*"
+        run: |
+          7z a -tzip SmsNotificationService-service-win-x64.zip "./build/service/*"
+          7z a -tzip SmsNotificationService-tray-win-x64.zip "./build/tray/*"
+          7z a -tzip SmsNotificationService-console-win-x64.zip "./build/console/*"
 
       - name: Install Inno Setup
         run: choco install innosetup -y
@@ -177,7 +180,7 @@ jobs:
         with:
           name: release-artifacts
           path: |
-            SmsNotificationService-win-x64.zip
+            SmsNotificationService-*-win-x64.zip
             SmsNotificationService*-Setup-*.exe
           retention-days: 1
 
@@ -208,6 +211,8 @@ jobs:
           generateReleaseNotes: true
           skipIfReleaseExists: false
           artifacts: |
-            artifacts/SmsNotificationService-win-x64.zip
+            artifacts/SmsNotificationService-service-win-x64.zip
+            artifacts/SmsNotificationService-tray-win-x64.zip
+            artifacts/SmsNotificationService-console-win-x64.zip
             artifacts/SmsNotificationService-Setup-*.exe
             artifacts/SmsNotificationService-Framework-Setup-*.exe

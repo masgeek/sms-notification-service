@@ -362,7 +362,7 @@ Build and Package
   └─ Upload artifact
      ↓
 Publish GitHub Release (ncipollo/release-action@v1.21.0)
-  ├─ Uploads: zip, self-contained installer, framework-dependent installer
+  ├─ Uploads: zips (service, tray, console), self-contained installer, framework-dependent installer
   └─ allowUpdates: true (idempotent)
 ```
 
