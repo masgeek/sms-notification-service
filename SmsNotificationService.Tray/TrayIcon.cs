@@ -37,7 +37,7 @@ internal sealed class TrayIcon : IDisposable
 
         _icon.LeftClickCommand = new DelegateCommand(_ => ShowStatusWindow());
         _icon.ContextMenu = BuildContextMenu();
-        _icon.ForceCreate();
+        _icon.ForceCreate(enablesEfficiencyMode: false);
 
         _monitor.StatusChanged += OnStatusChanged;
         _updater.UpdateAvailable += OnUpdateAvailable;
