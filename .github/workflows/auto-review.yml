@@ -99,7 +99,7 @@ jobs:
           steps.threads.outputs.unresolved_count == '0' &&
           steps.workflow-files.outputs.workflow_changed == 'false' &&
           steps.up-to-date.outputs.branch_stale == 'false'
-        uses: lewagon/wait-on-check-action@v1.8.1
+        uses: lewagon/wait-on-check-action@v1.9.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           check-name: "All Checks Passed"
