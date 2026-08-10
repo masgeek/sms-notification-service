@@ -1,6 +1,6 @@
 # SmsNotificationService
 
-A .NET 10 background worker service that listens to a SQL Server table for new SMS notifications and sends them via an external HTTP API.
+A .NET 10 Windows service that listens to a SQL Server table for new SMS notifications and sends them via an external HTTP API. The same host also runs the outbound school integration worker for student, fee, and payment synchronization.
 
 ## Architecture
 
@@ -21,6 +21,11 @@ NotificationRepository          SmsApiService
     | Dapper                     | HttpClient
     v                            v
 SQL Server                     SMS API
+
+School Integration Worker
+    |
+    +--> https://fees.munywele.co.ke/ (central work, heartbeat, metrics)
+    +--> http://127.0.0.1:8001/api/ (fixed local school API)
 ```
 
 ## Tech Stack
@@ -95,9 +100,25 @@ Edit `appsettings.Development.json`:
     "RetryPollIntervalSeconds": 30,
     "LogRetentionDays": 7,
     "MaxLogFileSizeMb": 10
+  },
+  "Agent": {
+    "Enabled": true,
+    "ServerUrl": "https://fees.munywele.co.ke/",
+    "AgentToken": "replace-with-a-provisioned-agent-token",
+    "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",
+    "LocalApiUsername": "",
+    "LocalApiPassword": "",
+    "RequestTimeoutSeconds": 30,
+    "IdleDelaySeconds": 5,
+    "LongPollSeconds": 25,
+    "HeartbeatSeconds": 60
   }
 }
 ```
+
+The `Agent` section configures the embedded school integration worker. See
+[School integration deployment](docs/school-integration.md) for enrollment,
+credentials, and service behavior.
 
 | Config Key | Default | Description |
 |---|---|---|
@@ -108,6 +129,20 @@ Edit `appsettings.Development.json`:
 | `RetryPollIntervalSeconds` | `30` | How often the retry poller checks for eligible notifications |
 | `LogRetentionDays` | `7` | Days to keep log files before cleanup |
 | `MaxLogFileSizeMb` | `10` | Max log file size before rotation |
+| `Agent:Enabled` | `true` | Enables the embedded school integration worker |
+| `Agent:ServerUrl` | `https://fees.munywele.co.ke/` | Central agent gateway URL; HTTPS is required except for loopback |
+| `Agent:AgentToken` | — | Provisioned school-scoped bearer token; required when enabled |
+| `Agent:LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback-only school API URL |
+| `Agent:LocalApiUsername` | — | Local school API username |
+| `Agent:LocalApiPassword` | — | Local school API password |
+| `Agent:RequestTimeoutSeconds` | `30` | HTTP request timeout |
+| `Agent:IdleDelaySeconds` | `5` | Delay after an empty or failed work cycle |
+| `Agent:LongPollSeconds` | `25` | Maximum central work-poll wait |
+| `Agent:HeartbeatSeconds` | `60` | Heartbeat interval |
+
+The agent is enabled by default. Complete enrollment and replace the
+provisioning placeholder before starting the service; keep the bearer token out
+of source control, installer arguments, logs, and fixtures.
 
 ### 4. Run
 
@@ -156,6 +191,12 @@ sc start SmsNotificationService
 8. **On failure** — Increments `retry_count`, sets `retry_after` with exponential backoff
 9. **Max retries exceeded** — Status → `CANCELLED`
 
+When `Agent:Enabled` is true, the same host also runs the school integration
+worker. It heartbeats to the central gateway, leases work using bounded long
+polling, reads student and fee data from the loopback school API, uploads
+resumable pages, and records approved payments. Agent failures are isolated
+from SMS processing.
+
 ## Status Enum
 
 | Value | Description |
@@ -195,6 +236,7 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 - **Error logging** — API error responses saved to `description` column for debugging
 - **Null safety** — Nullable enabled with warnings-as-errors
 - **Structured logging** — `[Tag]` prefixed logs for quick filtering
+- **School integration worker** — outbound long polling, resumable snapshots, fee synchronization, and payment write-back
 
 ## CI/CD
 
@@ -235,9 +277,11 @@ To manually trigger a release:
 dotnet test
 ```
 
-12 unit tests covering:
+26 unit tests covering:
 - `WorkerTests` — pending processing, success/failure flows, retry scheduling, concurrency
 - `SmsApiServiceTests` — HTTP retry logic, success/failure, `CalculateRetryAfter` backoff
+- `SchoolApiStudentAdapterTests` — student and fee pagination and field mapping
+- `StudentSyncContractTests` — approved student contract serialization and hashing
 
 ## Project Structure
 
@@ -268,6 +312,12 @@ SmsNotificationService/
 │   │   └── DatabaseConnectionCheck.cs      # Startup DB check (10s timeout)
 │   └── Logging/
 │       └── FileLoggerProvider.cs           # File logging with daily rotation
+│   └── SchoolIntegration/                  # Embedded outbound school agent
+│       ├── AgentOptions.cs                 # Central/local API configuration
+│       ├── GatewayClient.cs                # Work leasing, heartbeats, uploads
+│       ├── SchoolApiClient.cs               # Loopback school API client
+│       ├── SchoolIntegrationWorker.cs      # Agent orchestration and retries
+│       └── Contracts.cs                     # Versioned sync contracts
 ├── SmsNotificationService.Shared/
 │   ├── SmsNotificationService.Shared.csproj
 │   ├── Constants.cs                        # Service name, table name, paths
@@ -284,7 +334,7 @@ SmsNotificationService/
 │   ├── ConnectionValidator.cs              # DB/API/Broker connectivity checks
 │   ├── StatusWindow.xaml / .cs             # Service status display
 │   ├── LogViewer.xaml / .cs                # Log file tailing
-│   ├── ConfigEditor.xaml / .cs             # Edit all SmsService settings
+│   ├── ConfigEditor.xaml / .cs             # Edit SmsService and Agent settings
 │   └── SendNotificationDialog.xaml / .cs   # Manual SMS insert
 ├── tests/
 │   └── SmsNotificationService.Tests/
@@ -309,6 +359,7 @@ SmsNotificationService/
 │   └── auto-review.yml                     # Auto-approve after checks pass
 ├── docs/
 │   ├── deployment.md                       # Deployment guide
+│   ├── school-integration.md                # Enrollment and agent operations
 │   └── plan.md                             # Feature plan
 ├── publish.ps1                             # Self-contained publish script
 ├── publish-framework.ps1                   # Framework-dependent publish script
@@ -366,4 +417,4 @@ The SMS API receives raw data fields (snake_case):
 [Listener] Query registered successfully. Waiting for table changes...
 ```
 
-Log tags: `[App]`, `[Config]`, `[DB]`, `[Listener]`, `[Queue]`, `[SMS]`, `[Shutdown]`
+Log tags: `[App]`, `[Config]`, `[DB]`, `[Listener]`, `[Queue]`, `[SMS]`, `[Agent]`, `[Shutdown]`

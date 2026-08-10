@@ -5,6 +5,11 @@ Inno Setup installer for SmsNotificationService. Two variants available:
 - **Self-contained** (`installer.iss`) — bundles .NET runtime, no dependencies needed
 - **Framework-dependent** (`installer-framework.iss`) — requires .NET 10 runtime on target machine
 
+The installed Windows service hosts both SMS notification processing and the
+school integration worker. The agent is enabled by default. Its
+configuration is written into `appsettings.Production.json`; enrollment tokens
+must be provisioned separately and must never be passed as installer arguments.
+
 ## Structure
 
 ```
@@ -94,3 +99,26 @@ Add `#include` in the `[Code]` section (order matters for dependencies):
 2. **Order matters** — include dependencies before dependents
 3. **Functions are global** — all `#include` files share the same `[Code]` scope
 4. **Both installers share the same code modules** — changes to `code/` affect both installers
+
+## Agent Configuration
+
+The installer writes these safe defaults into the generated configuration:
+
+```json
+"Agent": {
+  "Enabled": true,
+  "ServerUrl": "https://fees.munywele.co.ke/",
+  "AgentToken": "replace-with-a-provisioned-agent-token",
+  "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",
+  "LocalApiUsername": "",
+  "LocalApiPassword": "",
+  "RequestTimeoutSeconds": 30,
+  "IdleDelaySeconds": 5,
+  "LongPollSeconds": 25,
+  "HeartbeatSeconds": 60
+}
+```
+
+After installation, enroll the school and set `Agent:Enabled` and
+`Agent:AgentToken` directly in protected service configuration. See
+[`docs/school-integration.md`](../docs/school-integration.md).

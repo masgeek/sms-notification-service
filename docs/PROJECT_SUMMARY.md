@@ -14,6 +14,7 @@ A **.NET 10 background worker service** that:
 4. Retired notifications are marked `CANCELLED` after exhausting `max_retries`
 5. Ships with a **WPF system tray app** for monitoring and management
 6. Deploys via **Inno Setup** installer (self-contained or framework-dependent variants)
+7. Optionally runs an embedded **school integration worker** for student and fee snapshots and approved payment write-back
 
 ---
 
@@ -64,8 +65,24 @@ Program.cs
        │    ├─ TableChangeListener (HostedService)
        │    └─ RetryPoller (HostedService)
        ├─ ValidateSmsServiceOptions()               # Startup validation
-       └─ DatabaseConnectionCheck.RunAsync()        # 10s timeout
+        └─ DatabaseConnectionCheck.RunAsync()        # 10s timeout
 ```
+
+When `Agent:Enabled` is true, `AddSchoolIntegrationServices` also registers:
+
+```text
+AddSchoolIntegrationServices(config)
+  ├─ AgentOptions                          # validates central and local URLs
+  ├─ GatewayClient                          # heartbeats, leases, uploads, completion
+  ├─ SchoolApiClient                        # loopback school API authentication
+  ├─ IStudentAdapter → SchoolApiStudentAdapter
+  └─ SchoolIntegrationWorker                # isolated long-polling work loop
+```
+
+The agent is enabled by default. Its central gateway uses a school-scoped
+bearer token, while local school API credentials remain on the school machine.
+See [`docs/school-integration.md`](school-integration.md) for enrollment and
+operational behavior.
 
 ### Data Flow
 
@@ -141,6 +158,8 @@ Config lives in the **app directory** (`{app}\appsettings.Production.json`), NOT
 ### Environment Variables (Fallback)
 
 `SmsService__ConnectionString`, `SmsService__SmsApiUrl`, etc. (use `__` separator).
+Agent settings use the same convention, for example
+`Agent__Enabled`, `Agent__ServerUrl`, and `Agent__AgentToken`.
 
 ---
 
@@ -381,12 +400,14 @@ Publish GitHub Release (ncipollo/release-action@v1.21.0)
 dotnet test
 ```
 
-**12 unit tests** in two files:
+**26 unit tests** in four files:
 
 | File | Tests |
 |------|-------|
 | `WorkerTests.cs` | NotificationProcessor: pending processing, success/failure flows, retry scheduling, concurrency (SemaphoreSlim) |
 | `SmsApiServiceTests.cs` | SmsApiService: HTTP retry logic, success/failure, `CalculateRetryAfter` backoff with ±20% jitter |
+| `SchoolApiStudentAdapterTests.cs` | Student and fee pagination, local API field mapping, and adapter behavior |
+| `StudentSyncContractTests.cs` | Versioned student contract serialization and deterministic record hashing |
 
 Test tolerance must account for jitter: e.g., 30s base → tolerance ≥15s.
 
@@ -486,6 +507,18 @@ All known issues have been resolved.
 | `src/Checks/DatabaseConnectionCheck.cs` | Startup DB check (10s timeout) |
 | `src/Logging/FileLoggerProvider.cs` | File logging, rotation, FileShare.ReadWrite |
 
+### School Integration
+
+| File | Purpose |
+|------|---------|
+| `src/SchoolIntegration/AgentOptions.cs` | Central gateway, local API, timeout, polling, and credential settings |
+| `src/SchoolIntegration/GatewayClient.cs` | Heartbeats, bounded work leasing, page uploads, completion, and failure reporting |
+| `src/SchoolIntegration/SchoolApiClient.cs` | Local loopback API login, token refresh, student, fee, and payment operations |
+| `src/SchoolIntegration/SchoolApiStudentAdapter.cs` | Maps local student pages to the approved student contract |
+| `src/SchoolIntegration/SchoolIntegrationWorker.cs` | Isolated orchestration loop for snapshots and payment jobs |
+| `src/SchoolIntegration/Contracts.cs` | Versioned sync work, student, fee, payment, and response contracts |
+| `docs/school-integration.md` | Enrollment, configuration, and deployment behavior |
+
 ### Shared Project
 
 | File | Purpose |
@@ -507,7 +540,7 @@ All known issues have been resolved.
 | `SmsNotificationService.Tray/ConnectionValidator.cs` | Parallel DB/API/Broker checks |
 | `SmsNotificationService.Tray/StatusWindow.xaml` + `.cs` | Status display |
 | `SmsNotificationService.Tray/LogViewer.xaml` + `.cs` | Log tailing |
-| `SmsNotificationService.Tray/ConfigEditor.xaml` + `.cs` | Edit SmsService settings |
+| `SmsNotificationService.Tray/ConfigEditor.xaml` + `.cs` | Edit SmsService and Agent settings |
 | `SmsNotificationService.Tray/SendNotificationDialog.xaml` + `.cs` | Manual SMS insert |
 
 ### Installer

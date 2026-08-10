@@ -2,7 +2,7 @@ now # System Tray Application — Plan
 
 ## Overview
 
-A lightweight WPF system tray application that monitors the SmsNotificationService and provides a UI for status, logs, and update notifications.
+A lightweight WPF system tray application that monitors the SmsNotificationService and provides a UI for status, logs, update notifications, and configuration of the school integration worker.
 
 ## Architecture
 
@@ -150,6 +150,8 @@ SmsNotificationService.Tray/
 - Opens from context menu: `Settings`
 - Loads current `appsettings.Production.json` from `ProgramData\Munywele\SmsNotificationService\`
 - Editable fields with validation (required, numeric, URL format)
+- Includes the `Agent` section: enablement, central gateway URL, local loopback API settings, polling intervals, timeout, and credentials
+- Does not enroll agents; enrollment is performed through the central fee-syncer admin interface
 - API Key field masked by default, "Show" toggle
 - `Test Connection` button validates DB connectivity before save
 - `Save` writes to file, shows confirmation

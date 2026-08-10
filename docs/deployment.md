@@ -10,7 +10,7 @@ Download the latest installer from [GitHub Releases](../../releases). Two varian
 Run the installer as Administrator.
 
 The installer deploys:
-- **SmsNotificationService** — background worker (Windows Service)
+- **SmsNotificationService** — SMS notification and school integration workers (Windows Service)
 - **SmsNotificationService.Tray** — system tray management app (optional, auto-starts on login if selected)
 
 ## Windows SmartScreen Warning
@@ -166,11 +166,29 @@ Config is stored in `C:\Program Files\SmsNotificationService\appsettings.Product
     "RetryPollIntervalSeconds": 30,
     "LogRetentionDays": 7,
     "MaxLogFileSizeMb": 10
+  },
+  "Agent": {
+    "Enabled": true,
+    "ServerUrl": "https://fees.munywele.co.ke/",
+    "AgentToken": "replace-with-a-provisioned-agent-token",
+    "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",
+    "LocalApiUsername": "",
+    "LocalApiPassword": "",
+    "RequestTimeoutSeconds": 30,
+    "IdleDelaySeconds": 5,
+    "LongPollSeconds": 25,
+    "HeartbeatSeconds": 60
   }
 }
 ```
 
 Edit the file directly, use the tray app's Config Editor, or reinstall with "Enter new configuration" selected.
+
+The school integration worker is enabled by default. Before starting the
+service, enroll the school and replace the provisioning placeholder in
+`Agent:AgentToken`. See [School integration deployment](school-integration.md)
+for the enrollment flow, local API requirements, and security rules. The
+installer writes the placeholder but does not collect or expose the agent token.
 
 ### Environment Variables (Fallback)
 
@@ -199,6 +217,12 @@ If the config file is missing, environment variables are used as a fallback:
 | `SmsService:SmsApiUrl` | `SmsService__SmsApiUrl` | — | SMS API endpoint URL |
 | `SmsService:AuthorizationToken` | `SmsService__AuthorizationToken` | — | Bearer token for API auth |
 | `SmsService:RetryBackoffSeconds` | `SmsService__RetryBackoffSeconds` | `30` | Base retry backoff in seconds |
+| `Agent:Enabled` | `Agent__Enabled` | `true` | Enables school integration |
+| `Agent:ServerUrl` | `Agent__ServerUrl` | `https://fees.munywele.co.ke/` | Central agent gateway URL |
+| `Agent:AgentToken` | `Agent__AgentToken` | — | School-scoped bearer token |
+| `Agent:LocalApiBaseUrl` | `Agent__LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback school API URL |
+| `Agent:LocalApiUsername` | `Agent__LocalApiUsername` | — | Local school API username |
+| `Agent:LocalApiPassword` | `Agent__LocalApiPassword` | — | Local school API password |
 
 > **Priority:** Config file (`appsettings.Production.json`) > Environment variables > Defaults
 
@@ -399,6 +423,20 @@ Each release produces:
 1. Check API URL and token in config
 2. Check network connectivity to the API endpoint
 3. Look for `[SMS]` logs with HTTP status codes
+
+### School integration not running
+
+1. Confirm `Agent:Enabled` is `true` and replace the provisioning placeholder with a token of at least 32 characters
+2. Confirm the central `Agent:ServerUrl` uses HTTPS and is reachable
+3. Confirm the local API is listening on the configured loopback URL
+4. Check logs for `[Agent]` errors; student payloads and bearer tokens are not logged
+
+### School integration enrollment failing
+
+1. Generate a fresh single-use enrollment code in the central fee-syncer admin interface
+2. Exchange it once at `POST https://fees.munywele.co.ke/api/agent/enroll`
+3. Store the returned token as protected `Agent:AgentToken` configuration
+4. Restart the Windows service after changing configuration
 
 ### File logs not appearing
 

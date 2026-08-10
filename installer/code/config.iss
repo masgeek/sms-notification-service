@@ -19,6 +19,16 @@ begin
     '    "RetryBackoffSeconds": 30,' + #13#10 +
     '    "LogRetentionDays": ' + '{#LogRetentionDays}' + ',' + #13#10 +
     '    "MaxLogFileSizeMb": ' + '{#MaxLogFileSizeMb}' + #13#10 +
+    '  },' + #13#10 +
+    '  "Agent": {' + #13#10 +
+    '    "Enabled": true,' + #13#10 +
+    '    "ServerUrl": "https://fees.munywele.co.ke/",' + #13#10 +
+    '    "AgentToken": "replace-with-a-provisioned-agent-token",' + #13#10 +
+    '    "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",' + #13#10 +
+    '    "LocalApiUsername": "",' + #13#10 +
+    '    "LocalApiPassword": "",' + #13#10 +
+    '    "LongPollSeconds": 25,' + #13#10 +
+    '    "HeartbeatSeconds": 60' + #13#10 +
     '  }' + #13#10 +
     '}';
 

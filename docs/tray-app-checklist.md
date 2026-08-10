@@ -154,9 +154,10 @@ Temporary working document. Delete after implementation is complete.
   - Loads `appsettings.Production.json` from `Paths.ConfigFile`
   - Editable fields:
     - **Database**: Server, Database, User ID, Password, Encrypt (dropdown: Mandatory/Optional/Strict)
-    - **SMS API**: URL, Authorization Token (masked, Show/Hide toggle)
-    - **Retry**: Backoff Seconds, Poll Interval Seconds
-    - **Logging**: Retention Days, Max File Size (MB)
+     - **SMS API**: URL, Authorization Token (masked, Show/Hide toggle)
+     - **Retry**: Backoff Seconds, Poll Interval Seconds
+     - **Logging**: Retention Days, Max File Size (MB)
+     - **School Agent**: Enabled, central Server URL, enrollment token, local API URL, local API username, local API password, request timeout, idle delay, long-poll interval, heartbeat interval
   - Uses `SqlConnectionStringBuilder` to parse/build connection string
   - Buttons: Test Connection, Save, Cancel
   - Saves with `System.Text.Json` (indented)
@@ -179,6 +180,10 @@ Temporary working document. Delete after implementation is complete.
   - `AllPassed` computed property
   - `Summary` formatted string
 - [x] Results displayed via balloon notification on tray icon
+
+The tray editor does not perform school-agent enrollment. Operators must
+exchange the single-use enrollment code through the central admin interface and
+then enter the returned token in protected service configuration.
 
 ---
 

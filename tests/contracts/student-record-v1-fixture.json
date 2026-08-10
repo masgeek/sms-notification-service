@@ -1,0 +1,12 @@
+{
+  "records": [
+    {
+      "admission_number": "SYN-001",
+      "class_identifier": "FORM-1-A",
+      "enrollment_status": "active",
+      "source_student_id": "synthetic-00001",
+      "source_updated_at": "2026-08-09T00:00:00Z"
+    }
+  ],
+  "expected_page_hash": "af6835b73059f49a3e69d1d7f0ab4db0e9f2a75340fbdd1814d4b23eae041600"
+}
