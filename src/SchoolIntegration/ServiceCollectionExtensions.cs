@@ -9,6 +9,7 @@ public static class SchoolIntegrationServiceCollectionExtensions
         this IServiceCollection services, IConfiguration configuration)
     {
         services
+            .AddSingleton<SmsNotificationService.SchoolIntegration.AgentWakeSignal>()
             .AddOptions<SmsNotificationService.SchoolIntegration.AgentOptions>()
             .Bind(configuration.GetSection(SmsNotificationService.SchoolIntegration.AgentOptions.SectionName))
             .Validate(ValidateOptions, "School integration options are invalid.")
@@ -41,6 +42,10 @@ public static class SchoolIntegrationServiceCollectionExtensions
 
         services.AddSingleton<SmsNotificationService.SchoolIntegration.IStudentAdapter, SmsNotificationService.SchoolIntegration.SchoolApiStudentAdapter>();
         services.AddHostedService<SmsNotificationService.SchoolIntegration.SchoolIntegrationWorker>();
+        if (agentOptions.MqttEnabled)
+        {
+            services.AddHostedService<SmsNotificationService.SchoolIntegration.MqttAgentConnection>();
+        }
 
         return services;
     }

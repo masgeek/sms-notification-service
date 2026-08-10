@@ -496,6 +496,11 @@
           "Microsoft.TestPlatform.ObjectModel": "18.8.1"
         }
       },
+      "MQTTnet": {
+        "type": "Transitive",
+        "resolved": "5.2.0.1603",
+        "contentHash": "iNuWVo/568aRo2ExEN2qkC4J5b07ckKqt+9Uok2kIbbK7PMBsXvYiKVENPHmOBWFB5ExhlNQb/qQ8M9/IYRTdQ=="
+      },
       "System.Configuration.ConfigurationManager": {
         "type": "Transitive",
         "resolved": "9.0.13",
@@ -581,6 +586,7 @@
         "type": "Project",
         "dependencies": {
           "Dapper": "[2.1.79, )",
+          "MQTTnet": "[5.2.0.1603, )",
           "Microsoft.Data.SqlClient": "[7.0.2, )",
           "Microsoft.Extensions.Hosting": "[10.0.10, )",
           "Microsoft.Extensions.Hosting.WindowsServices": "[10.0.10, )",

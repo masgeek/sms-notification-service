@@ -28,7 +28,17 @@ begin
     '    "LocalApiUsername": "",' + #13#10 +
     '    "LocalApiPassword": "",' + #13#10 +
     '    "LongPollSeconds": 25,' + #13#10 +
-    '    "HeartbeatSeconds": 60' + #13#10 +
+    '    "HeartbeatSeconds": 60,' + #13#10 +
+    '    "MqttEnabled": false,' + #13#10 +
+    '    "MqttBrokerHost": "127.0.0.1",' + #13#10 +
+    '    "MqttBrokerPort": 1883,' + #13#10 +
+    '    "MqttUseTls": false,' + #13#10 +
+    '    "MqttUsername": "",' + #13#10 +
+    '    "MqttPassword": "",' + #13#10 +
+    '    "MqttTopicPrefix": "fee-syncer/agent",' + #13#10 +
+    '    "MqttKeepAliveSeconds": 30,' + #13#10 +
+    '    "MqttReconnectMinSeconds": 1,' + #13#10 +
+    '    "MqttReconnectMaxSeconds": 60' + #13#10 +
     '  }' + #13#10 +
     '}';
 

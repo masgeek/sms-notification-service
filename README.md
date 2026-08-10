@@ -111,7 +111,17 @@ Edit `appsettings.Development.json`:
     "RequestTimeoutSeconds": 30,
     "IdleDelaySeconds": 5,
     "LongPollSeconds": 25,
-    "HeartbeatSeconds": 60
+    "HeartbeatSeconds": 60,
+    "MqttEnabled": false,
+    "MqttBrokerHost": "127.0.0.1",
+    "MqttBrokerPort": 1883,
+    "MqttUseTls": false,
+    "MqttUsername": "",
+    "MqttPassword": "",
+    "MqttTopicPrefix": "fee-syncer/agent",
+    "MqttKeepAliveSeconds": 30,
+    "MqttReconnectMinSeconds": 1,
+    "MqttReconnectMaxSeconds": 60
   }
 }
 ```
@@ -139,10 +149,24 @@ credentials, and service behavior.
 | `Agent:IdleDelaySeconds` | `5` | Delay after an empty or failed work cycle |
 | `Agent:LongPollSeconds` | `25` | Maximum central work-poll wait |
 | `Agent:HeartbeatSeconds` | `60` | Heartbeat interval |
+| `Agent:MqttEnabled` | `false` | Enables MQTT wake-up notifications |
+| `Agent:MqttBrokerHost` | `127.0.0.1` | MQTT broker host |
+| `Agent:MqttBrokerPort` | `1883` | MQTT broker port |
+| `Agent:MqttUseTls` | `false` | Enables TLS for MQTT |
+| `Agent:MqttUsername` | — | MQTT username; token is used when empty |
+| `Agent:MqttPassword` | — | MQTT password |
+| `Agent:MqttTopicPrefix` | `fee-syncer/agent` | MQTT topic prefix |
+| `Agent:MqttKeepAliveSeconds` | `30` | MQTT keep-alive interval |
+| `Agent:MqttReconnectMinSeconds` | `1` | Minimum reconnect delay |
+| `Agent:MqttReconnectMaxSeconds` | `60` | Maximum reconnect delay |
 
 The agent is enabled by default. Complete enrollment and replace the
 provisioning placeholder before starting the service; keep the bearer token out
 of source control, installer arguments, logs, and fixtures.
+
+MQTT is disabled until a broker is provisioned. When enabled, MQTT only wakes
+the agent; HTTP remains the authoritative lease and data-transfer protocol, with
+polling fallback during broker or network outages.
 
 ### 4. Run
 

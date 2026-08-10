@@ -122,3 +122,8 @@ The installer writes these safe defaults into the generated configuration:
 After installation, enroll the school and set `Agent:Enabled` and
 `Agent:AgentToken` directly in protected service configuration. See
 [`docs/school-integration.md`](../docs/school-integration.md).
+
+To use MQTT wake-up notifications, also configure `Agent:MqttEnabled`, broker
+host and port, TLS, and broker credentials. Keep `Agent:MqttPassword` and the
+agent token out of installer arguments and source control. HTTP polling remains
+the fallback when MQTT is unavailable.

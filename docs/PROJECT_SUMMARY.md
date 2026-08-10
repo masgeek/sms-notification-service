@@ -84,6 +84,10 @@ bearer token, while local school API credentials remain on the school machine.
 See [`docs/school-integration.md`](school-integration.md) for enrollment and
 operational behavior.
 
+The agent can optionally subscribe to MQTT wake-up notifications. MQTT is not
+the lease or payload protocol: the worker wakes on `work_available`, then uses
+the existing HTTP gateway and falls back to HTTP polling during outages.
+
 ### Data Flow
 
 ```

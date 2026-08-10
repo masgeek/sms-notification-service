@@ -15,6 +15,11 @@ The worker sends heartbeats, uses bounded long polling, uploads resumable studen
 and fee pages, and performs approved payment write-back. Its failures are isolated
 inside the worker loop and do not terminate SMS notification processing.
 
+When `MqttEnabled` is true, the worker also subscribes to its per-agent MQTT
+topic. `work_available` messages wake the worker so it can use the existing HTTP
+lease endpoint immediately. MQTT is optional and HTTP polling remains the
+fallback for broker or network outages.
+
 ## Local Connection
 
 The worker calls only the fixed loopback API configured by `Agent:LocalApiBaseUrl`,
@@ -46,7 +51,17 @@ logs, or student fixtures.
     "LocalApiUsername": "",
     "LocalApiPassword": "",
     "LongPollSeconds": 25,
-    "HeartbeatSeconds": 60
+    "HeartbeatSeconds": 60,
+    "MqttEnabled": false,
+    "MqttBrokerHost": "127.0.0.1",
+    "MqttBrokerPort": 1883,
+    "MqttUseTls": false,
+    "MqttUsername": "",
+    "MqttPassword": "",
+    "MqttTopicPrefix": "fee-syncer/agent",
+    "MqttKeepAliveSeconds": 30,
+    "MqttReconnectMinSeconds": 1,
+    "MqttReconnectMaxSeconds": 60
   }
 }
 ```

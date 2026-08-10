@@ -6,6 +6,7 @@ internal sealed class SchoolIntegrationWorker(
     GatewayClient gateway,
     IStudentAdapter adapter,
     SchoolApiClient schoolApi,
+    AgentWakeSignal wakeSignal,
     IOptions<AgentOptions> options,
     ILogger<SchoolIntegrationWorker> logger) : BackgroundService
 {
@@ -28,10 +29,10 @@ internal sealed class SchoolIntegrationWorker(
                     nextHeartbeat = DateTimeOffset.UtcNow.AddSeconds(options.Value.HeartbeatSeconds);
                 }
 
-                work = await gateway.LeaseAsync(options.Value.LongPollSeconds, stoppingToken);
+                work = await gateway.LeaseAsync(options.Value.MqttEnabled ? 0 : options.Value.LongPollSeconds, stoppingToken);
                 if (work is null)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(options.Value.IdleDelaySeconds), stoppingToken);
+                    await wakeSignal.WaitAsync(TimeSpan.FromSeconds(options.Value.IdleDelaySeconds), stoppingToken);
                     continue;
                 }
 
