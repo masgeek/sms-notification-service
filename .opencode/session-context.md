@@ -50,7 +50,7 @@
 - `installer/code/globals.iss`, `wizard.iss`, `install.iss`, `uninstall.iss`
 - `.github/workflows/tests.yml`, `.github/workflows/release.yml`
 - `.gitignore`
-- `FeeSyncer.Tray/TrayIcon.cs` (ForceCreate fix)
-- `tests/FeeSyncer.Sms.Tests/TrayIconForceCreateTests.cs` (new)
+- `src/Tray/TrayIcon.cs` (ForceCreate fix)
+- `tests/Sms/TrayIconForceCreateTests.cs` (new)
 - `docs/PROJECT_SUMMARY.md`, `docs/deployment.md`
 - `docs/tray-app-checklist.md`, `docs/tray-app-plan.md`

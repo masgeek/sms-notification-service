@@ -34,13 +34,13 @@ Program.cs
 **Target:**
 
 ```csharp
-// src/Data/IDbConnectionFactory.cs
+// src/Sms/Data/IDbConnectionFactory.cs
 public interface IDbConnectionFactory
 {
     IDbConnection Create();
 }
 
-// src/Data/SqlConnectionFactory.cs (SQL Server)
+// src/Sms/Data/SqlConnectionFactory.cs (SQL Server)
 public class SqlConnectionFactory : IDbConnectionFactory
 {
     private readonly string _connectionString;
@@ -48,7 +48,7 @@ public class SqlConnectionFactory : IDbConnectionFactory
     public IDbConnection Create() => new SqlConnection(_connectionString);
 }
 
-// src/Data/PostgresConnectionFactory.cs
+// src/Sms/Data/PostgresConnectionFactory.cs
 public class PostgresConnectionFactory : IDbConnectionFactory
 {
     private readonly string _connectionString;
@@ -58,9 +58,9 @@ public class PostgresConnectionFactory : IDbConnectionFactory
 ```
 
 **Files affected:**
-- `src/Checks/DatabaseConnectionCheck.cs` — use `IDbConnectionFactory`
-- `src/Data/NotificationRepository.cs` — use `IDbConnectionFactory`
-- `src/Data/SqlDependencyListener.cs` — use `IDbConnectionFactory`
+- `src/Sms/Checks/DatabaseConnectionCheck.cs` — use `IDbConnectionFactory`
+- `src/Sms/Data/NotificationRepository.cs` — use `IDbConnectionFactory`
+- `src/Sms/Data/SqlDependencyListener.cs` — use `IDbConnectionFactory`
 - `src/ServiceCollectionExtensions.cs` — register appropriate factory
 
 **Effort:** ~2 hours
@@ -74,16 +74,16 @@ public class PostgresConnectionFactory : IDbConnectionFactory
 **Target:**
 
 ```csharp
-// src/Data/ITableChangeListener.cs
+// src/Sms/Data/ITableChangeListener.cs
 public interface ITableChangeListener : IHostedService
 {
     event Func<Task>? OnChange;
 }
 
-// src/Data/SqlDependencyListener.cs (existing — SQL Server)
+// src/Sms/Data/SqlDependencyListener.cs (existing — SQL Server)
 // Uses SqlDependency + Service Broker
 
-// src/Data/PostgresNotifyListener.cs (PostgreSQL)
+// src/Sms/Data/PostgresNotifyListener.cs (PostgreSQL)
 public class PostgresNotifyListener : ITableChangeListener, IHostedService
 {
     public event Func<Task>? OnChange;
@@ -100,7 +100,7 @@ public class PostgresNotifyListener : ITableChangeListener, IHostedService
     }
 }
 
-// src/Data/PollingListener.cs (MySQL, SQLite, fallback)
+// src/Sms/Data/PollingListener.cs (MySQL, SQLite, fallback)
 public class PollingListener : ITableChangeListener, IHostedService
 {
     private readonly TimeSpan _interval;
@@ -144,7 +144,7 @@ CREATE INDEX idx_sms_pending ON sms_notifications(status, retry_after);
 ```
 
 **Files affected:**
-- `src/Workers/TableChangeListener.cs` — inject `ITableChangeListener`
+  - `src/Sms/Workers/TableChangeListener.cs` — inject `ITableChangeListener`
 - `src/ServiceCollectionExtensions.cs` — register appropriate listener
 
 **Effort:** ~1-2 days
@@ -166,7 +166,7 @@ catch (DbException ex)
 ```
 
 **Files affected:**
-- `src/Checks/DatabaseConnectionCheck.cs` — `SqlException` → `DbException`
+  - `src/Sms/Checks/DatabaseConnectionCheck.cs` — `SqlException` → `DbException`
 
 **Effort:** ~30 minutes
 
@@ -339,20 +339,20 @@ public static IServiceCollection AddSmsServices(
 
 | File | Change Required | Databases Affected |
 |------|----------------|-------------------|
-| `src/Data/IDbConnectionFactory.cs` | **New** — interface | All |
-| `src/Data/SqlConnectionFactory.cs` | **New** — SQL Server | SQL Server |
-| `src/Data/PostgresConnectionFactory.cs` | **New** — PostgreSQL | PostgreSQL |
-| `src/Data/MySqlConnectionFactory.cs` | **New** — MySQL | MySQL |
-| `src/Data/SqliteConnectionFactory.cs` | **New** — SQLite | SQLite |
-| `src/Data/ITableChangeListener.cs` | **New** — interface | All |
-| `src/Data/PostgresNotifyListener.cs` | **New** — LISTEN/NOTIFY | PostgreSQL |
-| `src/Data/PollingListener.cs` | **New** — timer-based | MySQL, SQLite |
-| `src/Data/NotificationRepository.cs` | Update — use `IDbConnectionFactory` | All |
-| `src/Data/SqlDependencyListener.cs` | Rename/keep — SQL Server only | SQL Server |
-| `src/Checks/DatabaseConnectionCheck.cs` | Update — `DbException` | All |
+| `src/Sms/Data/IDbConnectionFactory.cs` | **New** — interface | All |
+| `src/Sms/Data/SqlConnectionFactory.cs` | **New** — SQL Server | SQL Server |
+| `src/Sms/Data/PostgresConnectionFactory.cs` | **New** — PostgreSQL | PostgreSQL |
+| `src/Sms/Data/MySqlConnectionFactory.cs` | **New** — MySQL | MySQL |
+| `src/Sms/Data/SqliteConnectionFactory.cs` | **New** — SQLite | SQLite |
+| `src/Sms/Data/ITableChangeListener.cs` | **New** — interface | All |
+| `src/Sms/Data/PostgresNotifyListener.cs` | **New** — LISTEN/NOTIFY | PostgreSQL |
+| `src/Sms/Data/PollingListener.cs` | **New** — timer-based | MySQL, SQLite |
+| `src/Sms/Data/NotificationRepository.cs` | Update — use `IDbConnectionFactory` | All |
+| `src/Sms/Data/SqlDependencyListener.cs` | Rename/keep — SQL Server only | SQL Server |
+| `src/Sms/Checks/DatabaseConnectionCheck.cs` | Update — `DbException` | All |
 | `src/ServiceCollectionExtensions.cs` | Update — provider switch | All |
-| `src/Configuration/SmsServiceOptions.cs` | Add `DatabaseProvider` | All |
-| `FeeSyncer.Sms.csproj` | Swap provider package | Per database |
+| `src/Sms/Configuration/SmsServiceOptions.cs` | Add `DatabaseProvider` | All |
+| `src/Sms/FeeSyncer.Sms.csproj` | Swap provider package | Per database |
 
 ---
 

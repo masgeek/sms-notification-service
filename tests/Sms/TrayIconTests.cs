@@ -20,7 +20,7 @@ namespace FeeSyncer.Sms.Tests;
 /// </summary>
 public class TrayIconTests
 {
-    private const string RelativeSourcePath = "FeeSyncer.Tray/TrayIcon.cs";
+    private const string RelativeSourcePath = "src/Tray/TrayIcon.cs";
 
     private static string ReadTrayIconSource()
     {

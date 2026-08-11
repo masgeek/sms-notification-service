@@ -7,7 +7,7 @@ A lightweight WPF system tray application that monitors FeeSyncer.Sms and provid
 ## Architecture
 
 ```
-FeeSyncer.Tray/
+src/Tray/
 ├── Program.cs                    # Entry point
 ├── App.xaml                      # WPF app (hidden window)
 ├── TrayIcon.cs                   # System tray icon + context menu

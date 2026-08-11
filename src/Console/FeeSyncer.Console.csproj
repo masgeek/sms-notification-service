@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FeeSyncer.Shared\FeeSyncer.Shared.csproj" />
+    <ProjectReference Include="..\Shared\FeeSyncer.Shared.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,12 +1,14 @@
 <Solution>
   <Folder Name="/tests/">
-    <Project Path="tests/FeeSyncer.Sms.Tests/FeeSyncer.Sms.Tests.csproj" />
-    <Project Path="tests/FeeSyncer.Agent.Tests/FeeSyncer.Agent.Tests.csproj" />
-    <Project Path="tests/FeeSyncer.Tray.Tests/FeeSyncer.Tray.Tests.csproj" />
+    <Project Path="tests/Sms/FeeSyncer.Sms.Tests.csproj" />
+    <Project Path="tests/Agent/FeeSyncer.Agent.Tests.csproj" />
+    <Project Path="tests/Tray/FeeSyncer.Tray.Tests.csproj" />
   </Folder>
-  <Project Path="FeeSyncer.Sms.csproj" />
-  <Project Path="FeeSyncer.Agent\FeeSyncer.Agent.csproj" />
-  <Project Path="FeeSyncer.Shared/FeeSyncer.Shared.csproj" />
-  <Project Path="FeeSyncer.Tray/FeeSyncer.Tray.csproj" />
-  <Project Path="FeeSyncer.Console/FeeSyncer.Console.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/Sms/FeeSyncer.Sms.csproj" />
+    <Project Path="src/Agent/FeeSyncer.Agent.csproj" />
+    <Project Path="src/Shared/FeeSyncer.Shared.csproj" />
+    <Project Path="src/Tray/FeeSyncer.Tray.csproj" />
+    <Project Path="src/Console/FeeSyncer.Console.csproj" />
+  </Folder>
 </Solution>

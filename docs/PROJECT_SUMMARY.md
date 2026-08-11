@@ -22,13 +22,13 @@ A **.NET 10 background worker service** that:
 
 ```
 FeeSyncer.slnx
-├── FeeSyncer.Sms.csproj                        # Main worker service (net10.0)
-├── FeeSyncer.Agent/                            # Standalone school agent service
-├── FeeSyncer.Shared/                           # Shared class library (net10.0)
-├── FeeSyncer.Tray/                             # WPF tray app (net10.0-windows)
-├── FeeSyncer.Console/                          # Console monitor app (net10.0)
-├── tests/FeeSyncer.Sms.Tests/                  # SMS xUnit tests
-├── tests/FeeSyncer.Agent.Tests/                # Agent xUnit tests
+├── src/Sms/                                    # Main worker service (net10.0)
+├── src/Agent/                                  # Standalone school agent service
+├── src/Shared/                                 # Shared class library (net10.0)
+├── src/Tray/                                   # WPF tray app (net10.0-windows)
+├── src/Console/                                # Console monitor app (net10.0)
+├── tests/Sms/                                  # SMS xUnit tests
+├── tests/Agent/                                # Agent xUnit tests
 ├── installer/                                 # Inno Setup (two variants)
 ├── .github/workflows/                         # CI/CD pipelines
 ├── docs/                                      # Documentation
@@ -211,7 +211,7 @@ CREATE TABLE sms_notifications (
 
 ## 6. Key Design Decisions & Gotchas
 
-### Dapper Mapping (src/Data/DapperMapper.cs)
+### Dapper Mapping (src/Sms/Data/DapperMapper.cs)
 
 - `CustomPropertyTypeMap` maps `snake_case` DB columns to `PascalCase` C# properties
 - `admission_no` → `AdmNo` (explicit mapping)
@@ -497,59 +497,59 @@ All known issues have been resolved.
 
 | File | Purpose |
 |------|---------|
-| `Program.cs` | Slim entry point, DI, config loading, DapperMapper.Register() |
-| `src/Configuration/SmsServiceOptions.cs` | Typed config class |
-| `src/Configuration/ConfigurationExtensions.cs` | AddProductionConfig(), ValidateSmsServiceOptions() |
-| `src/ServiceCollectionExtensions.cs` | DI registration, named HttpClient "SmsApi" |
-| `src/Data/DapperMapper.cs` | snake_case ↔ PascalCase mapping |
-| `src/Data/INotificationRepository.cs` | Data access interface |
-| `src/Data/NotificationRepository.cs` | Sealed, DB ops |
-| `src/Data/SqlDependencyListener.cs` | Sealed, IDisposable, Service Broker listener |
-| `src/Workers/NotificationProcessor.cs` | Shared logic, SemaphoreSlim, honors Retryable flag |
-| `src/Workers/TableChangeListener.cs` | SqlDependency listener, startup catch-up |
-| `src/Workers/RetryPoller.cs` | PeriodicTimer-based polling |
-| `src/Services/ISmsSender.cs` | Sealed SendResult, SendAsync, CalculateRetryAfter |
-| `src/Services/SmsApiService.cs` | Sealed, single-attempt, named HttpClient "SmsApi" |
-| `src/Models/SmsNotification.cs` | Entity (PascalCase, Dapper-mapped) |
-| `src/Models/NotificationStatus.cs` | Enum: PENDING, PROCESSED, FAILED, CANCELLED |
-| `src/Checks/DatabaseConnectionCheck.cs` | Startup DB check (10s timeout) |
-| `src/Logging/FileLoggerProvider.cs` | File logging, rotation, FileShare.ReadWrite |
+| `src/Sms/Program.cs` | Slim entry point, DI, config loading, DapperMapper.Register() |
+| `src/Sms/Configuration/SmsServiceOptions.cs` | Typed config class |
+| `src/Sms/Configuration/ConfigurationExtensions.cs` | AddProductionConfig(), ValidateSmsServiceOptions() |
+| `src/Sms/ServiceCollectionExtensions.cs` | DI registration, named HttpClient "SmsApi" |
+| `src/Sms/Data/DapperMapper.cs` | snake_case ↔ PascalCase mapping |
+| `src/Sms/Data/INotificationRepository.cs` | Data access interface |
+| `src/Sms/Data/NotificationRepository.cs` | Sealed, DB ops |
+| `src/Sms/Data/SqlDependencyListener.cs` | Sealed, IDisposable, Service Broker listener |
+| `src/Sms/Workers/NotificationProcessor.cs` | Shared logic, SemaphoreSlim, honors Retryable flag |
+| `src/Sms/Workers/TableChangeListener.cs` | SqlDependency listener, startup catch-up |
+| `src/Sms/Workers/RetryPoller.cs` | PeriodicTimer-based polling |
+| `src/Sms/Services/ISmsSender.cs` | Sealed SendResult, SendAsync, CalculateRetryAfter |
+| `src/Sms/Services/SmsApiService.cs` | Sealed, single-attempt, named HttpClient "SmsApi" |
+| `src/Sms/Models/SmsNotification.cs` | Entity (PascalCase, Dapper-mapped) |
+| `src/Sms/Models/NotificationStatus.cs` | Enum: PENDING, PROCESSED, FAILED, CANCELLED |
+| `src/Sms/Checks/DatabaseConnectionCheck.cs` | Startup DB check (10s timeout) |
+| `src/Sms/Logging/FileLoggerProvider.cs` | File logging, rotation, FileShare.ReadWrite |
 
 ### School Integration
 
 | File | Purpose |
 |------|---------|
-| `src/SchoolIntegration/AgentOptions.cs` | Central gateway, local API, timeout, polling, and credential settings |
-| `src/SchoolIntegration/GatewayClient.cs` | Heartbeats, bounded work leasing, page uploads, completion, and failure reporting |
-| `src/SchoolIntegration/SchoolApiClient.cs` | Local loopback API login, token refresh, student, fee, and payment operations |
-| `src/SchoolIntegration/SchoolApiStudentAdapter.cs` | Maps local student pages to the approved student contract |
-| `src/SchoolIntegration/SchoolIntegrationWorker.cs` | Isolated orchestration loop for snapshots and payment jobs |
-| `src/SchoolIntegration/Contracts.cs` | Versioned sync work, student, fee, payment, and response contracts |
+| `src/Agent/SchoolIntegration/AgentOptions.cs` | Central gateway, local API, timeout, polling, and credential settings |
+| `src/Agent/SchoolIntegration/GatewayClient.cs` | Heartbeats, bounded work leasing, page uploads, completion, and failure reporting |
+| `src/Agent/SchoolIntegration/SchoolApiClient.cs` | Local loopback API login, token refresh, student, fee, and payment operations |
+| `src/Agent/SchoolIntegration/SchoolApiStudentAdapter.cs` | Maps local student pages to the approved student contract |
+| `src/Agent/SchoolIntegration/SchoolIntegrationWorker.cs` | Isolated orchestration loop for snapshots and payment jobs |
+| `src/Agent/SchoolIntegration/Contracts.cs` | Versioned sync work, student, fee, payment, and response contracts |
 | `docs/school-integration.md` | Enrollment, configuration, and deployment behavior |
 
 ### Shared Project
 
 | File | Purpose |
 |------|---------|
-| `FeeSyncer.Shared/Constants.cs` | ServiceName, TableName, SubDir, ConfigFileName |
-| `FeeSyncer.Shared/ConfigPathResolver.cs` | FindConfigFile (app dir first), GetProgramDataDir, GetAppDir, GetLogDir |
-| `FeeSyncer.Shared/VersionHelper.cs` | GetCurrentVersion from assembly |
-| `FeeSyncer.Shared/ConfigReader.cs` | LoadConnectionString (SmsService.ConnectionString), LoadApiUrl, LoadAuthorizationToken, ParseConnectionString, BuildConnectionString |
-| `FeeSyncer.Shared/StatusHelper.cs` | FormatStatus, FormatUptime, FormatDetection |
+| `src/Shared/Constants.cs` | ServiceName, TableName, SubDir, ConfigFileName |
+| `src/Shared/ConfigPathResolver.cs` | FindConfigFile (app dir first), GetProgramDataDir, GetAppDir, GetLogDir |
+| `src/Shared/VersionHelper.cs` | GetCurrentVersion from assembly |
+| `src/Shared/ConfigReader.cs` | LoadConnectionString (SmsService.ConnectionString), LoadApiUrl, LoadAuthorizationToken, ParseConnectionString, BuildConnectionString |
+| `src/Shared/StatusHelper.cs` | FormatStatus, FormatUptime, FormatDetection |
 
 ### Tray App
 
 | File | Purpose |
 |------|---------|
-| `FeeSyncer.Tray/App.xaml` + `App.xaml.cs` | WPF entry, ShutdownMode OnExplicitShutdown |
-| `FeeSyncer.Tray/TrayIcon.cs` | TaskbarIcon, ContextMenu, GDI+ icons |
-| `FeeSyncer.Shared/ServiceMonitor.cs` | 3-tier detection, KillProcesses on stop |
-| `FeeSyncer.Shared/UpdateChecker.cs` | GitHub Releases polling, uses Shared.VersionHelper |
-| `FeeSyncer.Shared/ConnectionValidator.cs` | Parallel DB/API/Broker checks |
-| `FeeSyncer.Tray/StatusWindow.xaml` + `.cs` | Status display |
-| `FeeSyncer.Tray/LogViewer.xaml` + `.cs` | Log tailing |
-| `FeeSyncer.Tray/ConfigEditor.xaml` + `.cs` | Edit SmsService and Agent settings |
-| `FeeSyncer.Tray/SendNotificationDialog.xaml` + `.cs` | Manual SMS insert |
+| `src/Tray/App.xaml` + `App.xaml.cs` | WPF entry, ShutdownMode OnExplicitShutdown |
+| `src/Tray/TrayIcon.cs` | TaskbarIcon, ContextMenu, GDI+ icons |
+| `src/Shared/ServiceMonitor.cs` | 3-tier detection, KillProcesses on stop |
+| `src/Shared/UpdateChecker.cs` | GitHub Releases polling, uses Shared.VersionHelper |
+| `src/Shared/ConnectionValidator.cs` | Parallel DB/API/Broker checks |
+| `src/Tray/StatusWindow.xaml` + `.cs` | Status display |
+| `src/Tray/LogViewer.xaml` + `.cs` | Log tailing |
+| `src/Tray/ConfigEditor.xaml` + `.cs` | Edit SmsService and Agent settings |
+| `src/Tray/SendNotificationDialog.xaml` + `.cs` | Manual SMS insert |
 
 ### Installer
 

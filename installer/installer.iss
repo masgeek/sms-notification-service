@@ -3,7 +3,7 @@
 ; ============================================================================
 ; Requires: Inno Setup 6.4+
 ; Build:    .\publish.ps1
-;           dotnet publish FeeSyncer.Tray\FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
+;           dotnet publish src\Tray\FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
 ; Compile:  Open in Inno Setup Compiler -> Build -> Compile
 ; Output:   installer\output\FeeSyncer-Setup-<version>.exe
 ; ============================================================================

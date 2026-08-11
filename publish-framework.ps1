@@ -20,24 +20,24 @@ $configuration = "Release"
 
 if ($Clean) {
     Write-Host "Cleaning intermediate output..." -ForegroundColor Yellow
-    Remove-Item -Recurse -Force "bin/Release", "obj/Release" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "FeeSyncer.Agent/bin/Release", "FeeSyncer.Agent/obj/Release" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "FeeSyncer.Tray/bin/Release", "FeeSyncer.Tray/obj/Release" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "FeeSyncer.Console/bin/Release", "FeeSyncer.Console/obj/Release" -ErrorAction SilentlyContinue
+        Remove-Item -Recurse -Force "src/Sms/bin/Release", "src/Sms/obj/Release" -ErrorAction SilentlyContinue
+        Remove-Item -Recurse -Force "src/Agent/bin/Release", "src/Agent/obj/Release" -ErrorAction SilentlyContinue
+        Remove-Item -Recurse -Force "src/Tray/bin/Release", "src/Tray/obj/Release" -ErrorAction SilentlyContinue
+        Remove-Item -Recurse -Force "src/Console/bin/Release", "src/Console/obj/Release" -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
 }
 
 Write-Host "Publishing FeeSyncer.Sms (framework-dependent)..." -ForegroundColor Cyan
-dotnet publish FeeSyncer.Sms.csproj -c $configuration -r $runtime --no-self-contained -o $servicePublish
+dotnet publish src/Sms/FeeSyncer.Sms.csproj -c $configuration -r $runtime --no-self-contained -o $servicePublish
 
 Write-Host "Publishing FeeSyncer.Agent (framework-dependent)..." -ForegroundColor Cyan
-dotnet publish FeeSyncer.Agent/FeeSyncer.Agent.csproj -c $configuration -r $runtime --no-self-contained -o $agentPublish
+dotnet publish src/Agent/FeeSyncer.Agent.csproj -c $configuration -r $runtime --no-self-contained -o $agentPublish
 
 Write-Host "Publishing FeeSyncer.Tray (framework-dependent)..." -ForegroundColor Cyan
-dotnet publish FeeSyncer.Tray/FeeSyncer.Tray.csproj -c $configuration -r $runtime --no-self-contained -o $trayPublish
+dotnet publish src/Tray/FeeSyncer.Tray.csproj -c $configuration -r $runtime --no-self-contained -o $trayPublish
 
 Write-Host "Publishing FeeSyncer.Console (framework-dependent)..." -ForegroundColor Cyan
-dotnet publish FeeSyncer.Console/FeeSyncer.Console.csproj -c $configuration -r $runtime --no-self-contained -o $consolePublish
+dotnet publish src/Console/FeeSyncer.Console.csproj -c $configuration -r $runtime --no-self-contained -o $consolePublish
 
 Write-Host "`nDone. Output:" -ForegroundColor Green
 Write-Host "  build\service-framework\    -> FeeSyncer.Sms.exe"

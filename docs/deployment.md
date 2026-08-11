@@ -82,10 +82,10 @@ Output:
 Or publish individually:
 
 ```bash
-dotnet publish FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained -o build\service
-dotnet publish FeeSyncer.Agent/FeeSyncer.Agent.csproj -c Release -r win-x64 --self-contained -o build\agent
-dotnet publish FeeSyncer.Tray/FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
-dotnet publish FeeSyncer.Console/FeeSyncer.Console.csproj -c Release -r win-x64 --self-contained -o build\console
+dotnet publish src/Sms/FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained -o build\service
+dotnet publish src/Agent/FeeSyncer.Agent.csproj -c Release -r win-x64 --self-contained -o build\agent
+dotnet publish src/Tray/FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
+dotnet publish src/Console/FeeSyncer.Console.csproj -c Release -r win-x64 --self-contained -o build\console
 ```
 
 ### Build Installer

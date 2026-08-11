@@ -94,7 +94,7 @@ CREATE TABLE sms_notifications (
 ### 3. Configure
 
 Edit the root `appsettings.Development.json` for SMS settings and
-`FeeSyncer.Agent/appsettings.Development.json` for the agent
+`src/Agent/appsettings.Development.json` for the agent
 settings shown below:
 
 ```json
@@ -179,7 +179,7 @@ The SMS processor and school agent run as separate processes and Windows
 services. Run the agent independently during development:
 
 ```bash
-dotnet run --project FeeSyncer.Agent/FeeSyncer.Agent.csproj
+dotnet run --project src/Agent/FeeSyncer.Agent.csproj
 ```
 
 `dotnet run` uses the Agent project's launch profile and therefore loads
@@ -197,7 +197,7 @@ dotnet run
 Run the agent contract and school API mapping tests with:
 
 ```bash
-dotnet test tests/FeeSyncer.Agent.Tests/FeeSyncer.Agent.Tests.csproj --no-restore
+dotnet test tests/Agent/FeeSyncer.Agent.Tests.csproj --no-restore
 ```
 
 The GitHub Actions workflow runs the same project automatically. Tests do not
@@ -226,7 +226,7 @@ Run the installer as Administrator. It will:
 **Manual:**
 
 ```bash
-dotnet publish FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained
+dotnet publish src/Sms/FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained
 sc create FeeSyncer.Sms binPath="C:\path\to\publish\FeeSyncer.Sms.exe" start=delayed-auto
 sc start FeeSyncer.Sms
 ```
@@ -341,61 +341,31 @@ dotnet test
 
 ```
 FeeSyncer/
-├── Program.cs                              # Entry point, DI, config, file logging
 ├── Directory.Build.props                   # Centralized versioning (auto-updated by CI)
-├── appsettings.json                        # Production config template
-├── appsettings.Development.json            # Dev config
 ├── src/
-│   ├── Workers/
-│   │   ├── NotificationProcessor.cs        # Shared processing logic (thread-safe)
-│   │   ├── TableChangeListener.cs          # SqlDependency real-time listener
-│   │   └── RetryPoller.cs                  # Periodic polling for retry-eligible notifications
-│   ├── Data/
-│   │   ├── INotificationRepository.cs      # Data access contract
-│   │   ├── NotificationRepository.cs       # DB reads/writes (Dapper)
-│   │   └── SqlDependencyListener.cs        # Service Broker listener
-│   ├── Services/
-│   │   ├── ISmsSender.cs                   # SMS sending contract
-│   │   └── SmsApiService.cs               # HTTP calls with retry
-│   ├── Models/
-│   │   ├── SmsNotification.cs              # Entity (PascalCase, Dapper-mapped)
-│   │   └── NotificationStatus.cs           # Status enum
-│   ├── Configuration/
-│   │   └── SmsServiceOptions.cs            # Typed config
-│   ├── Checks/
-│   │   └── DatabaseConnectionCheck.cs      # Startup DB check (10s timeout)
-│   └── Logging/
-│       └── FileLoggerProvider.cs           # File logging with daily rotation
-│   └── (SMS service source)
-│       ├── AgentOptions.cs                 # Central/local API configuration
-│       ├── GatewayClient.cs                # Work leasing, heartbeats, uploads
-│       ├── SchoolApiClient.cs               # Loopback school API client
-│       ├── SchoolIntegrationWorker.cs      # Agent orchestration and retries
-│       └── Contracts.cs                     # Versioned sync contracts
-├── FeeSyncer.Shared/
-│   ├── FeeSyncer.Shared.csproj
-│   ├── Constants.cs                        # Service name, table name, paths
-│   ├── ConfigPathResolver.cs               # Find config file (app dir → ProgramData)
-│   ├── VersionHelper.cs                    # Assembly version info
-│   ├── ConfigReader.cs                     # Load config values
-│   └── StatusHelper.cs                     # Format status strings
-├── FeeSyncer.Tray/
-│   ├── FeeSyncer.Tray.csproj  # WPF WinExe
-│   ├── App.xaml / App.xaml.cs              # WPF app entry, ShutdownMode
-│   ├── TrayIcon.cs                         # GDI+ icons, context menu
-│   ├── ServiceMonitor.cs                   # 3-tier service detection, control
-│   ├── UpdateChecker.cs                    # GitHub Releases polling
-│   ├── ConnectionValidator.cs              # DB/API/Broker connectivity checks
-│   ├── StatusWindow.xaml / .cs             # Service status display
-│   ├── LogViewer.xaml / .cs                # Log file tailing
-│   ├── ConfigEditor.xaml / .cs             # Edit SmsService and Agent settings
-│   └── SendNotificationDialog.xaml / .cs   # Manual SMS insert
+│   ├── Sms/                                # SMS Windows service and all SMS source
+│   │   ├── FeeSyncer.Sms.csproj
+│   │   ├── Program.cs
+│   │   ├── appsettings.json
+│   │   ├── Checks/ Data/ Models/            # Application layers
+│   │   ├── Configuration/ Services/
+│   │   └── Workers/ Logging/
+│   ├── Agent/                              # School integration Windows service
+│   │   ├── FeeSyncer.Agent.csproj
+│   │   └── src/SchoolIntegration/
+│   ├── Shared/                             # Shared libraries and models
+│   │   └── FeeSyncer.Shared.csproj
+│   ├── Tray/                               # Optional WPF management app
+│   │   └── FeeSyncer.Tray.csproj
+│   └── Console/                            # Console monitor
+│       └── FeeSyncer.Console.csproj
 ├── tests/
-│   ├── FeeSyncer.Sms.Tests/
-│   ├── FeeSyncer.Agent.Tests/
-│   └── FeeSyncer.Tray.Tests/
-│       ├── WorkerTests.cs                  # Worker unit tests
-│       └── SmsApiServiceTests.cs           # SMS service unit tests
+│   ├── Sms/
+│   ├── Agent/
+│   └── Tray/
+│       ├── Sms/                            # SMS service tests
+│       ├── Agent/                          # School agent tests
+│       └── Tray/                           # Tray tests
 ├── installer/
 │   ├── installer.iss                       # Self-contained installer
 │   ├── installer-framework.iss             # Framework-dependent installer

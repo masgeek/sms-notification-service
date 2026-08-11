@@ -6,7 +6,7 @@ Temporary working document. Delete after implementation is complete.
 
 ## Phase 1: Project Scaffold ✅
 
-- [x] Create `FeeSyncer.Tray/FeeSyncer.Tray.csproj`
+- [x] Create `src/Tray/FeeSyncer.Tray.csproj`
   - SDK: `Microsoft.NET.Sdk`
   - OutputType: `WinExe`
   - TargetFramework: `net10.0-windows`
@@ -26,7 +26,7 @@ Temporary working document. Delete after implementation is complete.
 - [x] Add tray project to `FeeSyncer.slnx`
 - [x] Create directory structure:
   ```
-  FeeSyncer.Tray/
+  src/Tray/
   ├── App.xaml
   ├── App.xaml.cs
   ├── TrayIcon.cs
@@ -213,7 +213,7 @@ then enter the returned token in protected service configuration.
 
 - [x] Publish commands documented in `installer/installer.iss` header:
   ```bash
-  dotnet publish FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained -o build\service
+  dotnet publish src/Sms/FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained -o build\service
   dotnet publish FeeSyncer.Tray\FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
   ```
 - [x] Solution builds cleanly: 0 warnings, 0 errors

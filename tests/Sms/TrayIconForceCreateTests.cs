@@ -7,7 +7,7 @@ public class TrayIconForceCreateTests
     [Fact]
     public void ForceCreate_IsCalledWithEfficiencyModeExplicitlyDisabled()
     {
-        var sourcePath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "FeeSyncer.Tray", "TrayIcon.cs");
+        var sourcePath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Tray", "TrayIcon.cs");
         var source = File.ReadAllText(sourcePath);
 
         source.Should().Contain("_icon.ForceCreate(enablesEfficiencyMode: false);",
