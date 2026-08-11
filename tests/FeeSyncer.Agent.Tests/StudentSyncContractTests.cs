@@ -50,7 +50,11 @@ public sealed class StudentSyncContractTests
         var names = document.RootElement.EnumerateObject().Select(property => property.Name).ToArray();
 
         Assert.Equal(
-            new[] { "admission_number", "class_identifier", "enrollment_status", "source_student_id", "source_updated_at" },
+            new[]
+            {
+                "admission_number", "class_identifier", "enrollment_status", "source_student_id", "source_updated_at",
+                "name", "phone", "stream", "form", "term", "year", "parent_name", "balance", "class_number",
+            },
             names);
     }
 

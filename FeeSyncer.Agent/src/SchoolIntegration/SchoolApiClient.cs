@@ -84,6 +84,15 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
                 EnrollmentStatus = "active",
                 ClassIdentifier = StringValue(item, "ClassNo", "class_number", "form"),
                 SourceUpdatedAt = StringValue(item, "updated_at"),
+                Name = StringValue(item, "Name", "name"),
+                Phone = StringValue(item, "phone", "phone_number"),
+                Stream = StringValue(item, "STREAM", "stream"),
+                Form = StringValue(item, "form"),
+                Term = StringValue(item, "term"),
+                Year = StringValue(item, "year"),
+                ParentName = StringValue(item, "pname", "parent_name"),
+                Balance = DecimalValue(item, "Balance", "balance"),
+                ClassNumber = StringValue(item, "ClassNo", "class_number"),
             };
         }
     }
@@ -108,6 +117,13 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
                 OpeningBalance = DecimalValue(item, "Opening_Balance", "opening_balance"),
                 Currency = "KES",
                 SourceUpdatedAt = StringValue(item, "updated_at", "Dated", "dated"),
+                Name = StringValue(item, "Name", "name"),
+                ParentName = StringValue(item, "pname", "parent_name"),
+                House = StringValue(item, "HOUSE", "house"),
+                Year = StringValue(item, "year"),
+                Form = StringValue(item, "form"),
+                Term = StringValue(item, "term"),
+                Phone = StringValue(item, "phone", "phone_number"),
             };
         }
     }
