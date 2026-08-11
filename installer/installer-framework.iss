@@ -27,6 +27,9 @@
 #define ServiceName      "SmsNotificationService"
 #define ServiceDisplay   "SmsNotificationService"
 #define ServiceDesc      "Listens to SQL Server for SMS notifications and sends them via HTTP API"
+#define AgentServiceName "SmsNotificationService.Agent"
+#define AgentServiceDisplay "SmsNotificationService Agent"
+#define AgentServiceDesc "Synchronizes school data and processes agent work from the central gateway"
 #define TrayAppName      "SmsNotificationService.Tray"
 #define TrayAppDisplay   "SmsNotificationService Tray"
 #define ConsoleAppName   "SmsNotificationService.Console"
@@ -38,6 +41,7 @@
 #define MaxLogFileSizeMb "10"
 #define TrayDir          "Tray"
 #define ConsoleDir       "Console"
+#define AgentDir         "Agent"
 #define FrameworkInstall true
 
 ; ============================================================================
@@ -96,6 +100,7 @@ Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full 
 ; ============================================================================
 [Files]
 Source: "..\build\service-framework\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\agent-framework\*"; DestDir: "{app}\{#AgentDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 Source: "..\build\tray-framework\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 Source: "..\build\console-framework\*"; DestDir: "{app}\{#ConsoleDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 

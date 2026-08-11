@@ -42,16 +42,29 @@ begin
   );
   Log('Service created.');
 
+  ExecuteOrFail(
+    'sc.exe',
+    'create {#AgentServiceName} binPath= "' + ExpandConstant('{app}') + '\{#AgentDir}\SmsNotificationService.Agent.exe" start= delayed-auto DisplayName= "{#AgentServiceDisplay}" obj= LocalSystem',
+    'Failed to create the school integration agent service.'
+  );
+  ConfigureServiceDescription('{#AgentServiceName}', '{#AgentServiceDesc}');
+  ConfigureRecovery('{#AgentServiceName}');
+
   ConfigureServiceDescription('{#ServiceName}', '{#ServiceDesc}');
   ConfigureRecovery('{#ServiceName}');
 
   Log('Starting service...');
   StopService('{#ServiceName}');
   StartService('{#ServiceName}');
+  StartService('{#AgentServiceName}');
   if WaitForServiceState('{#ServiceName}', 'RUNNING', 15000) then
     Log('Service started successfully.')
   else
     MsgBox('The service was created but may not have started.' + #13#10 +
+           'Check Windows Event Log for details.', mbInformation, MB_OK);
+
+  if not WaitForServiceState('{#AgentServiceName}', 'RUNNING', 15000) then
+    MsgBox('The school integration agent service may not have started.' + #13#10 +
            'Check Windows Event Log for details.', mbInformation, MB_OK);
 
   Log('=== Fresh install completed ===');
@@ -65,6 +78,8 @@ begin
 
   Log('Stopping service for upgrade...');
   StopService('{#ServiceName}');
+  StopService('{#AgentServiceName}');
+  WaitForServiceState('{#AgentServiceName}', 'STOPPED', 30000);
   if WaitForServiceState('{#ServiceName}', 'STOPPED', 30000) then
     Log('Service stopped for upgrade.')
   else
@@ -85,11 +100,14 @@ procedure DoPostUpgrade;
 begin
   Log('Restarting service after upgrade...');
   StartService('{#ServiceName}');
+  StartService('{#AgentServiceName}');
   if WaitForServiceState('{#ServiceName}', 'RUNNING', 15000) then
     Log('Service restarted successfully after upgrade.')
   else
     MsgBox('The service was updated but may not have restarted.' + #13#10 +
            'Check Windows Event Log for details.', mbInformation, MB_OK);
+
+  WaitForServiceState('{#AgentServiceName}', 'RUNNING', 15000);
 
   Log('=== Upgrade completed ===');
   MaybeStartTrayApp;

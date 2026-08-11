@@ -5,10 +5,10 @@ Inno Setup installer for SmsNotificationService. Two variants available:
 - **Self-contained** (`installer.iss`) — bundles .NET runtime, no dependencies needed
 - **Framework-dependent** (`installer-framework.iss`) — requires .NET 10 runtime on target machine
 
-The installed Windows service hosts both SMS notification processing and the
-school integration worker. The agent is enabled by default. Its
-configuration is written into `appsettings.Production.json`; enrollment tokens
-must be provisioned separately and must never be passed as installer arguments.
+The installer installs separate Windows services for SMS notification processing
+and school integration. The agent is enabled by default. Both services read the
+shared `appsettings.Production.json`; enrollment tokens must be provisioned
+separately and must never be passed as installer arguments.
 
 ## Structure
 
@@ -115,12 +115,23 @@ The installer writes these safe defaults into the generated configuration:
   "RequestTimeoutSeconds": 30,
   "IdleDelaySeconds": 5,
   "LongPollSeconds": 25,
-  "HeartbeatSeconds": 60
+  "HeartbeatSeconds": 60,
+  "MqttEnabled": false,
+  "MqttBrokerHost": "127.0.0.1",
+  "MqttBrokerPort": 1883,
+  "MqttUseTls": false,
+  "MqttUsername": "",
+  "MqttPassword": "",
+  "MqttTopicPrefix": "fee-syncer/agent",
+  "MqttKeepAliveSeconds": 30,
+  "MqttReconnectMinSeconds": 1,
+  "MqttReconnectMaxSeconds": 60
 }
 ```
 
 After installation, enroll the school and set `Agent:Enabled` and
-`Agent:AgentToken` directly in protected service configuration. See
+`Agent:AgentToken` directly in protected shared service configuration. The SMS
+service and agent service both read this file. See
 [`docs/school-integration.md`](../docs/school-integration.md).
 
 To use MQTT wake-up notifications, also configure `Agent:MqttEnabled`, broker

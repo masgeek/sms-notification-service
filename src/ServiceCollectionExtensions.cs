@@ -39,8 +39,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NotificationProcessor>();
         services.AddHostedService<TableChangeListener>();
         services.AddHostedService<RetryPoller>();
-        services.AddSchoolIntegrationServices(configuration);
-
         return services;
     }
 }

@@ -13,6 +13,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $servicePublish = "build\service"
+$agentPublish = "build\agent"
 $trayPublish = "build\tray"
 $consolePublish = "build\console"
 $runtime = "win-x64"
@@ -21,6 +22,7 @@ $configuration = "Release"
 if ($Clean) {
     Write-Host "Cleaning intermediate output..." -ForegroundColor Yellow
     Remove-Item -Recurse -Force "bin/Release", "obj/Release" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "SmsNotificationService.Agent/bin/Release", "SmsNotificationService.Agent/obj/Release" -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force "SmsNotificationService.Tray/bin/Release", "SmsNotificationService.Tray/obj/Release" -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force "SmsNotificationService.Console/bin/Release", "SmsNotificationService.Console/obj/Release" -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
@@ -31,6 +33,9 @@ $scFlag = if ($SelfContained -eq "true") { "--self-contained" } else { "--no-sel
 Write-Host "Publishing SmsNotificationService..." -ForegroundColor Cyan
 dotnet publish SmsNotificationService.csproj -c $configuration -r $runtime $scFlag -o $servicePublish
 
+Write-Host "Publishing SmsNotificationService.Agent..." -ForegroundColor Cyan
+dotnet publish SmsNotificationService.Agent/SmsNotificationService.Agent.csproj -c $configuration -r $runtime $scFlag -o $agentPublish
+
 Write-Host "Publishing SmsNotificationService.Tray..." -ForegroundColor Cyan
 dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c $configuration -r $runtime $scFlag -o $trayPublish
 
@@ -39,5 +44,6 @@ dotnet publish SmsNotificationService.Console/SmsNotificationService.Console.csp
 
 Write-Host "`nDone. Output:" -ForegroundColor Green
 Write-Host "  build\service\    -> SmsNotificationService.exe"
+Write-Host "  build\agent\      -> SmsNotificationService.Agent.exe"
 Write-Host "  build\tray\       -> SmsNotificationService.Tray.exe"
 Write-Host "  build\console\    -> SmsNotificationService.Console.exe"

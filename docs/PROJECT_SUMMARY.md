@@ -14,7 +14,7 @@ A **.NET 10 background worker service** that:
 4. Retired notifications are marked `CANCELLED` after exhausting `max_retries`
 5. Ships with a **WPF system tray app** for monitoring and management
 6. Deploys via **Inno Setup** installer (self-contained or framework-dependent variants)
-7. Optionally runs an embedded **school integration worker** for student and fee snapshots and approved payment write-back
+7. Ships a separate **school integration agent service** for student and fee snapshots and approved payment write-back
 
 ---
 
@@ -23,6 +23,7 @@ A **.NET 10 background worker service** that:
 ```
 SmsNotificationService.slnx
 ├── SmsNotificationService.csproj              # Main worker service (net10.0)
+├── SmsNotificationService.Agent/              # Standalone school agent service
 ├── SmsNotificationService.Shared/             # Shared class library (net10.0)
 ├── SmsNotificationService.Tray/               # WPF tray app (net10.0-windows)
 ├── SmsNotificationService.Console/            # Console monitor app (net10.0)
@@ -39,7 +40,8 @@ SmsNotificationService.slnx
 
 | Project | References | Notes |
 |---------|-----------|-------|
-| `SmsNotificationService` (main) | Shared | `DefaultItemExcludes` excludes `SmsNotificationService.Shared\**` to avoid duplicate assembly attributes |
+| `SmsNotificationService` (main) | Shared | SMS notification processing only |
+| `SmsNotificationService.Agent` | Shared | Standalone HTTP/MQTT school synchronization worker |
 | `SmsNotificationService.Tray` | Shared | WPF, `net10.0-windows`, `UseWPF`, `WinExe` |
 | `SmsNotificationService.Console` | Shared | `net10.0`, `OutputType: Exe`, references Shared only |
 | `SmsNotificationService.Shared` | Dapper, SqlClient, ServiceController | `NoWarn: CA1416` (Windows-only APIs used from net10.0 TFM) |
@@ -68,7 +70,7 @@ Program.cs
         └─ DatabaseConnectionCheck.RunAsync()        # 10s timeout
 ```
 
-When `Agent:Enabled` is true, `AddSchoolIntegrationServices` also registers:
+The standalone agent registers the following when `Agent:Enabled` is true:
 
 ```text
 AddSchoolIntegrationServices(config)

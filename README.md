@@ -88,7 +88,9 @@ CREATE TABLE sms_notifications (
 
 ### 3. Configure
 
-Edit `appsettings.Development.json`:
+Edit the root `appsettings.Development.json` for SMS settings and
+`SmsNotificationService.Agent/appsettings.Development.json` for the agent
+settings shown below:
 
 ```json
 {
@@ -126,7 +128,7 @@ Edit `appsettings.Development.json`:
 }
 ```
 
-The `Agent` section configures the embedded school integration worker. See
+The `Agent` section configures the standalone school integration service. See
 [School integration deployment](docs/school-integration.md) for enrollment,
 credentials, and service behavior.
 
@@ -139,7 +141,7 @@ credentials, and service behavior.
 | `RetryPollIntervalSeconds` | `30` | How often the retry poller checks for eligible notifications |
 | `LogRetentionDays` | `7` | Days to keep log files before cleanup |
 | `MaxLogFileSizeMb` | `10` | Max log file size before rotation |
-| `Agent:Enabled` | `true` | Enables the embedded school integration worker |
+| `Agent:Enabled` | `true` | Enables the standalone school integration service |
 | `Agent:ServerUrl` | `https://fees.munywele.co.ke/` | Central agent gateway URL; HTTPS is required except for loopback |
 | `Agent:AgentToken` | — | Provisioned school-scoped bearer token; required when enabled |
 | `Agent:LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback-only school API URL |
@@ -167,6 +169,13 @@ of source control, installer arguments, logs, and fixtures.
 MQTT is disabled until a broker is provisioned. When enabled, MQTT only wakes
 the agent; HTTP remains the authoritative lease and data-transfer protocol, with
 polling fallback during broker or network outages.
+
+The SMS processor and school agent run as separate processes and Windows
+services. Run the agent independently during development:
+
+```bash
+dotnet run --project SmsNotificationService.Agent/SmsNotificationService.Agent.csproj
+```
 
 ### 4. Run
 
@@ -215,11 +224,10 @@ sc start SmsNotificationService
 8. **On failure** — Increments `retry_count`, sets `retry_after` with exponential backoff
 9. **Max retries exceeded** — Status → `CANCELLED`
 
-When `Agent:Enabled` is true, the same host also runs the school integration
-worker. It heartbeats to the central gateway, leases work using bounded long
-polling, reads student and fee data from the loopback school API, uploads
-resumable pages, and records approved payments. Agent failures are isolated
-from SMS processing.
+The school integration agent runs as a separate process and Windows service. It
+heartbeats to the central gateway, leases work using bounded long polling, reads
+student and fee data from the loopback school API, uploads resumable pages, and
+records approved payments. An agent failure cannot stop SMS processing.
 
 ## Status Enum
 

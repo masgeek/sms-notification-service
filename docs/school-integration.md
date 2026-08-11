@@ -1,7 +1,7 @@
-# School Integration Worker
+# School Integration Agent
 
-The school integration worker runs inside the existing `SmsNotificationService`
-Windows service. It is not a second process or Windows service.
+The school integration agent runs as the separate `SmsNotificationService.Agent`
+Windows service. It does not run inside the SMS notification service.
 
 It is enabled by default. The service must be enrolled and configured with a
 school-scoped token before the worker can complete central work.
@@ -11,12 +11,12 @@ school-scoped token before the worker can complete central work.
 All agents connect to `https://fees.munywele.co.ke/`. The school is determined by
 the school-scoped bearer API key, not by a school hostname.
 
-The worker sends heartbeats, uses bounded long polling, uploads resumable student
-and fee pages, and performs approved payment write-back. Its failures are isolated
-inside the worker loop and do not terminate SMS notification processing.
+The agent sends heartbeats, uses bounded long polling, uploads resumable student
+and fee pages, and performs approved payment write-back. Its process can be
+restarted independently of SMS notification processing.
 
-When `MqttEnabled` is true, the worker also subscribes to its per-agent MQTT
-topic. `work_available` messages wake the worker so it can use the existing HTTP
+When `MqttEnabled` is true, the agent also subscribes to its per-agent MQTT
+topic. `work_available` messages wake the agent so it can use the existing HTTP
 lease endpoint immediately. MQTT is optional and HTTP polling remains the
 fallback for broker or network outages.
 

@@ -586,8 +586,17 @@
         "type": "Project",
         "dependencies": {
           "Dapper": "[2.1.79, )",
-          "MQTTnet": "[5.2.0.1603, )",
           "Microsoft.Data.SqlClient": "[7.0.2, )",
+          "Microsoft.Extensions.Hosting": "[10.0.10, )",
+          "Microsoft.Extensions.Hosting.WindowsServices": "[10.0.10, )",
+          "Microsoft.Extensions.Http": "[10.0.10, )",
+          "SmsNotificationService.Shared": "[1.0.0, )"
+        }
+      },
+      "smsnotificationservice.agent": {
+        "type": "Project",
+        "dependencies": {
+          "MQTTnet": "[5.2.0.1603, )",
           "Microsoft.Extensions.Hosting": "[10.0.10, )",
           "Microsoft.Extensions.Hosting.WindowsServices": "[10.0.10, )",
           "Microsoft.Extensions.Http": "[10.0.10, )",

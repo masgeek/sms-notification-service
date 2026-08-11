@@ -4,6 +4,7 @@
     <Project Path="tests/SmsNotificationService.Tray.Tests/SmsNotificationService.Tray.Tests.csproj" />
   </Folder>
   <Project Path="SmsNotificationService.csproj" />
+  <Project Path="SmsNotificationService.Agent\SmsNotificationService.Agent.csproj" />
   <Project Path="SmsNotificationService.Shared/SmsNotificationService.Shared.csproj" />
   <Project Path="SmsNotificationService.Tray/SmsNotificationService.Tray.csproj" />
   <Project Path="SmsNotificationService.Console/SmsNotificationService.Console.csproj" />

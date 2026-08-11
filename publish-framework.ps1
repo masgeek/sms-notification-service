@@ -12,6 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $servicePublish = "build\service-framework"
+$agentPublish = "build\agent-framework"
 $trayPublish = "build\tray-framework"
 $consolePublish = "build\console-framework"
 $runtime = "win-x64"
@@ -20,6 +21,7 @@ $configuration = "Release"
 if ($Clean) {
     Write-Host "Cleaning intermediate output..." -ForegroundColor Yellow
     Remove-Item -Recurse -Force "bin/Release", "obj/Release" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "SmsNotificationService.Agent/bin/Release", "SmsNotificationService.Agent/obj/Release" -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force "SmsNotificationService.Tray/bin/Release", "SmsNotificationService.Tray/obj/Release" -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force "SmsNotificationService.Console/bin/Release", "SmsNotificationService.Console/obj/Release" -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
@@ -27,6 +29,9 @@ if ($Clean) {
 
 Write-Host "Publishing SmsNotificationService (framework-dependent)..." -ForegroundColor Cyan
 dotnet publish SmsNotificationService.csproj -c $configuration -r $runtime --no-self-contained -o $servicePublish
+
+Write-Host "Publishing SmsNotificationService.Agent (framework-dependent)..." -ForegroundColor Cyan
+dotnet publish SmsNotificationService.Agent/SmsNotificationService.Agent.csproj -c $configuration -r $runtime --no-self-contained -o $agentPublish
 
 Write-Host "Publishing SmsNotificationService.Tray (framework-dependent)..." -ForegroundColor Cyan
 dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c $configuration -r $runtime --no-self-contained -o $trayPublish
@@ -36,5 +41,6 @@ dotnet publish SmsNotificationService.Console/SmsNotificationService.Console.csp
 
 Write-Host "`nDone. Output:" -ForegroundColor Green
 Write-Host "  build\service-framework\    -> SmsNotificationService.exe"
+Write-Host "  build\agent-framework\      -> SmsNotificationService.Agent.exe"
 Write-Host "  build\tray-framework\       -> SmsNotificationService.Tray.exe"
 Write-Host "  build\console-framework\    -> SmsNotificationService.Console.exe"

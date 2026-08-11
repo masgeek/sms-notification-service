@@ -2,7 +2,7 @@
 ; SmsNotificationService - Production Inno Setup Installer
 ; ============================================================================
 ; Requires: Inno Setup 6.4+
-; Build:    dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o build\service
+; Build:    .\publish.ps1
 ;           dotnet publish SmsNotificationService.Tray\SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
 ; Compile:  Open in Inno Setup Compiler -> Build -> Compile
 ; Output:   installer\output\SmsNotificationService-Setup-<version>.exe
@@ -28,6 +28,9 @@
 #define ServiceName      "SmsNotificationService"
 #define ServiceDisplay   "SmsNotificationService"
 #define ServiceDesc      "Listens to SQL Server for SMS notifications and sends them via HTTP API"
+#define AgentServiceName "SmsNotificationService.Agent"
+#define AgentServiceDisplay "SmsNotificationService Agent"
+#define AgentServiceDesc "Synchronizes school data and processes agent work from the central gateway"
 #define TrayAppName      "SmsNotificationService.Tray"
 #define TrayAppDisplay   "SmsNotificationService Tray"
 #define ConsoleAppName   "SmsNotificationService.Console"
@@ -39,6 +42,7 @@
 #define MaxLogFileSizeMb "10"
 #define TrayDir          "Tray"
 #define ConsoleDir       "Console"
+#define AgentDir         "Agent"
 
 ; ============================================================================
 ; [Setup] - Installer metadata, UI, compression, logging
@@ -97,6 +101,7 @@ Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full 
 ; ============================================================================
 [Files]
 Source: "..\build\service\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\agent\*"; DestDir: "{app}\{#AgentDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 Source: "..\build\tray\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 Source: "..\build\console\*"; DestDir: "{app}\{#ConsoleDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 

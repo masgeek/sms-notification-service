@@ -217,7 +217,7 @@ If the config file is missing, environment variables are used as a fallback:
 | `SmsService:SmsApiUrl` | `SmsService__SmsApiUrl` | — | SMS API endpoint URL |
 | `SmsService:AuthorizationToken` | `SmsService__AuthorizationToken` | — | Bearer token for API auth |
 | `SmsService:RetryBackoffSeconds` | `SmsService__RetryBackoffSeconds` | `30` | Base retry backoff in seconds |
-| `Agent:Enabled` | `Agent__Enabled` | `true` | Enables school integration |
+| `Agent:Enabled` | `Agent__Enabled` | `true` | Enables the standalone school agent service |
 | `Agent:ServerUrl` | `Agent__ServerUrl` | `https://fees.munywele.co.ke/` | Central agent gateway URL |
 | `Agent:AgentToken` | `Agent__AgentToken` | — | School-scoped bearer token |
 | `Agent:LocalApiBaseUrl` | `Agent__LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback school API URL |
@@ -232,13 +232,19 @@ If the config file is missing, environment variables are used as a fallback:
 # Copy published folder
 C:\Services\SmsNotificationService\
 
-# Create service
+# Create SMS service
 sc create SmsNotificationService binPath="C:\Services\SmsNotificationService\SmsNotificationService.exe" start=delayed-auto
 sc description SmsNotificationService "Listens to SQL Server for SMS notifications and sends them via HTTP API"
 sc failure SmsNotificationService reset= 86400 actions= restart/300000/restart/5000/restart/5000
 
-# Start
+# Create school agent service
+sc create SmsNotificationService.Agent binPath="C:\Services\SmsNotificationService\Agent\SmsNotificationService.Agent.exe" start=delayed-auto
+sc description SmsNotificationService.Agent "Synchronizes school data and processes agent work from the central gateway"
+sc failure SmsNotificationService.Agent reset= 86400 actions= restart/300000/restart/5000/restart/5000
+
+# Start both services
 sc start SmsNotificationService
+sc start SmsNotificationService.Agent
 ```
 
 ## Service Management
@@ -246,17 +252,23 @@ sc start SmsNotificationService
 ```powershell
 # Check status
 sc query SmsNotificationService
+sc query SmsNotificationService.Agent
 
 # Stop
 sc stop SmsNotificationService
+sc stop SmsNotificationService.Agent
 
 # Restart
 sc stop SmsNotificationService
 sc start SmsNotificationService
+sc stop SmsNotificationService.Agent
+sc start SmsNotificationService.Agent
 
 # Remove
 sc stop SmsNotificationService
 sc delete SmsNotificationService
+sc stop SmsNotificationService.Agent
+sc delete SmsNotificationService.Agent
 ```
 
 If `sc delete` fails, the installer also cleans up the registry key:
