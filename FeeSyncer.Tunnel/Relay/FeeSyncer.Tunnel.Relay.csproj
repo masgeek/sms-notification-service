@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <AssemblyName>FeeSyncer.Tunnel.Relay</AssemblyName>
+    <RootNamespace>FeeSyncer.Tunnel.Relay</RootNamespace>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Protocol\FeeSyncer.Tunnel.Protocol.csproj" />
+  </ItemGroup>
+</Project>

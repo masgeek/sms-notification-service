@@ -26,6 +26,11 @@ School Integration Worker
     |
     +--> https://fees.munywele.co.ke/ (central work, heartbeat, metrics)
     +--> http://127.0.0.1:8001/api/ (fixed local school API)
+
+School Tunnel Service
+    |
+    +--> wss://tunnel.munywele.co.ke/connect (public relay)
+    +--> http://127.0.0.1:8001 (local FeeProcessor)
 ```
 
 ## Tech Stack
@@ -37,6 +42,7 @@ School Integration Worker
 - WPF System Tray App — service management and monitoring
 - `H.NotifyIcon.Wpf` — tray icon library
 - `xUnit` + `Moq` + `FluentAssertions` — unit testing
+- `FeeSyncer.Tunnel` — school-side FeeProcessor reverse tunnel components
 
 ## Prerequisites
 
@@ -248,6 +254,11 @@ The school integration agent runs as a separate process and Windows service. It
 heartbeats to the central gateway, leases work using bounded long polling, reads
 student and fee data from the loopback school API, uploads resumable pages, and
 records approved payments. An agent failure cannot stop SMS processing.
+
+The school tunnel is a separate service from both SMS processing and the school
+integration agent. It exposes the local FeeProcessor at `127.0.0.1:8001` through
+the public relay and maps each school hostname to its own outbound tunnel.
+Tunnel implementation details are in `FeeSyncer.Tunnel/README.md`.
 
 ## Status Enum
 

@@ -3,10 +3,16 @@
     <Project Path="tests/FeeSyncer.Sms.Tests/FeeSyncer.Sms.Tests.csproj" />
     <Project Path="tests/FeeSyncer.Agent.Tests/FeeSyncer.Agent.Tests.csproj" />
     <Project Path="tests/FeeSyncer.Tray.Tests/FeeSyncer.Tray.Tests.csproj" />
+    <Project Path="tests/FeeSyncer.Tunnel.Tests/FeeSyncer.Tunnel.Tests.csproj" />
   </Folder>
   <Project Path="FeeSyncer.Sms.csproj" />
   <Project Path="FeeSyncer.Agent\FeeSyncer.Agent.csproj" />
   <Project Path="FeeSyncer.Shared/FeeSyncer.Shared.csproj" />
   <Project Path="FeeSyncer.Tray/FeeSyncer.Tray.csproj" />
   <Project Path="FeeSyncer.Console/FeeSyncer.Console.csproj" />
+  <Folder Name="/FeeSyncer.Tunnel/">
+    <Project Path="FeeSyncer.Tunnel/Protocol/FeeSyncer.Tunnel.Protocol.csproj" />
+    <Project Path="FeeSyncer.Tunnel/Relay/FeeSyncer.Tunnel.Relay.csproj" />
+    <Project Path="FeeSyncer.Tunnel/Client/FeeSyncer.Tunnel.Client.csproj" />
+  </Folder>
 </Solution>
