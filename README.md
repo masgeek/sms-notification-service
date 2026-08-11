@@ -45,6 +45,10 @@ School Integration Worker
 - SQL Server **Service Broker** enabled on the target database
 - Access to an SMS API endpoint
 
+For the school integration worker, also configure a reachable FeeSyncer gateway
+and a school-scoped agent token. The local school API must be available through
+the configured loopback URL.
+
 ## Setup
 
 ### Windows SmartScreen Warning
@@ -186,6 +190,17 @@ loads `appsettings.Production.json` instead.
 ```bash
 dotnet run
 ```
+
+### Test
+
+Run the agent contract and school API mapping tests with:
+
+```bash
+dotnet test tests/FeeSyncer.Agent.Tests/FeeSyncer.Agent.Tests.csproj --no-restore
+```
+
+The GitHub Actions workflow runs the same project automatically. Tests do not
+require SQL Server, an SMS provider, or live school API credentials.
 
 ### 5. Install as Windows Service
 

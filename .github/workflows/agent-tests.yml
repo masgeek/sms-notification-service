@@ -1,0 +1,25 @@
+name: .NET Agent Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  test-agent:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore tests/FeeSyncer.Agent.Tests/FeeSyncer.Agent.Tests.csproj
+
+      - name: Test agent
+        run: dotnet test tests/FeeSyncer.Agent.Tests/FeeSyncer.Agent.Tests.csproj --no-restore --configuration Release
