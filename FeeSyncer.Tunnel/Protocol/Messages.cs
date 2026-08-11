@@ -52,7 +52,15 @@ public sealed record RequestStartMessage(
     [property: JsonPropertyName("method")] string Method,
     [property: JsonPropertyName("path")] string Path,
     [property: JsonPropertyName("query")] string? Query,
-    [property: JsonPropertyName("headers")] IReadOnlyDictionary<string, string[]> Headers);
+    [property: JsonPropertyName("headers")] IReadOnlyDictionary<string, string[]> Headers,
+    [property: JsonPropertyName("body_base64")] string? BodyBase64);
+
+public sealed record ResponseEndMessage(
+    [property: JsonPropertyName("type")] TunnelMessageType Type,
+    [property: JsonPropertyName("request_id")] string RequestId,
+    [property: JsonPropertyName("status")] int Status,
+    [property: JsonPropertyName("headers")] IReadOnlyDictionary<string, string[]> Headers,
+    [property: JsonPropertyName("body_base64")] string? BodyBase64);
 
 public sealed record CloseMessage(
     [property: JsonPropertyName("type")] TunnelMessageType Type,

@@ -23,5 +23,6 @@ Projects:
 - `Relay`: public relay and registration skeleton.
 - `Client`: school-side Windows service skeleton.
 
-The first slice implements protocol contracts and relay registration/heartbeat.
-HTTP request streaming and persistent control-plane storage are next.
+The current slice implements bounded HTTP request/response forwarding through a
+registered WebSocket tunnel. Persistent control-plane storage, credential
+validation, streaming binary frames, and reconnect orchestration are next.
