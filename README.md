@@ -177,6 +177,10 @@ services. Run the agent independently during development:
 dotnet run --project SmsNotificationService.Agent/SmsNotificationService.Agent.csproj
 ```
 
+`dotnet run` uses the Agent project's launch profile and therefore loads
+`appsettings.Development.json`. A Windows service runs as `Production` and
+loads `appsettings.Production.json` instead.
+
 ### 4. Run
 
 ```bash

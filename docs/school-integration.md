@@ -44,6 +44,7 @@ logs, or student fixtures.
 The agent reads this configuration from its own application directory as
 `Agent\appsettings.Development.json` during development or
 `Agent\appsettings.Production.json` after installation.
+The development file is loaded only when `DOTNET_ENVIRONMENT=Development`.
 
 ```json
 {
