@@ -1,4 +1,4 @@
-# SmsNotificationService — Plan
+# FeeSyncer — Plan
 
 ## Completed
 

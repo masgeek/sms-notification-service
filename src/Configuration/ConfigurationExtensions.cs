@@ -1,6 +1,6 @@
-using SmsNotificationService.Shared;
+using FeeSyncer.Shared;
 
-namespace SmsNotificationService.Configuration;
+namespace FeeSyncer.Sms.Configuration;
 
 public static class ConfigurationExtensions
 {

@@ -48,7 +48,7 @@ jobs:
 
       - name: Check code formatting
         if: steps.test-cache.outputs.cache-hit != 'true'
-        run: dotnet format SmsNotificationService.slnx --verify-no-changes --verbosity diagnostic
+         run: dotnet format FeeSyncer.slnx --verify-no-changes --verbosity diagnostic
 
       - name: Run unit tests
         if: steps.test-cache.outputs.cache-hit != 'true'
@@ -95,13 +95,13 @@ jobs:
           cache: true
 
       - name: Publish tray app
-        run: dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
+         run: dotnet publish FeeSyncer.Tray/FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
 
       - name: Verify tray app binary
         shell: bash
         run: |
           echo "=== Tray app build output ==="
-          ls -la build/tray/SmsNotificationService.Tray.exe 2>/dev/null || echo "Tray app binary not found"
+           ls -la build/tray/FeeSyncer.Tray.exe 2>/dev/null || echo "Tray app binary not found"
           echo "=== File count ==="
           find build/tray -type f | wc -l
 
@@ -122,13 +122,13 @@ jobs:
           cache: true
 
       - name: Publish console app
-        run: dotnet publish SmsNotificationService.Console/SmsNotificationService.Console.csproj -c Release -r win-x64 --self-contained -o build\console
+         run: dotnet publish FeeSyncer.Console/FeeSyncer.Console.csproj -c Release -r win-x64 --self-contained -o build\console
 
       - name: Verify console app binary
         shell: bash
         run: |
           echo "=== Console app build output ==="
-          ls -la build/console/SmsNotificationService.Console.exe 2>/dev/null || echo "Console app binary not found"
+           ls -la build/console/FeeSyncer.Console.exe 2>/dev/null || echo "Console app binary not found"
           echo "=== File count ==="
           find build/console -type f | wc -l
 
@@ -145,11 +145,11 @@ jobs:
       - name: Create dummy publish folders
         run: |
           mkdir build\service
-          echo placeholder > build\service\SmsNotificationService.exe
+           echo placeholder > build\service\FeeSyncer.Sms.exe
           mkdir build\tray
-          echo placeholder > build\tray\SmsNotificationService.Tray.exe
+           echo placeholder > build\tray\FeeSyncer.Tray.exe
           mkdir build\console
-          echo placeholder > build\console\SmsNotificationService.Console.exe
+           echo placeholder > build\console\FeeSyncer.Console.exe
 
       - name: Compile and validate
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
@@ -169,11 +169,11 @@ jobs:
       - name: Create dummy publish folders
         run: |
           mkdir build\service-framework
-          echo placeholder > build\service-framework\SmsNotificationService.exe
+           echo placeholder > build\service-framework\FeeSyncer.Sms.exe
           mkdir build\tray-framework
-          echo placeholder > build\tray-framework\SmsNotificationService.Tray.exe
+           echo placeholder > build\tray-framework\FeeSyncer.Tray.exe
           mkdir build\console-framework
-          echo placeholder > build\console-framework\SmsNotificationService.Console.exe
+           echo placeholder > build\console-framework\FeeSyncer.Console.exe
 
       - name: Compile and validate
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9

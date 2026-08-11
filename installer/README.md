@@ -1,6 +1,6 @@
-# Installer
+# FeeSyncer Installer
 
-Inno Setup installer for SmsNotificationService. Two variants available:
+Inno Setup installer for FeeSyncer. Two variants available:
 
 - **Self-contained** (`installer.iss`) — bundles .NET runtime, no dependencies needed
 - **Framework-dependent** (`installer-framework.iss`) — requires .NET 10 runtime on target machine

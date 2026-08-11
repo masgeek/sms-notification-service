@@ -37,14 +37,14 @@ begin
   Log('Creating Windows service...');
   ExecuteOrFail(
     'sc.exe',
-    'create {#ServiceName} binPath= "' + ExpandConstant('{app}') + '\SmsNotificationService.exe" start= delayed-auto DisplayName= "{#ServiceDisplay}" obj= LocalSystem',
+    'create {#ServiceName} binPath= "' + ExpandConstant('{app}') + '\FeeSyncer.Sms.exe" start= delayed-auto DisplayName= "{#ServiceDisplay}" obj= LocalSystem',
     'Failed to create Windows service.'
   );
   Log('Service created.');
 
   ExecuteOrFail(
     'sc.exe',
-    'create {#AgentServiceName} binPath= "' + ExpandConstant('{app}') + '\{#AgentDir}\SmsNotificationService.Agent.exe" start= delayed-auto DisplayName= "{#AgentServiceDisplay}" obj= LocalSystem',
+    'create {#AgentServiceName} binPath= "' + ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe" start= delayed-auto DisplayName= "{#AgentServiceDisplay}" obj= LocalSystem',
     'Failed to create the school integration agent service.'
   );
   ConfigureServiceDescription('{#AgentServiceName}', '{#AgentServiceDesc}');

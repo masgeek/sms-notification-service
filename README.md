@@ -1,4 +1,4 @@
-# SmsNotificationService
+# FeeSyncer
 
 A .NET 10 Windows service that listens to a SQL Server table for new SMS notifications and sends them via an external HTTP API. The separate school agent service handles student, fee, and payment synchronization.
 
@@ -89,7 +89,7 @@ CREATE TABLE sms_notifications (
 ### 3. Configure
 
 Edit the root `appsettings.Development.json` for SMS settings and
-`SmsNotificationService.Agent/appsettings.Development.json` for the agent
+`FeeSyncer.Agent/appsettings.Development.json` for the agent
 settings shown below:
 
 ```json
@@ -174,7 +174,7 @@ The SMS processor and school agent run as separate processes and Windows
 services. Run the agent independently during development:
 
 ```bash
-dotnet run --project SmsNotificationService.Agent/SmsNotificationService.Agent.csproj
+dotnet run --project FeeSyncer.Agent/FeeSyncer.Agent.csproj
 ```
 
 `dotnet run` uses the Agent project's launch profile and therefore loads
@@ -193,16 +193,16 @@ dotnet run
 
 Download the latest release from [GitHub Releases](../../releases). Two installer variants are available:
 
-- `SmsNotificationService-Setup-<version>.exe` — self-contained (no .NET runtime needed)
-- `SmsNotificationService-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime)
+- `FeeSyncer-Setup-<version>.exe` — self-contained (no .NET runtime needed)
+- `FeeSyncer-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime)
 
 Run the installer as Administrator. It will:
 
-- Install files to `C:\Program Files\SmsNotificationService\`
+- Install files to `C:\Program Files\FeeSyncer\`
 - Prompt for database connection, API URL, and auth token
 - Create the Windows Service (delayed auto-start)
-- Write SMS config to `C:\Program Files\SmsNotificationService\appsettings.Production.json`
-- Write agent config to `C:\Program Files\SmsNotificationService\Agent\appsettings.Production.json`
+- Write SMS config to `C:\Program Files\FeeSyncer\appsettings.Production.json`
+- Write agent config to `C:\Program Files\FeeSyncer\Agent\appsettings.Production.json`
 - Register an Event Log source
 - Configure service recovery (restart on failure)
 - Optionally install the system tray app
@@ -210,9 +210,9 @@ Run the installer as Administrator. It will:
 **Manual:**
 
 ```bash
-dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained
-sc create SmsNotificationService binPath="C:\path\to\publish\SmsNotificationService.exe" start=delayed-auto
-sc start SmsNotificationService
+dotnet publish FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained
+sc create FeeSyncer.Sms binPath="C:\path\to\publish\FeeSyncer.Sms.exe" start=delayed-auto
+sc start FeeSyncer.Sms
 ```
 
 > Full deployment guide: [docs/deployment.md](docs/deployment.md)
@@ -323,7 +323,7 @@ dotnet test
 ## Project Structure
 
 ```
-SmsNotificationService/
+FeeSyncer/
 ├── Program.cs                              # Entry point, DI, config, file logging
 ├── Directory.Build.props                   # Centralized versioning (auto-updated by CI)
 ├── appsettings.json                        # Production config template
@@ -349,21 +349,21 @@ SmsNotificationService/
 │   │   └── DatabaseConnectionCheck.cs      # Startup DB check (10s timeout)
 │   └── Logging/
 │       └── FileLoggerProvider.cs           # File logging with daily rotation
-│   └── SchoolIntegration/                  # Embedded outbound school agent
+│   └── (SMS service source)
 │       ├── AgentOptions.cs                 # Central/local API configuration
 │       ├── GatewayClient.cs                # Work leasing, heartbeats, uploads
 │       ├── SchoolApiClient.cs               # Loopback school API client
 │       ├── SchoolIntegrationWorker.cs      # Agent orchestration and retries
 │       └── Contracts.cs                     # Versioned sync contracts
-├── SmsNotificationService.Shared/
-│   ├── SmsNotificationService.Shared.csproj
+├── FeeSyncer.Shared/
+│   ├── FeeSyncer.Shared.csproj
 │   ├── Constants.cs                        # Service name, table name, paths
 │   ├── ConfigPathResolver.cs               # Find config file (app dir → ProgramData)
 │   ├── VersionHelper.cs                    # Assembly version info
 │   ├── ConfigReader.cs                     # Load config values
 │   └── StatusHelper.cs                     # Format status strings
-├── SmsNotificationService.Tray/
-│   ├── SmsNotificationService.Tray.csproj  # WPF WinExe
+├── FeeSyncer.Tray/
+│   ├── FeeSyncer.Tray.csproj  # WPF WinExe
 │   ├── App.xaml / App.xaml.cs              # WPF app entry, ShutdownMode
 │   ├── TrayIcon.cs                         # GDI+ icons, context menu
 │   ├── ServiceMonitor.cs                   # 3-tier service detection, control
@@ -374,7 +374,9 @@ SmsNotificationService/
 │   ├── ConfigEditor.xaml / .cs             # Edit SmsService and Agent settings
 │   └── SendNotificationDialog.xaml / .cs   # Manual SMS insert
 ├── tests/
-│   └── SmsNotificationService.Tests/
+│   ├── FeeSyncer.Sms.Tests/
+│   ├── FeeSyncer.Agent.Tests/
+│   └── FeeSyncer.Tray.Tests/
 │       ├── WorkerTests.cs                  # Worker unit tests
 │       └── SmsApiServiceTests.cs           # SMS service unit tests
 ├── installer/
@@ -400,12 +402,12 @@ SmsNotificationService/
 │   └── plan.md                             # Feature plan
 ├── publish.ps1                             # Self-contained publish script
 ├── publish-framework.ps1                   # Framework-dependent publish script
-└── SmsNotificationService.slnx             # Solution file
+└── FeeSyncer.slnx                           # Solution file
 ```
 
 ## Tray App
 
-The system tray app (`SmsNotificationService.Tray.exe`) provides real-time service management:
+The system tray app (`FeeSyncer.Tray.exe`) provides real-time service management:
 
 - **Status monitoring** — real-time service status, uptime, version, detection method
 - **Service control** — start, stop, restart from the tray menu
@@ -437,17 +439,17 @@ The SMS API receives raw data fields (snake_case):
 
 ## Logging
 
-**File logs** are written to `ProgramData\Munywele\SmsNotificationService\logs\` with daily rotation and configurable retention (default 7 days).
+**File logs** are written to `ProgramData\Munywele\FeeSyncer\logs\` with daily rotation and configurable retention (default 7 days).
 
-**Config location:** `C:\Program Files\SmsNotificationService\appsettings.Production.json` (app directory, not ProgramData).
+**Config location:** `C:\Program Files\FeeSyncer\appsettings.Production.json` (app directory, not ProgramData).
 
 **Console output:**
 
 ```
-[App]      SmsNotificationService starting (Environment: Development)
+[App]      FeeSyncer.Sms starting (Environment: Development)
 [Config]   Configuration validated — API: https://api.munywele.co.ke/v1/send
 [DB]       Connected to school on 127.0.0.1 (16.0.1000) in 42ms
-[App]      SmsNotificationService ready
+[App]      FeeSyncer.Sms ready
 [Queue]    Found 3 pending notification(s)
 [SMS]      Sending notification 1 to 07130000000 (attempt 1/3)
 [SMS]      Sent notification 1 to 07130000000 — status updated to PROCESSED

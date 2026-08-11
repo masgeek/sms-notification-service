@@ -1,6 +1,6 @@
 using Microsoft.Data.SqlClient;
 
-namespace SmsNotificationService.Data;
+namespace FeeSyncer.Sms.Data;
 
 public sealed class SqlDependencyListener : IDisposable
 {

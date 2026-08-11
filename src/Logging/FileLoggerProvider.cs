@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 
-namespace SmsNotificationService.Logging;
+namespace FeeSyncer.Sms.Logging;
 
 /// <summary>
 /// Minimal file logging provider for Windows services.
-/// Writes log files to ProgramData\Munywele\SmsNotificationService\logs\
+/// Writes log files to ProgramData\Munywele\FeeSyncer\logs\
 /// with daily rotation (one file per day).
 /// </summary>
 public sealed class FileLoggerProvider : ILoggerProvider

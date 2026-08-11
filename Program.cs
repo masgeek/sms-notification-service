@@ -1,9 +1,9 @@
-using SmsNotificationService;
-using SmsNotificationService.Checks;
-using SmsNotificationService.Configuration;
-using SmsNotificationService.Data;
-using SmsNotificationService.Logging;
-using SmsNotificationService.Shared;
+using FeeSyncer.Sms;
+using FeeSyncer.Sms.Checks;
+using FeeSyncer.Sms.Configuration;
+using FeeSyncer.Sms.Data;
+using FeeSyncer.Sms.Logging;
+using FeeSyncer.Shared;
 
 if (args.Contains("--version") || args.Contains("-v"))
 {
@@ -24,7 +24,7 @@ var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName)
 
 builder.Logging.AddProvider(new FileLoggerProvider(logDir, svcOptions.LogRetentionDays, svcOptions.MaxLogFileSizeMb));
 var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
-logger.LogInformation("[App] SmsNotificationService starting (Environment: {Environment})", environment);
+logger.LogInformation("[App] FeeSyncer.Sms starting (Environment: {Environment})", environment);
 
 var resolvedConfigPath = ConfigPathResolver.FindConfigFile();
 if (File.Exists(resolvedConfigPath))
@@ -34,7 +34,7 @@ else
 
 DapperMapper.Register();
 
-builder.Services.AddSmsNotificationServices(builder.Configuration);
+builder.Services.AddSmsServices(builder.Configuration);
 
 builder.Configuration.ValidateSmsServiceOptions();
 
@@ -49,5 +49,5 @@ hostLogger.LogInformation("[Config] Configuration validated — API: {ApiUrl}", 
 
 await DatabaseConnectionCheck.RunAsync(appOptions.ConnectionString, hostLogger);
 
-hostLogger.LogInformation("[App] SmsNotificationService ready");
+hostLogger.LogInformation("[App] FeeSyncer.Sms ready");
 host.Run();

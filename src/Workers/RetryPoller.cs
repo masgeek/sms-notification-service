@@ -1,7 +1,7 @@
-using SmsNotificationService.Configuration;
+using FeeSyncer.Sms.Configuration;
 using Microsoft.Extensions.Options;
 
-namespace SmsNotificationService.Workers;
+namespace FeeSyncer.Sms.Workers;
 
 /// <summary>
 /// Periodically polls for notifications whose retry_after has passed.

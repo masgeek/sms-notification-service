@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 
-namespace SmsNotificationService.Checks;
+namespace FeeSyncer.Sms.Checks;
 
 public static class DatabaseConnectionCheck
 {

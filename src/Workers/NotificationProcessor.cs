@@ -1,8 +1,8 @@
-using SmsNotificationService.Data;
-using SmsNotificationService.Models;
-using SmsNotificationService.Services;
+using FeeSyncer.Sms.Data;
+using FeeSyncer.Sms.Models;
+using FeeSyncer.Sms.Services;
 
-namespace SmsNotificationService.Workers;
+namespace FeeSyncer.Sms.Workers;
 
 /// <summary>
 /// Shared notification processing logic used by both the table change listener

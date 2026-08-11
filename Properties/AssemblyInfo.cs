@@ -1,3 +1,3 @@
 using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("SmsNotificationService.Tests")]
+[assembly: InternalsVisibleTo("FeeSyncer.Sms.Tests")]

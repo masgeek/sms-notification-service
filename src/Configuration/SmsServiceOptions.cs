@@ -1,4 +1,4 @@
-namespace SmsNotificationService.Configuration;
+namespace FeeSyncer.Sms.Configuration;
 
 public class SmsServiceOptions
 {

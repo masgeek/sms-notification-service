@@ -1,14 +1,14 @@
-using SmsNotificationService.Configuration;
-using SmsNotificationService.Data;
-using SmsNotificationService.Services;
-using SmsNotificationService.Workers;
+using FeeSyncer.Sms.Configuration;
+using FeeSyncer.Sms.Data;
+using FeeSyncer.Sms.Services;
+using FeeSyncer.Sms.Workers;
 using Microsoft.Extensions.Options;
 
-namespace SmsNotificationService;
+namespace FeeSyncer.Sms;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddSmsNotificationServices(
+    public static IServiceCollection AddSmsServices(
         this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<SmsServiceOptions>(
@@ -16,7 +16,7 @@ public static class ServiceCollectionExtensions
 
         services.AddWindowsService(options =>
         {
-            options.ServiceName = "SmsNotificationService";
+            options.ServiceName = "FeeSyncer.Sms";
         });
 
         services.AddHttpClient("SmsApi");

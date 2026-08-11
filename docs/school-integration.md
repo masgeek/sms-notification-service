@@ -1,6 +1,6 @@
 # School Integration Agent
 
-The school integration agent runs as the separate `SmsNotificationService.Agent`
+The school integration agent runs as the separate `FeeSyncer.Agent`
 Windows service. It does not run inside the SMS notification service.
 
 It is enabled by default. The service must be enrolled and configured with a

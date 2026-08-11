@@ -129,9 +129,10 @@ jobs:
       - name: Zip artifacts
         shell: bash
         run: |
-          7z a -tzip SmsNotificationService-service-win-x64.zip "./build/service/*"
-          7z a -tzip SmsNotificationService-tray-win-x64.zip "./build/tray/*"
-          7z a -tzip SmsNotificationService-console-win-x64.zip "./build/console/*"
+           7z a -tzip FeeSyncer-sms-win-x64.zip "./build/service/*"
+           7z a -tzip FeeSyncer-tray-win-x64.zip "./build/tray/*"
+           7z a -tzip FeeSyncer-console-win-x64.zip "./build/console/*"
+           7z a -tzip FeeSyncer-agent-win-x64.zip "./build/agent/*"
 
       - name: Install Inno Setup
         run: choco install innosetup -y
@@ -150,7 +151,7 @@ jobs:
 
       - name: Verify version in build
         run: |
-          $builtVersion = & build\service\SmsNotificationService.exe --version
+           $builtVersion = & build\service\FeeSyncer.Sms.exe --version
           Write-Host "Built version: $builtVersion"
           Write-Host "Expected version: $env:VERSION"
           if ($builtVersion -ne $env:VERSION) {
@@ -162,7 +163,7 @@ jobs:
         shell: bash
         run: |
           echo "=== Zip artifacts ==="
-          ls -la SmsNotificationService-*-win-x64.zip
+           ls -la FeeSyncer-*-win-x64.zip
           echo "=== Installer output ==="
           ls -la installer/output/
           echo "=== Version: $VERSION ==="
@@ -170,8 +171,8 @@ jobs:
       - name: Copy installers to root
         shell: bash
         run: |
-          cp installer/output/SmsNotificationService-Setup-*.exe . 2>/dev/null || echo "Self-contained installer not found"
-          cp installer/output/SmsNotificationService-Framework-Setup-*.exe . 2>/dev/null || echo "Framework installer not found"
+           cp installer/output/FeeSyncer-Setup-*.exe . 2>/dev/null || echo "Self-contained installer not found"
+           cp installer/output/FeeSyncer-Framework-Setup-*.exe . 2>/dev/null || echo "Framework installer not found"
           echo "=== Root directory ==="
           ls -la *.exe 2>/dev/null || echo "No .exe files found"
 
@@ -180,8 +181,8 @@ jobs:
         with:
           name: release-artifacts
           path: |
-            SmsNotificationService-*-win-x64.zip
-            SmsNotificationService*-Setup-*.exe
+             FeeSyncer-*-win-x64.zip
+             FeeSyncer*-Setup-*.exe
           retention-days: 1
 
   release:
@@ -211,8 +212,9 @@ jobs:
           generateReleaseNotes: true
           skipIfReleaseExists: false
           artifacts: |
-            artifacts/SmsNotificationService-service-win-x64.zip
-            artifacts/SmsNotificationService-tray-win-x64.zip
-            artifacts/SmsNotificationService-console-win-x64.zip
-            artifacts/SmsNotificationService-Setup-*.exe
-            artifacts/SmsNotificationService-Framework-Setup-*.exe
+             artifacts/FeeSyncer-sms-win-x64.zip
+             artifacts/FeeSyncer-agent-win-x64.zip
+             artifacts/FeeSyncer-tray-win-x64.zip
+             artifacts/FeeSyncer-console-win-x64.zip
+             artifacts/FeeSyncer-Setup-*.exe
+             artifacts/FeeSyncer-Framework-Setup-*.exe

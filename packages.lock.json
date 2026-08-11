@@ -467,7 +467,7 @@
           "System.Diagnostics.EventLog": "10.0.10"
         }
       },
-      "smsnotificationservice.shared": {
+      "feesyncer.shared": {
         "type": "Project",
         "dependencies": {
           "Dapper": "[2.1.79, )",

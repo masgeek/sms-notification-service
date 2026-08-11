@@ -1,6 +1,6 @@
-using SmsNotificationService.Models;
+using FeeSyncer.Sms.Models;
 
-namespace SmsNotificationService.Data;
+namespace FeeSyncer.Sms.Data;
 
 public interface INotificationRepository
 {

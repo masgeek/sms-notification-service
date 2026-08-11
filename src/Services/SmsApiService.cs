@@ -4,10 +4,10 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using SmsNotificationService.Configuration;
-using SmsNotificationService.Models;
+using FeeSyncer.Sms.Configuration;
+using FeeSyncer.Sms.Models;
 
-namespace SmsNotificationService.Services;
+namespace FeeSyncer.Sms.Services;
 
 /// <summary>
 /// Sends SMS notifications via the configured HTTP API.

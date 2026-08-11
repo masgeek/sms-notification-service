@@ -1,8 +1,8 @@
-using SmsNotificationService.Models;
+using FeeSyncer.Sms.Models;
 using Microsoft.Data.SqlClient;
 using Dapper;
 
-namespace SmsNotificationService.Data;
+namespace FeeSyncer.Sms.Data;
 
 public sealed class NotificationRepository(string connectionString, ILogger<NotificationRepository> logger)
     : INotificationRepository

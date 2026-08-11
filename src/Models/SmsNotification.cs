@@ -1,4 +1,4 @@
-﻿namespace SmsNotificationService.Models;
+﻿namespace FeeSyncer.Sms.Models;
 
 public class SmsNotification
 {

@@ -1,4 +1,4 @@
-# Project Summary — SmsNotificationService
+# Project Summary — FeeSyncer
 
 > **Purpose:** Comprehensive reference for any AI agent or developer resuming work on this project. Covers architecture, design decisions, file layout, conventions, known issues, and deployment pipeline.
 
@@ -21,13 +21,14 @@ A **.NET 10 background worker service** that:
 ## 2. Solution Structure
 
 ```
-SmsNotificationService.slnx
-├── SmsNotificationService.csproj              # Main worker service (net10.0)
-├── SmsNotificationService.Agent/              # Standalone school agent service
-├── SmsNotificationService.Shared/             # Shared class library (net10.0)
-├── SmsNotificationService.Tray/               # WPF tray app (net10.0-windows)
-├── SmsNotificationService.Console/            # Console monitor app (net10.0)
-├── tests/SmsNotificationService.Tests/        # xUnit unit tests
+FeeSyncer.slnx
+├── FeeSyncer.Sms.csproj                        # Main worker service (net10.0)
+├── FeeSyncer.Agent/                            # Standalone school agent service
+├── FeeSyncer.Shared/                           # Shared class library (net10.0)
+├── FeeSyncer.Tray/                             # WPF tray app (net10.0-windows)
+├── FeeSyncer.Console/                          # Console monitor app (net10.0)
+├── tests/FeeSyncer.Sms.Tests/                  # SMS xUnit tests
+├── tests/FeeSyncer.Agent.Tests/                # Agent xUnit tests
 ├── installer/                                 # Inno Setup (two variants)
 ├── .github/workflows/                         # CI/CD pipelines
 ├── docs/                                      # Documentation
@@ -40,12 +41,13 @@ SmsNotificationService.slnx
 
 | Project | References | Notes |
 |---------|-----------|-------|
-| `SmsNotificationService` (main) | Shared | SMS notification processing only |
-| `SmsNotificationService.Agent` | Shared | Standalone HTTP/MQTT school synchronization worker |
-| `SmsNotificationService.Tray` | Shared | WPF, `net10.0-windows`, `UseWPF`, `WinExe` |
-| `SmsNotificationService.Console` | Shared | `net10.0`, `OutputType: Exe`, references Shared only |
-| `SmsNotificationService.Shared` | Dapper, SqlClient, ServiceController | `NoWarn: CA1416` (Windows-only APIs used from net10.0 TFM) |
-| `SmsNotificationService.Tests` | main, Moq, FluentAssertions, xUnit | |
+| `FeeSyncer.Sms` | `FeeSyncer.Shared` | SMS notification processing only |
+| `FeeSyncer.Agent` | `FeeSyncer.Shared` | Standalone HTTP/MQTT school synchronization worker |
+| `FeeSyncer.Tray` | `FeeSyncer.Shared` | WPF, `net10.0-windows`, `UseWPF`, `WinExe` |
+| `FeeSyncer.Console` | `FeeSyncer.Shared` | `net10.0`, `OutputType: Exe`, references Shared only |
+| `FeeSyncer.Shared` | Dapper, SqlClient, ServiceController | Shared support library |
+| `FeeSyncer.Sms.Tests` | `FeeSyncer.Sms` | SMS xUnit tests |
+| `FeeSyncer.Agent.Tests` | `FeeSyncer.Agent` | Agent xUnit tests |
 
 ---
 
@@ -59,7 +61,7 @@ Program.cs
        ├─ AddProductionConfig(environment)         # Loads config: ProgramData (Prod only) → app dir
        ├─ FileLoggerProvider                        # ProgramData\...\logs\, daily rotation, size rotation
        ├─ DapperMapper.Register()                   # snake_case ↔ PascalCase mapping
-       ├─ AddSmsNotificationServices(config)        # DI registration (ServiceCollectionExtensions.cs)
+        ├─ AddSmsServices(config)                    # DI registration (ServiceCollectionExtensions.cs)
        │    ├─ INotificationRepository → NotificationRepository (Singleton)
        │    ├─ SqlDependencyListener (Singleton)
        │    ├─ ISmsSender → SmsApiService (Singleton, named HttpClient "SmsApi")
@@ -125,11 +127,11 @@ Uses `PeriodicTimer` — waits for the first tick BEFORE processing. No pending 
 
 ### Config File Location
 
-Config lives in the **app directory** (`{app}\appsettings.Production.json`), NOT in ProgramData. Logs remain in `ProgramData\Munywele\SmsNotificationService\logs\`.
+Config lives in the **app directory** (`{app}\appsettings.Production.json`), NOT in ProgramData. Logs remain in `ProgramData\Munywele\FeeSyncer\logs\`.
 
 ### Config Loading Order (Program.cs → ConfigurationExtensions.AddProductionConfig)
 
-1. `ProgramData\Munywele\SmsNotificationService\appsettings.Production.json` — ONLY if `environment == "Production"`
+1. `ProgramData\Munywele\FeeSyncer\appsettings.Production.json` — ONLY if `environment == "Production"`
 2. `{appDir}\appsettings.Development.json` — always checked
 3. `{appDir}\appsettings.Production.json` — always checked
 
@@ -256,7 +258,7 @@ API error responses are saved to `description_json` column as JSON for debugging
 
 ---
 
-## 7. Shared Project (SmsNotificationService.Shared)
+## 7. Shared Project (FeeSyncer.Shared)
 
 Class library referenced by both main worker and tray app.
 
@@ -270,7 +272,7 @@ Class library referenced by both main worker and tray app.
 
 ---
 
-## 8. Tray App (SmsNotificationService.Tray)
+## 8. Tray App (FeeSyncer.Tray)
 
 WPF application (`net10.0-windows`) with system tray icon.
 
@@ -315,8 +317,8 @@ WPF application (`net10.0-windows`) with system tray icon.
 
 | Installer | Output | AppId | Bundles From | Runtime Check |
 |-----------|--------|-------|-------------|---------------|
-| `installer.iss` | `SmsNotificationService-Setup-{ver}.exe` | `{B8E3F2A1-...}` | `build/service/` + `build/tray/` + `build/console/` | None (self-contained) |
-| `installer-framework.iss` | `SmsNotificationService-Framework-Setup-{ver}.exe` | `{A1F2E3B4-...}` | `build/service-framework/` + `build/tray-framework/` + `build/console-framework/` | `CheckDotNetRuntime` (checks `dotnet --list-runtimes` for `Microsoft.NETCore.App 10`) |
+| `installer.iss` | `FeeSyncer-Setup-{ver}.exe` | `{B8E3F2A1-...}` | `build/service/` + `build/agent/` + `build/tray/` + `build/console/` | None (self-contained) |
+| `installer-framework.iss` | `FeeSyncer-Framework-Setup-{ver}.exe` | `{A1F2E3B4-...}` | `build/service-framework/` + `build/agent-framework/` + `build/tray-framework/` + `build/console-framework/` | `CheckDotNetRuntime` (checks `dotnet --list-runtimes` for `Microsoft.NETCore.App 10`) |
 
 ### Modular Code Structure (installer/code/)
 
@@ -383,7 +385,7 @@ Build and Package
   ├─ dotnet restore → build → publish.ps1 → publish-framework.ps1
   ├─ Zip build/ directory (service + tray + console)
   ├─ Build both installers via ISCC.exe
-  ├─ Verify version matches (build\service\SmsNotificationService.exe --version)
+  ├─ Verify version matches (build\service\FeeSyncer.Sms.exe --version)
   └─ Upload artifact
      ↓
 Publish GitHub Release (ncipollo/release-action@v1.21.0)
@@ -437,7 +439,7 @@ Test tolerance must account for jitter: e.g., 30s base → tolerance ≥15s.
 ### Version Support
 
 ```bash
-publish\SmsNotificationService.exe --version   # Prints version from Directory.Build.props
+publish\FeeSyncer.Sms.exe --version   # Prints version from Directory.Build.props
 ```
 
 `--version` / `-v` flag handled in Program.cs using `Shared.VersionHelper.GetCurrentVersion()`.
@@ -529,25 +531,25 @@ All known issues have been resolved.
 
 | File | Purpose |
 |------|---------|
-| `SmsNotificationService.Shared/Constants.cs` | ServiceName, TableName, SubDir, ConfigFileName |
-| `SmsNotificationService.Shared/ConfigPathResolver.cs` | FindConfigFile (app dir first), GetProgramDataDir, GetAppDir, GetLogDir |
-| `SmsNotificationService.Shared/VersionHelper.cs` | GetCurrentVersion from assembly |
-| `SmsNotificationService.Shared/ConfigReader.cs` | LoadConnectionString (SmsService.ConnectionString), LoadApiUrl, LoadAuthorizationToken, ParseConnectionString, BuildConnectionString |
-| `SmsNotificationService.Shared/StatusHelper.cs` | FormatStatus, FormatUptime, FormatDetection |
+| `FeeSyncer.Shared/Constants.cs` | ServiceName, TableName, SubDir, ConfigFileName |
+| `FeeSyncer.Shared/ConfigPathResolver.cs` | FindConfigFile (app dir first), GetProgramDataDir, GetAppDir, GetLogDir |
+| `FeeSyncer.Shared/VersionHelper.cs` | GetCurrentVersion from assembly |
+| `FeeSyncer.Shared/ConfigReader.cs` | LoadConnectionString (SmsService.ConnectionString), LoadApiUrl, LoadAuthorizationToken, ParseConnectionString, BuildConnectionString |
+| `FeeSyncer.Shared/StatusHelper.cs` | FormatStatus, FormatUptime, FormatDetection |
 
 ### Tray App
 
 | File | Purpose |
 |------|---------|
-| `SmsNotificationService.Tray/App.xaml` + `App.xaml.cs` | WPF entry, ShutdownMode OnExplicitShutdown |
-| `SmsNotificationService.Tray/TrayIcon.cs` | TaskbarIcon, ContextMenu, GDI+ icons |
-| `SmsNotificationService.Tray/ServiceMonitor.cs` | 3-tier detection, KillProcesses on stop |
-| `SmsNotificationService.Tray/UpdateChecker.cs` | GitHub Releases polling, uses Shared.VersionHelper |
-| `SmsNotificationService.Tray/ConnectionValidator.cs` | Parallel DB/API/Broker checks |
-| `SmsNotificationService.Tray/StatusWindow.xaml` + `.cs` | Status display |
-| `SmsNotificationService.Tray/LogViewer.xaml` + `.cs` | Log tailing |
-| `SmsNotificationService.Tray/ConfigEditor.xaml` + `.cs` | Edit SmsService and Agent settings |
-| `SmsNotificationService.Tray/SendNotificationDialog.xaml` + `.cs` | Manual SMS insert |
+| `FeeSyncer.Tray/App.xaml` + `App.xaml.cs` | WPF entry, ShutdownMode OnExplicitShutdown |
+| `FeeSyncer.Tray/TrayIcon.cs` | TaskbarIcon, ContextMenu, GDI+ icons |
+| `FeeSyncer.Shared/ServiceMonitor.cs` | 3-tier detection, KillProcesses on stop |
+| `FeeSyncer.Shared/UpdateChecker.cs` | GitHub Releases polling, uses Shared.VersionHelper |
+| `FeeSyncer.Shared/ConnectionValidator.cs` | Parallel DB/API/Broker checks |
+| `FeeSyncer.Tray/StatusWindow.xaml` + `.cs` | Status display |
+| `FeeSyncer.Tray/LogViewer.xaml` + `.cs` | Log tailing |
+| `FeeSyncer.Tray/ConfigEditor.xaml` + `.cs` | Edit SmsService and Agent settings |
+| `FeeSyncer.Tray/SendNotificationDialog.xaml` + `.cs` | Manual SMS insert |
 
 ### Installer
 

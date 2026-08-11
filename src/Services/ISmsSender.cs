@@ -1,8 +1,8 @@
 // Copyright (c) Munywele Consulting LTD. All rights reserved.
 
-using SmsNotificationService.Models;
+using FeeSyncer.Sms.Models;
 
-namespace SmsNotificationService.Services;
+namespace FeeSyncer.Sms.Services;
 
 public interface ISmsSender
 {

@@ -1,6 +1,6 @@
-using SmsNotificationService.Data;
+using FeeSyncer.Sms.Data;
 
-namespace SmsNotificationService.Workers;
+namespace FeeSyncer.Sms.Workers;
 
 /// <summary>
 /// Listens for SQL Server table changes via SqlDependency (Service Broker)

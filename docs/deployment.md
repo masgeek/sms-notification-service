@@ -4,14 +4,15 @@
 
 Download the latest installer from [GitHub Releases](../../releases). Two variants are available:
 
-- `SmsNotificationService-Setup-<version>.exe` — self-contained (no .NET runtime needed)
-- `SmsNotificationService-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime on target machine)
+- `FeeSyncer-Setup-<version>.exe` — self-contained (no .NET runtime needed)
+- `FeeSyncer-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime on target machine)
 
 Run the installer as Administrator.
 
 The installer deploys:
-- **SmsNotificationService** — SMS notification and school integration workers (Windows Service)
-- **SmsNotificationService.Tray** — system tray management app (optional, auto-starts on login if selected)
+- **FeeSyncer.Sms** — SMS notification service (Windows Service)
+- **FeeSyncer.Agent** — school synchronization service (Windows Service)
+- **FeeSyncer.Tray** — system tray management app (optional, auto-starts on login if selected)
 
 ## Windows SmartScreen Warning
 
@@ -60,9 +61,10 @@ Purchase a code signing certificate:
 ```
 
 Output:
-- `build\service\` — service binaries (SmsNotificationService.exe + dependencies)
-- `build\tray\` — tray app binaries (SmsNotificationService.Tray.exe + dependencies)
-- `build\console\` — console monitor binaries (SmsNotificationService.Console.exe + dependencies)
+- `build\service\` — SMS service binaries (FeeSyncer.Sms.exe + dependencies)
+- `build\agent\` — agent service binaries (FeeSyncer.Agent.exe + dependencies)
+- `build\tray\` — tray app binaries (FeeSyncer.Tray.exe + dependencies)
+- `build\console\` — console monitor binaries (FeeSyncer.Console.exe + dependencies)
 
 All are self-contained — no .NET runtime needed on the target machine.
 
@@ -80,9 +82,10 @@ Output:
 Or publish individually:
 
 ```bash
-dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o build\service
-dotnet publish SmsNotificationService.Tray/SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
-dotnet publish SmsNotificationService.Console/SmsNotificationService.Console.csproj -c Release -r win-x64 --self-contained -o build\console
+dotnet publish FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained -o build\service
+dotnet publish FeeSyncer.Agent/FeeSyncer.Agent.csproj -c Release -r win-x64 --self-contained -o build\agent
+dotnet publish FeeSyncer.Tray/FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
+dotnet publish FeeSyncer.Console/FeeSyncer.Console.csproj -c Release -r win-x64 --self-contained -o build\console
 ```
 
 ### Build Installer
@@ -100,8 +103,8 @@ dotnet publish SmsNotificationService.Console/SmsNotificationService.Console.csp
 - Framework-dependent: `build\service-framework\`, `build\tray-framework\`, and `build\console-framework\` directories must exist
 
 Output:
-- `installer/output/SmsNotificationService-Setup-<version>.exe` (self-contained)
-- `installer/output/SmsNotificationService-Framework-Setup-<version>.exe` (framework-dependent)
+- `installer/output/FeeSyncer-Setup-<version>.exe` (self-contained)
+- `installer/output/FeeSyncer-Framework-Setup-<version>.exe` (framework-dependent)
 
 The installer version is set dynamically via `/DMyAppVersion=<version>`. If omitted, defaults to `1.0.0`.
 
@@ -125,15 +128,17 @@ Create dummy build folders and compile both ISS scripts:
 
 ```bash
 # Self-contained installer
-mkdir build\service && echo placeholder > build\service\SmsNotificationService.exe
-mkdir build\tray && echo placeholder > build\tray\SmsNotificationService.Tray.exe
-mkdir build\console && echo placeholder > build\console\SmsNotificationService.Console.exe
+mkdir build\service && echo placeholder > build\service\FeeSyncer.Sms.exe
+mkdir build\agent && echo placeholder > build\agent\FeeSyncer.Agent.exe
+mkdir build\tray && echo placeholder > build\tray\FeeSyncer.Tray.exe
+mkdir build\console && echo placeholder > build\console\FeeSyncer.Console.exe
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
 
 # Framework-dependent installer
-mkdir build\service-framework && echo placeholder > build\service-framework\SmsNotificationService.exe
-mkdir build\tray-framework && echo placeholder > build\tray-framework\SmsNotificationService.Tray.exe
-mkdir build\console-framework && echo placeholder > build\console-framework\SmsNotificationService.Console.exe
+mkdir build\service-framework && echo placeholder > build\service-framework\FeeSyncer.Sms.exe
+mkdir build\agent-framework && echo placeholder > build\agent-framework\FeeSyncer.Agent.exe
+mkdir build\tray-framework && echo placeholder > build\tray-framework\FeeSyncer.Tray.exe
+mkdir build\console-framework && echo placeholder > build\console-framework\FeeSyncer.Console.exe
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer-framework.iss
 ```
 
@@ -141,8 +146,8 @@ mkdir build\console-framework && echo placeholder > build\console-framework\SmsN
 
 1. Detects fresh install vs upgrade (checks for existing service)
 2. Prompts to keep or update existing configuration
-3. Writes `appsettings.Production.json` to `C:\Program Files\SmsNotificationService\`
-4. Copies both service and tray app binaries to `C:\Program Files\SmsNotificationService\`
+3. Writes SMS config to `C:\Program Files\FeeSyncer\` and agent config to `C:\Program Files\FeeSyncer\Agent\`
+4. Copies the SMS, agent, tray, and console binaries to `C:\Program Files\FeeSyncer\`
 5. Creates Windows Service (`delayed-auto`, `LocalSystem`)
 6. Configures service recovery (restart on failure: 5min, 5s, 5s)
 7. Registers Event Log source
@@ -154,7 +159,8 @@ mkdir build\console-framework && echo placeholder > build\console-framework\SmsN
 
 ## Configuration
 
-Config is stored in `C:\Program Files\SmsNotificationService\appsettings.Production.json`:
+SMS configuration is stored in `C:\Program Files\FeeSyncer\appsettings.Production.json`.
+Agent configuration is stored in `C:\Program Files\FeeSyncer\Agent\appsettings.Production.json`.
 
 ```json
 {
@@ -230,53 +236,53 @@ If the config file is missing, environment variables are used as a fallback:
 
 ```powershell
 # Copy published folders, including the Agent subfolder
-C:\Services\SmsNotificationService\
+C:\Services\FeeSyncer\
 
 # Create SMS service
-sc create SmsNotificationService binPath="C:\Services\SmsNotificationService\SmsNotificationService.exe" start=delayed-auto
-sc description SmsNotificationService "Listens to SQL Server for SMS notifications and sends them via HTTP API"
-sc failure SmsNotificationService reset= 86400 actions= restart/300000/restart/5000/restart/5000
+sc create FeeSyncer.Sms binPath="C:\Services\FeeSyncer\FeeSyncer.Sms.exe" start=delayed-auto
+sc description FeeSyncer.Sms "Listens to SQL Server for SMS notifications and sends them via HTTP API"
+sc failure FeeSyncer.Sms reset= 86400 actions= restart/300000/restart/5000/restart/5000
 
 # Create school agent service
-sc create SmsNotificationService.Agent binPath="C:\Services\SmsNotificationService\Agent\SmsNotificationService.Agent.exe" start=delayed-auto
-sc description SmsNotificationService.Agent "Synchronizes school data and processes agent work from the central gateway"
-sc failure SmsNotificationService.Agent reset= 86400 actions= restart/300000/restart/5000/restart/5000
+sc create FeeSyncer.Agent binPath="C:\Services\FeeSyncer\Agent\FeeSyncer.Agent.exe" start=delayed-auto
+sc description FeeSyncer.Agent "Synchronizes school data and processes agent work from the central gateway"
+sc failure FeeSyncer.Agent reset= 86400 actions= restart/300000/restart/5000/restart/5000
 
 # Start both services
-sc start SmsNotificationService
-sc start SmsNotificationService.Agent
+sc start FeeSyncer.Sms
+sc start FeeSyncer.Agent
 ```
 
 ## Service Management
 
 ```powershell
 # Check status
-sc query SmsNotificationService
-sc query SmsNotificationService.Agent
+sc query FeeSyncer.Sms
+sc query FeeSyncer.Agent
 
 # Stop
-sc stop SmsNotificationService
-sc stop SmsNotificationService.Agent
+sc stop FeeSyncer.Sms
+sc stop FeeSyncer.Agent
 
 # Restart
-sc stop SmsNotificationService
-sc start SmsNotificationService
-sc stop SmsNotificationService.Agent
-sc start SmsNotificationService.Agent
+sc stop FeeSyncer.Sms
+sc start FeeSyncer.Sms
+sc stop FeeSyncer.Agent
+sc start FeeSyncer.Agent
 
 # Remove
-sc stop SmsNotificationService
-sc delete SmsNotificationService
-sc stop SmsNotificationService.Agent
-sc delete SmsNotificationService.Agent
+sc stop FeeSyncer.Sms
+sc delete FeeSyncer.Sms
+sc stop FeeSyncer.Agent
+sc delete FeeSyncer.Agent
 ```
 
 If `sc delete` fails, the installer also cleans up the registry key:
-`HKLM\SYSTEM\CurrentControlSet\Services\SmsNotificationService`
+`HKLM\SYSTEM\CurrentControlSet\Services\FeeSyncer.Sms`
 
 ## Tray App
 
-The tray app (`SmsNotificationService.Tray.exe`) provides:
+The tray app (`FeeSyncer.Tray.exe`) provides:
 
 - **Status monitoring** — real-time service status, uptime, version
 - **Service control** — start, stop, restart from the tray menu
@@ -292,10 +298,10 @@ The tray app auto-starts on login via `HKCU\Software\Microsoft\Windows\CurrentVe
 
 ```powershell
 # From published folder
-.\SmsNotificationService.Tray.exe
+.\FeeSyncer.Tray.exe
 
 # Or from installed location
-& "C:\Program Files\SmsNotificationService\SmsNotificationService.Tray.exe"
+& "C:\Program Files\FeeSyncer\FeeSyncer.Tray.exe"
 ```
 
 ## Logs
@@ -303,7 +309,7 @@ The tray app auto-starts on login via `HKCU\Software\Microsoft\Windows\CurrentVe
 **File logs** (primary):
 
 ```
-C:\ProgramData\Munywele\SmsNotificationService\logs\
+C:\ProgramData\Munywele\FeeSyncer\logs\
 ```
 
 Daily rotation, 7-day retention (configurable). Old files are cleaned up on startup.
@@ -311,11 +317,11 @@ Daily rotation, 7-day retention (configurable). Old files are cleaned up on star
 **Windows Event Log:**
 
 ```
-Applications and Services Logs > SmsNotificationService
+Applications and Services Logs > FeeSyncer.Sms
 ```
 
 ```powershell
-Get-EventLog -LogName Application -Source "SmsNotificationService" -Newest 20
+Get-EventLog -LogName Application -Source "FeeSyncer.Sms" -Newest 20
 ```
 
 ## Upgrading
@@ -331,10 +337,10 @@ Run the new installer. It will:
 Or manually:
 
 ```powershell
-sc stop SmsNotificationService
+sc stop FeeSyncer.Sms
 ./publish.ps1
 # Copy new files
-sc start SmsNotificationService
+sc start FeeSyncer.Sms
 ```
 
 ## CI/CD Pipeline
@@ -386,11 +392,12 @@ Each release produces:
 
 | Artifact | Description |
 |----------|-------------|
-| `SmsNotificationService-Setup-<version>.exe` | Self-contained installer (bundles .NET runtime) |
-| `SmsNotificationService-Framework-Setup-<version>.exe` | Framework-dependent installer (requires .NET 10 runtime) |
-| `SmsNotificationService-service-win-x64.zip` | Service binaries (self-contained) |
-| `SmsNotificationService-tray-win-x64.zip` | Tray app binaries (self-contained) |
-| `SmsNotificationService-console-win-x64.zip` | Console monitor binaries (self-contained) |
+| `FeeSyncer-Setup-<version>.exe` | Self-contained installer (bundles .NET runtime) |
+| `FeeSyncer-Framework-Setup-<version>.exe` | Framework-dependent installer (requires .NET 10 runtime) |
+| `FeeSyncer-sms-win-x64.zip` | SMS service binaries (self-contained) |
+| `FeeSyncer-agent-win-x64.zip` | Agent service binaries (self-contained) |
+| `FeeSyncer-tray-win-x64.zip` | Tray app binaries (self-contained) |
+| `FeeSyncer-console-win-x64.zip` | Console monitor binaries (self-contained) |
 
 ## Troubleshooting
 
@@ -398,7 +405,7 @@ Each release produces:
 
 1. Check config file exists:
    ```powershell
-   Test-Path "C:\Program Files\SmsNotificationService\appsettings.Production.json"
+   Test-Path "C:\Program Files\FeeSyncer\appsettings.Production.json"
    ```
 2. Check Service Broker is enabled:
    ```sql
@@ -406,22 +413,22 @@ Each release produces:
    ```
 3. Check Event Log for startup errors:
    ```powershell
-   Get-EventLog -LogName Application -Source "SmsNotificationService" -EntryType Error -Newest 10
+    Get-EventLog -LogName Application -Source "FeeSyncer.Sms" -EntryType Error -Newest 10
    ```
 
 ### Tray app not starting
 
 1. Check the executable exists:
    ```powershell
-   Test-Path "C:\Program Files\SmsNotificationService\SmsNotificationService.Tray.exe"
+    Test-Path "C:\Program Files\FeeSyncer\FeeSyncer.Tray.exe"
    ```
 2. Check auto-start registry entry:
    ```powershell
-   Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "SmsNotificationService.Tray" -ErrorAction SilentlyContinue
+    Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "FeeSyncer.Tray" -ErrorAction SilentlyContinue
    ```
 3. Run manually from command line to see errors:
    ```powershell
-   & "C:\Program Files\SmsNotificationService\SmsNotificationService.Tray.exe"
+    & "C:\Program Files\FeeSyncer\FeeSyncer.Tray.exe"
    ```
 
 ### Notifications not triggering
@@ -452,6 +459,6 @@ Each release produces:
 
 ### File logs not appearing
 
-1. Check `ProgramData\Munywele\SmsNotificationService\logs\` exists
+1. Check `ProgramData\Munywele\FeeSyncer\logs\` exists
 2. Ensure the service account (LocalSystem) has write access
 3. Check `LogRetentionDays` — logs older than this are auto-deleted on startup

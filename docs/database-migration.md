@@ -292,7 +292,7 @@ CREATE TABLE sms_notifications (
 
 ```csharp
 // ServiceCollectionExtensions.cs
-public static IServiceCollection AddSmsNotificationServices(
+public static IServiceCollection AddSmsServices(
     this IServiceCollection services, IConfiguration configuration)
 {
     var provider = configuration["SmsService:DatabaseProvider"] ?? "SqlServer";
@@ -352,7 +352,7 @@ public static IServiceCollection AddSmsNotificationServices(
 | `src/Checks/DatabaseConnectionCheck.cs` | Update — `DbException` | All |
 | `src/ServiceCollectionExtensions.cs` | Update — provider switch | All |
 | `src/Configuration/SmsServiceOptions.cs` | Add `DatabaseProvider` | All |
-| `SmsNotificationService.csproj` | Swap provider package | Per database |
+| `FeeSyncer.Sms.csproj` | Swap provider package | Per database |
 
 ---
 

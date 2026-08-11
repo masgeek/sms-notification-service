@@ -1,4 +1,4 @@
-namespace SmsNotificationService.Models;
+namespace FeeSyncer.Sms.Models;
 
 #pragma warning disable IDE1006 // Naming rule violation
 public enum NotificationStatus
