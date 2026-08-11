@@ -229,7 +229,7 @@ If the config file is missing, environment variables are used as a fallback:
 ## Manual Install
 
 ```powershell
-# Copy published folder
+# Copy published folders, including the Agent subfolder
 C:\Services\SmsNotificationService\
 
 # Create SMS service

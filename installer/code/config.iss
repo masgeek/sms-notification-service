@@ -1,10 +1,13 @@
 procedure WriteConfigurationFile(const Server, Database, Username, Password, ApiUrl, Token: String);
 var
   CfgPath: String;
+  AgentCfgPath: String;
   ConnStr: String;
   JsonContent: AnsiString;
+  AgentJsonContent: AnsiString;
 begin
   CfgPath := ExpandConstant('{app}\{#ConfigFile}');
+  AgentCfgPath := ExpandConstant('{app}\{#AgentDir}\{#ConfigFile}');
 
   ConnStr := 'Server=' + JsonEscape(Server) + ';Database=' + JsonEscape(Database) + ';User Id=' + JsonEscape(Username) + ';Password=' + JsonEscape(Password) + ';TrustServerCertificate=True;';
 
@@ -19,7 +22,11 @@ begin
     '    "RetryBackoffSeconds": 30,' + #13#10 +
     '    "LogRetentionDays": ' + '{#LogRetentionDays}' + ',' + #13#10 +
     '    "MaxLogFileSizeMb": ' + '{#MaxLogFileSizeMb}' + #13#10 +
-    '  },' + #13#10 +
+    '  }' + #13#10 +
+    '}';
+
+  AgentJsonContent :=
+    '{' + #13#10 +
     '  "Agent": {' + #13#10 +
     '    "Enabled": true,' + #13#10 +
     '    "ServerUrl": "https://fees.munywele.co.ke/",' + #13#10 +
@@ -51,4 +58,12 @@ begin
   end;
 
   Log('Configuration written to: ' + CfgPath);
+
+  if not SaveStringToFile(AgentCfgPath, AgentJsonContent, False) then
+  begin
+    Log('SaveStringToFile FAILED for agent configuration.');
+    RaiseException('Failed to write agent configuration file to: ' + AgentCfgPath);
+  end;
+
+  Log('Agent configuration written to: ' + AgentCfgPath);
 end;

@@ -1,6 +1,6 @@
 # SmsNotificationService
 
-A .NET 10 Windows service that listens to a SQL Server table for new SMS notifications and sends them via an external HTTP API. The same host also runs the outbound school integration worker for student, fee, and payment synchronization.
+A .NET 10 Windows service that listens to a SQL Server table for new SMS notifications and sends them via an external HTTP API. The separate school agent service handles student, fee, and payment synchronization.
 
 ## Architecture
 
@@ -197,7 +197,8 @@ Run the installer as Administrator. It will:
 - Install files to `C:\Program Files\SmsNotificationService\`
 - Prompt for database connection, API URL, and auth token
 - Create the Windows Service (delayed auto-start)
-- Write config to `C:\Program Files\SmsNotificationService\appsettings.Production.json`
+- Write SMS config to `C:\Program Files\SmsNotificationService\appsettings.Production.json`
+- Write agent config to `C:\Program Files\SmsNotificationService\Agent\appsettings.Production.json`
 - Register an Event Log source
 - Configure service recovery (restart on failure)
 - Optionally install the system tray app

@@ -41,6 +41,10 @@ logs, or student fixtures.
 
 ## Configuration
 
+The agent reads this configuration from its own application directory as
+`Agent\appsettings.Development.json` during development or
+`Agent\appsettings.Production.json` after installation.
+
 ```json
 {
   "Agent": {

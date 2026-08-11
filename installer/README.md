@@ -6,8 +6,9 @@ Inno Setup installer for SmsNotificationService. Two variants available:
 - **Framework-dependent** (`installer-framework.iss`) — requires .NET 10 runtime on target machine
 
 The installer installs separate Windows services for SMS notification processing
-and school integration. The agent is enabled by default. Both services read the
-shared `appsettings.Production.json`; enrollment tokens must be provisioned
+and school integration. The agent is enabled by default. The SMS service reads
+the root `appsettings.Production.json`; the agent reads
+`Agent\appsettings.Production.json`. Enrollment tokens must be provisioned
 separately and must never be passed as installer arguments.
 
 ## Structure
@@ -130,8 +131,7 @@ The installer writes these safe defaults into the generated configuration:
 ```
 
 After installation, enroll the school and set `Agent:Enabled` and
-`Agent:AgentToken` directly in protected shared service configuration. The SMS
-service and agent service both read this file. See
+`Agent:AgentToken` directly in the protected agent configuration. See
 [`docs/school-integration.md`](../docs/school-integration.md).
 
 To use MQTT wake-up notifications, also configure `Agent:MqttEnabled`, broker
