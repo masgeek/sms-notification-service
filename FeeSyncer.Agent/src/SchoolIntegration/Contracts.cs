@@ -59,6 +59,27 @@ internal sealed record FeeRecordV1
 
     [JsonPropertyName("source_updated_at"), JsonPropertyOrder(6)]
     public string? SourceUpdatedAt { get; init; }
+
+    [JsonPropertyName("name"), JsonPropertyOrder(7)]
+    public string? Name { get; init; }
+
+    [JsonPropertyName("parent_name"), JsonPropertyOrder(8)]
+    public string? ParentName { get; init; }
+
+    [JsonPropertyName("house"), JsonPropertyOrder(9)]
+    public string? House { get; init; }
+
+    [JsonPropertyName("year"), JsonPropertyOrder(10)]
+    public string? Year { get; init; }
+
+    [JsonPropertyName("form"), JsonPropertyOrder(11)]
+    public string? Form { get; init; }
+
+    [JsonPropertyName("term"), JsonPropertyOrder(12)]
+    public string? Term { get; init; }
+
+    [JsonPropertyName("phone"), JsonPropertyOrder(13)]
+    public string? Phone { get; init; }
 }
 
 internal sealed record StudentRecordV1
@@ -77,6 +98,33 @@ internal sealed record StudentRecordV1
 
     [JsonPropertyName("source_updated_at"), JsonPropertyOrder(5)]
     public string? SourceUpdatedAt { get; init; }
+
+    [JsonPropertyName("name"), JsonPropertyOrder(6)]
+    public string? Name { get; init; }
+
+    [JsonPropertyName("phone"), JsonPropertyOrder(7)]
+    public string? Phone { get; init; }
+
+    [JsonPropertyName("stream"), JsonPropertyOrder(8)]
+    public string? Stream { get; init; }
+
+    [JsonPropertyName("form"), JsonPropertyOrder(9)]
+    public string? Form { get; init; }
+
+    [JsonPropertyName("term"), JsonPropertyOrder(10)]
+    public string? Term { get; init; }
+
+    [JsonPropertyName("year"), JsonPropertyOrder(11)]
+    public string? Year { get; init; }
+
+    [JsonPropertyName("parent_name"), JsonPropertyOrder(12)]
+    public string? ParentName { get; init; }
+
+    [JsonPropertyName("balance"), JsonPropertyOrder(13)]
+    public string Balance { get; init; } = "0.00";
+
+    [JsonPropertyName("class_number"), JsonPropertyOrder(14)]
+    public string? ClassNumber { get; init; }
 }
 
 internal sealed record PageUpload(
