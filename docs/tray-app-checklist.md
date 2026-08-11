@@ -157,7 +157,7 @@ Temporary working document. Delete after implementation is complete.
      - **SMS API**: URL, Authorization Token (masked, Show/Hide toggle)
      - **Retry**: Backoff Seconds, Poll Interval Seconds
      - **Logging**: Retention Days, Max File Size (MB)
-     - **School Agent**: Enabled, central Server URL, enrollment token, local API URL, local API username, local API password, request timeout, idle delay, long-poll interval, heartbeat interval
+     - **School Agent**: Enabled, central Server URL, enrollment token, local API URL, local API username, local API password, request timeout, heartbeat interval, and MQTT broker settings
   - Uses `SqlConnectionStringBuilder` to parse/build connection string
   - Buttons: Test Connection, Save, Cancel
   - Saves with `System.Text.Json` (indented)

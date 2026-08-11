@@ -115,12 +115,11 @@ The installer writes these safe defaults into the generated configuration:
   "LocalApiPassword": "",
   "RequestTimeoutSeconds": 30,
   "IdleDelaySeconds": 5,
-  "LongPollSeconds": 25,
   "HeartbeatSeconds": 60,
-  "MqttEnabled": false,
-  "MqttBrokerHost": "127.0.0.1",
-  "MqttBrokerPort": 1883,
-  "MqttUseTls": false,
+  "MqttEnabled": true,
+  "MqttBrokerHost": "mqtt.munywele.co.ke",
+  "MqttBrokerPort": 8883,
+  "MqttUseTls": true,
   "MqttUsername": "",
   "MqttPassword": "",
   "MqttTopicPrefix": "fee-syncer/agent",
@@ -134,7 +133,7 @@ After installation, enroll the school and set `Agent:Enabled` and
 `Agent:AgentToken` directly in the protected agent configuration. See
 [`docs/school-integration.md`](../docs/school-integration.md).
 
-To use MQTT wake-up notifications, also configure `Agent:MqttEnabled`, broker
+Configure MQTT-first work discovery with `Agent:MqttEnabled`, broker
 host and port, TLS, and broker credentials. Keep `Agent:MqttPassword` and the
 agent token out of installer arguments and source control. HTTP polling remains
-the fallback when MQTT is unavailable.
+work discovery channel. Work discovery pauses if MQTT is unavailable.

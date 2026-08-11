@@ -14,10 +14,10 @@ internal sealed class AgentWakeSignal
 
     public void Signal() => _signals.Writer.TryWrite(true);
 
-    public async Task WaitAsync(TimeSpan fallbackDelay, CancellationToken cancellationToken)
+    public async Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
     {
         var signalTask = _signals.Reader.WaitToReadAsync(cancellationToken).AsTask();
-        var delayTask = Task.Delay(fallbackDelay, cancellationToken);
+        var delayTask = Task.Delay(timeout, cancellationToken);
         await Task.WhenAny(signalTask, delayTask);
 
         if (signalTask.IsCompletedSuccessfully)

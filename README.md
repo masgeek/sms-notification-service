@@ -24,9 +24,16 @@ SQL Server                     SMS API
 
 School Integration Worker
     |
-    +--> https://fees.munywele.co.ke/ (central work, heartbeat, metrics)
+    +--> MQTT broker (direct Laravel publication, wake-up only)
+    +--> https://fees.munywele.co.ke/ (authoritative work, heartbeat, metrics)
     +--> http://127.0.0.1:8001/api/ (fixed local school API)
 
+```
+
+The notification path is:
+
+```text
+Laravel API + queue -> MQTT broker -> Windows agents
 ```
 
 ## Tech Stack
@@ -117,12 +124,11 @@ settings shown below:
     "LocalApiPassword": "",
     "RequestTimeoutSeconds": 30,
     "IdleDelaySeconds": 5,
-    "LongPollSeconds": 25,
     "HeartbeatSeconds": 60,
-    "MqttEnabled": false,
-    "MqttBrokerHost": "127.0.0.1",
-    "MqttBrokerPort": 1883,
-    "MqttUseTls": false,
+    "MqttEnabled": true,
+    "MqttBrokerHost": "mqtt.munywele.co.ke",
+    "MqttBrokerPort": 8883,
+    "MqttUseTls": true,
     "MqttUsername": "",
     "MqttPassword": "",
     "MqttTopicPrefix": "fee-syncer/agent",
@@ -154,12 +160,11 @@ credentials, and service behavior.
 | `Agent:LocalApiPassword` | — | Local school API password |
 | `Agent:RequestTimeoutSeconds` | `30` | HTTP request timeout |
 | `Agent:IdleDelaySeconds` | `5` | Delay after an empty or failed work cycle |
-| `Agent:LongPollSeconds` | `25` | Maximum central work-poll wait |
 | `Agent:HeartbeatSeconds` | `60` | Heartbeat interval |
-| `Agent:MqttEnabled` | `false` | Enables MQTT wake-up notifications |
-| `Agent:MqttBrokerHost` | `127.0.0.1` | MQTT broker host |
-| `Agent:MqttBrokerPort` | `1883` | MQTT broker port |
-| `Agent:MqttUseTls` | `false` | Enables TLS for MQTT |
+| `Agent:MqttEnabled` | `true` | Enables MQTT-first work discovery |
+| `Agent:MqttBrokerHost` | `mqtt.munywele.co.ke` | MQTT broker host |
+| `Agent:MqttBrokerPort` | `8883` | TLS MQTT broker port |
+| `Agent:MqttUseTls` | `true` | Enables TLS for MQTT |
 | `Agent:MqttUsername` | — | MQTT username; token is used when empty |
 | `Agent:MqttPassword` | — | MQTT password |
 | `Agent:MqttTopicPrefix` | `fee-syncer/agent` | MQTT topic prefix |
@@ -171,9 +176,10 @@ The agent is enabled by default. Complete enrollment and replace the
 provisioning placeholder before starting the service; keep the bearer token out
 of source control, installer arguments, logs, and fixtures.
 
-MQTT is disabled until a broker is provisioned. When enabled, MQTT only wakes
-the agent; HTTP remains the authoritative lease and data-transfer protocol, with
-polling fallback during broker or network outages.
+MQTT is enabled by default and is the only work-discovery trigger. MQTT only
+wakes the agent; HTTP remains the authoritative lease and data-transfer protocol
+after a wake-up. If MQTT is unavailable, work discovery pauses until it
+reconnects; there is no HTTP polling fallback.
 
 The SMS processor and school agent run as separate processes and Windows
 services. Run the agent independently during development:
@@ -246,7 +252,7 @@ sc start FeeSyncer.Sms
 9. **Max retries exceeded** — Status → `CANCELLED`
 
 The school integration agent runs as a separate process and Windows service. It
-heartbeats to the central gateway, leases work using bounded long polling, reads
+heartbeats to the central gateway, discovers work MQTT-first, reads
 student and fee data from the loopback school API, uploads resumable pages, and
 records approved payments. An agent failure cannot stop SMS processing.
 
@@ -290,7 +296,7 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 - **Error logging** — API error responses saved to `description` column for debugging
 - **Null safety** — Nullable enabled with warnings-as-errors
 - **Structured logging** — `[Tag]` prefixed logs for quick filtering
-- **School integration worker** — outbound long polling, resumable snapshots, fee synchronization, and payment write-back
+- **School integration worker** — MQTT-first work discovery, resumable snapshots, fee synchronization, and payment write-back
 
 ## CI/CD
 

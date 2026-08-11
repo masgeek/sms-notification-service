@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -14,16 +15,24 @@ internal sealed class GatewayClient(HttpClient httpClient)
     public async Task<SyncWork?> LeaseAsync(int waitSeconds, CancellationToken cancellationToken)
     {
         var boundedWait = Math.Clamp(waitSeconds, 0, 55);
-        using var response = await httpClient.GetAsync($"api/agent/work?wait={boundedWait}", cancellationToken);
-        CaptureRequestId(response);
-        if (response.StatusCode == HttpStatusCode.NoContent)
+        var stopwatch = Stopwatch.StartNew();
+        try
         {
-            return null;
-        }
+            using var response = await httpClient.GetAsync($"api/agent/work?wait={boundedWait}", cancellationToken);
+            CaptureRequestId(response);
+            if (response.StatusCode == HttpStatusCode.NoContent)
+            {
+                return null;
+            }
 
-        response.EnsureSuccessStatusCode();
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<SyncWork>>(JsonOptions, cancellationToken);
-        return envelope?.Data ?? throw new InvalidOperationException("Lease response did not contain work data.");
+            response.EnsureSuccessStatusCode();
+            var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<SyncWork>>(JsonOptions, cancellationToken);
+            return envelope?.Data ?? throw new InvalidOperationException("Lease response did not contain work data.");
+        }
+        finally
+        {
+            AgentMetrics.RecordLease(stopwatch.Elapsed);
+        }
     }
 
     public async Task HeartbeatAsync(AgentHeartbeat heartbeat, CancellationToken cancellationToken)

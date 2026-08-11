@@ -80,7 +80,7 @@ AddSchoolIntegrationServices(config)
   ├─ GatewayClient                          # heartbeats, leases, uploads, completion
   ├─ SchoolApiClient                        # loopback school API authentication
   ├─ IStudentAdapter → SchoolApiStudentAdapter
-  └─ SchoolIntegrationWorker                # isolated long-polling work loop
+  └─ SchoolIntegrationWorker                # isolated MQTT-first work loop
 ```
 
 The agent is enabled by default. Its central gateway uses a school-scoped

@@ -5,7 +5,7 @@ namespace FeeSyncer.Sms.Tests;
 
 /// <summary>
 /// Regression tests for the <c>ForceCreate</c> call added to <c>TrayIcon</c>'s constructor
-    /// in FeeSyncer.Tray/TrayIcon.cs.
+/// in FeeSyncer.Tray/TrayIcon.cs.
 ///
 /// TrayIcon cannot be exercised as a conventional unit test: it is an <c>internal</c> class
 /// living in a WPF/Windows-only project (net10.0-windows) that this test project does not

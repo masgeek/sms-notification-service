@@ -7,6 +7,7 @@ internal sealed class SchoolIntegrationWorker(
     IStudentAdapter adapter,
     SchoolApiClient schoolApi,
     AgentWakeSignal wakeSignal,
+    MqttAgentState mqttState,
     IOptions<AgentOptions> options,
     ILogger<SchoolIntegrationWorker> logger) : BackgroundService
 {
@@ -29,10 +30,16 @@ internal sealed class SchoolIntegrationWorker(
                     nextHeartbeat = DateTimeOffset.UtcNow.AddSeconds(options.Value.HeartbeatSeconds);
                 }
 
-                work = await gateway.LeaseAsync(options.Value.MqttEnabled ? 0 : options.Value.LongPollSeconds, stoppingToken);
+                if (!mqttState.IsConnected)
+                {
+                    await mqttState.WaitForConnectionAsync(stoppingToken);
+                    continue;
+                }
+
+                work = await gateway.LeaseAsync(0, stoppingToken);
                 if (work is null)
                 {
-                    await wakeSignal.WaitAsync(TimeSpan.FromSeconds(options.Value.IdleDelaySeconds), stoppingToken);
+                    await WaitForNextWorkAsync(stoppingToken);
                     continue;
                 }
 
@@ -68,6 +75,18 @@ internal sealed class SchoolIntegrationWorker(
                 await Task.Delay(TimeSpan.FromSeconds(options.Value.IdleDelaySeconds), stoppingToken);
             }
         }
+    }
+
+    private async Task WaitForNextWorkAsync(CancellationToken cancellationToken)
+    {
+        if (!mqttState.IsConnected)
+        {
+            await mqttState.WaitForConnectionAsync(cancellationToken);
+            return;
+        }
+
+        // MQTT is the fast wake-up path, but a missed hint must not strand work.
+        await wakeSignal.WaitAsync(TimeSpan.FromSeconds(Math.Max(1, options.Value.IdleDelaySeconds)), cancellationToken);
     }
 
     private async Task ExecuteWorkAsync(SyncWork work, CancellationToken cancellationToken)

@@ -19,20 +19,17 @@ internal sealed class AgentOptions
     [Range(1, 300)]
     public int IdleDelaySeconds { get; init; } = 5;
 
-    [Range(0, 55)]
-    public int LongPollSeconds { get; init; } = 25;
-
     [Range(10, 3600)]
     public int HeartbeatSeconds { get; init; } = 60;
 
-    public bool MqttEnabled { get; init; }
+    public bool MqttEnabled { get; init; } = true;
 
-    public string MqttBrokerHost { get; init; } = "127.0.0.1";
+    public string MqttBrokerHost { get; init; } = "mqtt.munywele.co.ke";
 
     [Range(1, 65535)]
-    public int MqttBrokerPort { get; init; } = 1883;
+    public int MqttBrokerPort { get; init; } = 8883;
 
-    public bool MqttUseTls { get; init; }
+    public bool MqttUseTls { get; init; } = true;
 
     public string MqttUsername { get; init; } = string.Empty;
 

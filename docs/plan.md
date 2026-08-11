@@ -12,7 +12,7 @@
 | 6 | **Startup DB Check** | Validates database connectivity before service starts | `DatabaseConnectionCheck.cs` |
 | 7 | **Startup Catch-up** | Processes existing PENDING notifications on restart | `Worker.cs` |
 | 8 | **Retry Tracking** | `retry_count`, `max_retries`, `retry_after` columns with CANCELLED status | `Worker.cs`, `SmsNotification.cs`, `NotificationStatus.cs` |
-| 9 | **School Integration Worker** | Embedded, disabled-by-default agent for student and fee snapshots, payment write-back, heartbeats, bounded long polling, and resumable uploads | `src/SchoolIntegration/`, `docs/school-integration.md` |
+| 9 | **School Integration Worker** | Embedded, MQTT-first agent for student and fee snapshots, payment write-back, heartbeats, and resumable uploads | `src/SchoolIntegration/`, `docs/school-integration.md` |
 
 ---
 

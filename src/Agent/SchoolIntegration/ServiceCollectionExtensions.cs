@@ -10,11 +10,14 @@ public static class SchoolIntegrationServiceCollectionExtensions
     {
         services
             .AddSingleton<FeeSyncer.Agent.SchoolIntegration.AgentWakeSignal>()
+            .AddSingleton<FeeSyncer.Agent.SchoolIntegration.MqttAgentState>()
             .AddOptions<FeeSyncer.Agent.SchoolIntegration.AgentOptions>()
             .Bind(configuration.GetSection(FeeSyncer.Agent.SchoolIntegration.AgentOptions.SectionName))
             .Validate(ValidateOptions, "School integration options are invalid.")
             .Validate(options => IsSecureOrLoopback(options.ServerUrl), "Agent:ServerUrl must use HTTPS unless it targets loopback.")
             .Validate(IsLoopbackApi, "Agent:LocalApiBaseUrl must target loopback.")
+            .Validate(options => IsSecureMqttOrDevelopment(options, configuration),
+                "Agent MQTT must use TLS outside Development.")
             .ValidateOnStart();
 
         var agentOptions = configuration
@@ -63,7 +66,18 @@ public static class SchoolIntegrationServiceCollectionExtensions
         }
 
         var context = new ValidationContext(options);
-        return Validator.TryValidateObject(options, context, null, true);
+        if (!Validator.TryValidateObject(options, context, null, true))
+        {
+            return false;
+        }
+
+        if (options.MqttEnabled && !options.MqttUseTls
+            && (!Uri.TryCreate($"http://{options.MqttBrokerHost}", UriKind.Absolute, out var brokerUri) || !brokerUri.IsLoopback))
+        {
+            return false;
+        }
+
+        return !string.IsNullOrWhiteSpace(options.MqttTopicPrefix);
     }
 
     private static bool IsSecureOrLoopback(string value)
@@ -77,5 +91,20 @@ public static class SchoolIntegrationServiceCollectionExtensions
         return Uri.TryCreate(options.LocalApiBaseUrl, UriKind.Absolute, out var uri)
             && uri.IsLoopback
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private static bool IsSecureMqttOrDevelopment(
+        FeeSyncer.Agent.SchoolIntegration.AgentOptions options,
+        IConfiguration configuration)
+    {
+        if (!options.MqttEnabled || options.MqttUseTls)
+        {
+            return true;
+        }
+
+        var environment = configuration["DOTNET_ENVIRONMENT"]
+            ?? configuration["ASPNETCORE_ENVIRONMENT"]
+            ?? Environments.Production;
+        return string.Equals(environment, Environments.Development, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -182,8 +182,17 @@ Agent configuration is stored in `C:\Program Files\FeeSyncer\Agent\appsettings.P
     "LocalApiPassword": "",
     "RequestTimeoutSeconds": 30,
     "IdleDelaySeconds": 5,
-    "LongPollSeconds": 25,
-    "HeartbeatSeconds": 60
+    "HeartbeatSeconds": 60,
+    "MqttEnabled": true,
+    "MqttBrokerHost": "mqtt.munywele.co.ke",
+    "MqttBrokerPort": 8883,
+    "MqttUseTls": true,
+    "MqttUsername": "",
+    "MqttPassword": "",
+    "MqttTopicPrefix": "fee-syncer/agent",
+    "MqttKeepAliveSeconds": 30,
+    "MqttReconnectMinSeconds": 1,
+    "MqttReconnectMaxSeconds": 60
   }
 }
 ```
@@ -229,6 +238,16 @@ If the config file is missing, environment variables are used as a fallback:
 | `Agent:LocalApiBaseUrl` | `Agent__LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback school API URL |
 | `Agent:LocalApiUsername` | `Agent__LocalApiUsername` | — | Local school API username |
 | `Agent:LocalApiPassword` | `Agent__LocalApiPassword` | — | Local school API password |
+| `Agent:MqttEnabled` | `Agent__MqttEnabled` | `true` | Enables MQTT-first work discovery |
+| `Agent:MqttBrokerHost` | `Agent__MqttBrokerHost` | `mqtt.munywele.co.ke` | MQTT broker host |
+| `Agent:MqttBrokerPort` | `Agent__MqttBrokerPort` | `8883` | TLS MQTT broker port |
+| `Agent:MqttUseTls` | `Agent__MqttUseTls` | `true` | Enables MQTT TLS |
+| `Agent:MqttUsername` | `Agent__MqttUsername` | — | MQTT username |
+| `Agent:MqttPassword` | `Agent__MqttPassword` | — | MQTT password |
+| `Agent:MqttTopicPrefix` | `Agent__MqttTopicPrefix` | `fee-syncer/agent` | MQTT topic prefix |
+| `Agent:MqttKeepAliveSeconds` | `Agent__MqttKeepAliveSeconds` | `30` | MQTT keep-alive interval |
+| `Agent:MqttReconnectMinSeconds` | `Agent__MqttReconnectMinSeconds` | `1` | Minimum reconnect delay |
+| `Agent:MqttReconnectMaxSeconds` | `Agent__MqttReconnectMaxSeconds` | `60` | Maximum reconnect delay |
 
 > **Priority:** Config file (`appsettings.Production.json`) > Environment variables > Defaults
 

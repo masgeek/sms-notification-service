@@ -11,14 +11,15 @@ school-scoped token before the worker can complete central work.
 All agents connect to `https://fees.munywele.co.ke/`. The school is determined by
 the school-scoped bearer API key, not by a school hostname.
 
-The agent sends heartbeats, uses bounded long polling, uploads resumable student
-and fee pages, and performs approved payment write-back. Its process can be
-restarted independently of SMS notification processing.
+The agent sends heartbeats, uses bounded HTTP lease checks, uploads resumable
+student and fee pages, and performs approved payment write-back. Its process can
+be restarted independently of SMS notification processing.
 
-When `MqttEnabled` is true, the agent also subscribes to its per-agent MQTT
-topic. `work_available` messages wake the agent so it can use the existing HTTP
-lease endpoint immediately. MQTT is optional and HTTP polling remains the
-fallback for broker or network outages.
+The agent is MQTT-first and subscribes to its per-agent MQTT topic.
+`work_available` messages are wake-up hints only; the agent immediately calls
+the existing HTTP lease endpoint, which remains authoritative. While MQTT is
+healthy the agent does not continuously poll. During broker or network outages,
+work discovery pauses until MQTT reconnects; there is no HTTP polling fallback.
 
 ## Local Connection
 
@@ -55,12 +56,11 @@ The development file is loaded only when `DOTNET_ENVIRONMENT=Development`.
     "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",
     "LocalApiUsername": "",
     "LocalApiPassword": "",
-    "LongPollSeconds": 25,
     "HeartbeatSeconds": 60,
-    "MqttEnabled": false,
-    "MqttBrokerHost": "127.0.0.1",
-    "MqttBrokerPort": 1883,
-    "MqttUseTls": false,
+    "MqttEnabled": true,
+    "MqttBrokerHost": "mqtt.munywele.co.ke",
+    "MqttBrokerPort": 8883,
+    "MqttUseTls": true,
     "MqttUsername": "",
     "MqttPassword": "",
     "MqttTopicPrefix": "fee-syncer/agent",
@@ -70,6 +70,14 @@ The development file is loaded only when `DOTNET_ENVIRONMENT=Development`.
   }
 }
 ```
+
+Production MQTT connections use TLS on port 8883. Development may use plaintext
+MQTT on port 1883 when `DOTNET_ENVIRONMENT=Development`; do not expose that
+listener publicly. `MqttUsername` and `MqttPassword`
+are optional broker credentials; the bearer API token is never sent in MQTT
+payloads and is only used to derive the topic key and default MQTT username.
+The MQTT payload contains notification metadata only, never student, fee,
+payment, lease-token, or job payload data.
 
 Student and fee records use only the approved minimal fields. The worker does not
 delete records, emit deletion markers, or infer deletion from missing pages.
