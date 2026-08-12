@@ -53,7 +53,8 @@ internal sealed class SchoolIntegrationWorker(
             {
                 logger.LogError(
                     exception,
-                    "Agent loop failed for job {JobId}; no student payload was logged. CorrelationId={CorrelationId}",
+                    "Agent loop failed for {Operation} job {JobId}; no record payload was logged. CorrelationId={CorrelationId}",
+                    work?.Operation ?? "unknown",
                     work?.JobId ?? "none",
                     gateway.LastRequestId ?? "none");
 
@@ -207,6 +208,7 @@ internal sealed class SchoolIntegrationWorker(
             if (page.Count == pageSize)
             {
                 await UploadFeePageOrConfirmAsync(work, pageNumber++, page, pageHashes, cancellationToken);
+                logger.LogInformation("Uploaded fee page {PageNumber} for job {JobId} with {RecordCount} records.", pageNumber - 1, work.JobId, page.Count);
                 page = new List<FeeRecordV1>(pageSize);
             }
         }
@@ -214,6 +216,7 @@ internal sealed class SchoolIntegrationWorker(
         if (page.Count > 0)
         {
             await UploadFeePageOrConfirmAsync(work, pageNumber, page, pageHashes, cancellationToken);
+            logger.LogInformation("Uploaded fee page {PageNumber} for job {JobId} with {RecordCount} records.", pageNumber, work.JobId, page.Count);
         }
 
         await gateway.CompleteAsync(work, new CompletionManifest(

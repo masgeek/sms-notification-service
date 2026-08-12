@@ -43,6 +43,24 @@ public sealed class StudentSyncContractTests
     }
 
     [Fact]
+    public void Hash_preserves_unicode_names_for_the_php_contract()
+    {
+        StudentRecordV1[] records = [new()
+        {
+            SourceStudentId = "SYN-001",
+            AdmissionNumber = "SYN-001",
+            EnrollmentStatus = "active",
+            Name = "Achieng Odhiambo",
+        }];
+
+        var hash = GatewayClient.HashPage(records);
+
+        Assert.Equal(
+            "975b6c97480ba14bf9b9872305f483b21a4e3ee3d9d4e6887ca9b42aad717ef2",
+            hash);
+    }
+
+    [Fact]
     public void Wire_contract_uses_allowlisted_snake_case_fields_only()
     {
         var record = new StudentRecordV1 { SourceStudentId = "student-001", EnrollmentStatus = "active" };

@@ -74,6 +74,7 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
             var sourceId = StringValue(item, "admno", "adm_no");
             if (sourceId is null)
             {
+                // Ignore malformed source rows rather than creating an unkeyed balance.
                 continue;
             }
 
@@ -84,7 +85,7 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
                 EnrollmentStatus = "active",
                 ClassIdentifier = StringValue(item, "ClassNo", "class_number", "form"),
                 SourceUpdatedAt = StringValue(item, "updated_at"),
-                Name = StringValue(item, "Name", "name"),
+                Name = StringValue(item, "Name", "name") ?? sourceId,
                 Phone = StringValue(item, "phone", "phone_number"),
                 Stream = StringValue(item, "STREAM", "stream"),
                 Form = StringValue(item, "form"),
@@ -117,7 +118,7 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
                 OpeningBalance = DecimalValue(item, "Opening_Balance", "opening_balance"),
                 Currency = "KES",
                 SourceUpdatedAt = StringValue(item, "updated_at", "Dated", "dated"),
-                Name = StringValue(item, "Name", "name"),
+                Name = StringValue(item, "Name", "name") ?? sourceId,
                 ParentName = StringValue(item, "pname", "parent_name"),
                 House = StringValue(item, "HOUSE", "house"),
                 Year = StringValue(item, "year"),

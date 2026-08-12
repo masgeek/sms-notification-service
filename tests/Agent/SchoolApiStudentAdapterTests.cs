@@ -100,6 +100,7 @@ public sealed class SchoolApiStudentAdapterTests
         Assert.Equal("-7800.00", fee.Balance);
         Assert.Equal("40000.00", fee.OpeningBalance);
         Assert.Equal("KES", fee.Currency);
+        Assert.Equal("Synthetic Student", fee.Name);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler

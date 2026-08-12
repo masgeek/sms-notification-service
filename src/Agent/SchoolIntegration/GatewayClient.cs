@@ -56,7 +56,7 @@ internal sealed class GatewayClient(HttpClient httpClient)
         request.Content = JsonContent.Create(new PageUpload(hash, records), options: JsonOptions);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         CaptureRequestId(response);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task CompleteAsync(SyncWork work, CompletionManifest manifest, CancellationToken cancellationToken)
@@ -109,5 +109,17 @@ internal sealed class GatewayClient(HttpClient httpClient)
         LastRequestId = response.Headers.TryGetValues("X-Request-Id", out var values)
             ? values.FirstOrDefault()
             : null;
+    }
+
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        body = body.Length > 2_000 ? body[..2_000] : body;
+        throw new HttpRequestException($"HTTP {(int)response.StatusCode} ({response.StatusCode}) from agent gateway: {body}");
     }
 }
