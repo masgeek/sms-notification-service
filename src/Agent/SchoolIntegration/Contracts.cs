@@ -20,7 +20,15 @@ internal sealed record SyncWork(
 
 internal sealed record SyncParameters(
     [property: JsonPropertyName("page_size")] int PageSize = 100,
-    [property: JsonPropertyName("payment")] PaymentRequestV1? Payment = null);
+    [property: JsonPropertyName("payment")] PaymentRequestV1? Payment = null,
+    [property: JsonPropertyName("update")] ProcessorUpdateParameters? Update = null);
+
+internal sealed record ProcessorUpdateParameters(
+    [property: JsonPropertyName("path")] string Path,
+    [property: JsonPropertyName("repository")] string Repository,
+    [property: JsonPropertyName("branch")] string Branch = "main",
+    [property: JsonPropertyName("tag")] string? Tag = null,
+    [property: JsonPropertyName("backup_path")] string? BackupPath = null);
 
 internal sealed record PaymentRequestV1(
     [property: JsonPropertyName("student_reg")] string StudentReg,

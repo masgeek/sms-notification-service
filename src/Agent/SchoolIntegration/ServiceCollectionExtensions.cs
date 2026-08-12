@@ -45,6 +45,7 @@ public static class SchoolIntegrationServiceCollectionExtensions
 
         services.AddSingleton<FeeSyncer.Agent.SchoolIntegration.IStudentAdapter, FeeSyncer.Agent.SchoolIntegration.SchoolApiStudentAdapter>();
         services.AddHostedService<FeeSyncer.Agent.SchoolIntegration.SchoolIntegrationWorker>();
+        services.AddHostedService<FeeSyncer.Agent.SchoolIntegration.FeeProcessorUpdateWorker>();
         if (agentOptions.MqttEnabled)
         {
             services.AddHostedService<FeeSyncer.Agent.SchoolIntegration.MqttAgentConnection>();

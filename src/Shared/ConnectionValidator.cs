@@ -38,6 +38,11 @@ public sealed class ConnectionValidator
         return result;
     }
 
+    public static async Task<CheckResult> ValidateHttpAsync(string url, string? bearerToken = null)
+    {
+        return await ValidateApiAsync(url, bearerToken ?? string.Empty);
+    }
+
     private static async Task<CheckResult> ValidateDbAsync(string connectionString)
     {
         if (string.IsNullOrWhiteSpace(connectionString))

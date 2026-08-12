@@ -47,10 +47,4 @@ public partial class StatusWindow : Window
     private void StopButton_Click(object sender, RoutedEventArgs e) => _monitor.StopService();
     private void RestartButton_Click(object sender, RoutedEventArgs e) => _monitor.RestartService();
 
-    protected override void OnClosing(CancelEventArgs e)
-    {
-        e.Cancel = true;
-        Hide();
-        base.OnClosing(e);
-    }
 }

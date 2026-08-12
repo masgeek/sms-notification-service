@@ -96,10 +96,4 @@ public partial class SendNotificationDialog : Window
         AdmNoBox.Text = string.Empty;
     }
 
-    protected override void OnClosing(CancelEventArgs e)
-    {
-        e.Cancel = true;
-        Hide();
-        base.OnClosing(e);
-    }
 }

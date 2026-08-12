@@ -206,10 +206,10 @@ central fee-syncer admin interface, exchange it once at
 provisioning placeholder with the returned `fsk_...` token in `Agent:AgentToken`.
 The code expires after 15 minutes and is not a runtime credential. See
 [School integration deployment](school-integration.md) for the enrollment flow,
-local API requirements, and security rules. The installer performs the
-exchange and writes the returned token and local API credentials to the agent
-configuration; it does not expose either credential in installer arguments or
-logs.
+local API requirements, and security rules. After installation, use the tray
+app's Settings screen to perform the exchange and write the returned token and
+local API credentials to the agent configuration. The installer does not handle
+enrollment credentials.
 
 ### Environment Variables (Fallback)
 

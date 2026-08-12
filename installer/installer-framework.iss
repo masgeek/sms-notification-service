@@ -12,7 +12,6 @@
 ;   code/utils.iss      - Utility functions (RunCmd, BoolToStr, JsonEscape)
 ;   code/services.iss   - Windows Service management
 ;   code/eventlog.iss   - Windows Event Log helpers
-;   code/config.iss     - Configuration and database helpers
 ;   code/wizard.iss     - Wizard page initialization and validation
 ;   code/install.iss    - Install, upgrade, and post-install logic
 ;   code/uninstall.iss  - Uninstall logic
@@ -71,7 +70,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64os
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
-SetupIconFile=..\favicon.ico
+SetupIconFile=..\src\Tray\favicon.ico
 UninstallDisplayIcon={app}\FeeSyncer.Sms.exe
 UninstallDisplayName={#MyAppName} {#MyAppVersion} (Framework)
 WizardStyle=modern
@@ -126,7 +125,6 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 #include "code\utils.iss"
 #include "code\services.iss"
 #include "code\eventlog.iss"
-#include "code\config.iss"
 #include "code\globals.iss"
 #include "code\wizard.iss"
 #include "code\install.iss"

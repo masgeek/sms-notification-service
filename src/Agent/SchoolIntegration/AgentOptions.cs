@@ -54,4 +54,13 @@ internal sealed class AgentOptions
     public string LocalApiUsername { get; init; } = string.Empty;
 
     public string LocalApiPassword { get; init; } = string.Empty;
+
+    public bool FeeProcessorUpdateEnabled { get; init; } = false;
+    [Range(1, 168)]
+    public int FeeProcessorUpdateIntervalHours { get; init; } = 24;
+    public string FeeProcessorPath { get; init; } = string.Empty;
+    public string FeeProcessorRepository { get; init; } = string.Empty;
+    public string FeeProcessorBranch { get; init; } = "main";
+    public string FeeProcessorTag { get; init; } = string.Empty;
+    public string FeeProcessorBackupPath { get; init; } = "C:\\fee-processor-backups";
 }

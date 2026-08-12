@@ -181,16 +181,105 @@ public sealed class ServiceMonitor : IDisposable
         });
     }
 
-    private static void Execute(string action)
+    public void RestartAgentService()
+    {
+        AppLogger.Info("Monitor", "Restarting agent service...");
+        ExecuteService(Constants.AgentServiceName, "stop");
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(2000);
+            ExecuteService(Constants.AgentServiceName, "start");
+        });
+    }
+
+    public ServiceControllerStatus? GetServiceStatus(string serviceName)
     {
         try
         {
-            AppLogger.Info("Monitor", $"Executing: sc.exe {action} {Constants.ServiceName}");
-            Process.Start("sc.exe", $"{action} {Constants.ServiceName}");
+            using var controller = new ServiceController(serviceName);
+            return controller.Status;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public bool InstallService(string serviceName, string displayName, string executablePath)
+    {
+        var result = RunElevated("create", $"{serviceName} binPath= \"{executablePath}\" start= delayed-auto DisplayName= \"{displayName}\" obj= LocalSystem");
+        return result;
+    }
+
+    public bool UninstallService(string serviceName)
+    {
+        StopNamedService(serviceName);
+        return RunElevated("delete", serviceName);
+    }
+
+    public void StartNamedService(string serviceName) => RunServiceCommand("start", serviceName);
+
+    public void StopNamedService(string serviceName) => RunServiceCommand("stop", serviceName);
+
+    public void RestartNamedService(string serviceName)
+    {
+        StopNamedService(serviceName);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1500);
+            StartNamedService(serviceName);
+        });
+    }
+
+    private static void Execute(string action)
+        => ExecuteService(Constants.ServiceName, action);
+
+    private static void ExecuteService(string serviceName, string action)
+    {
+        try
+        {
+            AppLogger.Info("Monitor", $"Executing: sc.exe {action} {serviceName}");
+            Process.Start("sc.exe", $"{action} {serviceName}");
         }
         catch (Exception ex)
         {
             AppLogger.Error("Monitor", $"Failed to {action} service", ex);
+        }
+    }
+
+    private static void RunServiceCommand(string action, string serviceName)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo("sc.exe", $"{action} {serviceName}")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Monitor", $"Failed to {action} service {serviceName}", ex);
+        }
+    }
+
+    private static bool RunElevated(string action, string arguments)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo("sc.exe", $"{action} {arguments}")
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                WindowStyle = ProcessWindowStyle.Hidden,
+            });
+            process?.WaitForExit();
+            return process?.ExitCode == 0;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Monitor", $"Failed to {action} service", ex);
+            return false;
         }
     }
 

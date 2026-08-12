@@ -44,9 +44,11 @@ POST https://fees.munywele.co.ke/api/agent/enroll
 
 Include `enrollment_code` and an `agent_name` in the JSON body. The response
 contains a permanent school-scoped bearer token beginning with `fsk_`.
-Store that returned token in protected service configuration as
-`Agent:AgentToken`, then restart the service. Never put either credential in
-source control, installer arguments, logs, or student fixtures.
+Open the FeeSyncer tray app's **Settings** screen, enter the code and local API
+credentials, and click **Enroll / Re-enroll**. The tray app stores the returned
+token in protected agent configuration and restarts the agent service. Never
+put either credential in source control, installer arguments, logs, or student
+fixtures.
 
 After this exchange, the agent never uses the `enroll_` code again. All runtime
 requests use the returned `fsk_` token. If the code expires or is consumed,

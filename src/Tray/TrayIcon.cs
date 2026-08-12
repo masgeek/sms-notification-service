@@ -17,10 +17,7 @@ internal sealed class TrayIcon : IDisposable
     private readonly TaskbarIcon _icon;
     private readonly DispatcherTimer _statusTimer;
 
-    private StatusWindow? _statusWindow;
-    private LogViewer? _logViewer;
-    private SendNotificationDialog? _sendDialog;
-    private ConfigEditor? _configEditor;
+    private ControlPanel? _controlPanel;
 
     public TrayIcon()
     {
@@ -35,7 +32,8 @@ internal sealed class TrayIcon : IDisposable
             ToolTipText = "FeeSyncer.Sms — Starting..."
         };
 
-        _icon.LeftClickCommand = new DelegateCommand(_ => ShowStatusWindow());
+        _icon.LeftClickCommand = new DelegateCommand(_ => ShowControlPanel());
+        _icon.TrayMouseDoubleClick += (_, _) => ShowControlPanel();
         _icon.ContextMenu = BuildContextMenu();
         _icon.ForceCreate(enablesEfficiencyMode: false);
 
@@ -86,30 +84,41 @@ internal sealed class TrayIcon : IDisposable
 
     private void ShowStatusWindow()
     {
-        _statusWindow ??= new StatusWindow(_monitor);
-        _statusWindow.Show();
-        _statusWindow.Activate();
+        var dialog = new StatusWindow(_monitor);
+        dialog.ShowDialog();
+    }
+
+    private void ShowControlPanel()
+    {
+        _controlPanel ??= new ControlPanel(_monitor);
+        _controlPanel.Show();
+        _controlPanel.WindowState = WindowState.Maximized;
+        _controlPanel.Activate();
+    }
+
+    public void ShowSetup()
+    {
+        ShowControlPanel();
+        var dialog = new ConfigEditor(_monitor) { Owner = _controlPanel };
+        dialog.ShowDialog();
     }
 
     private void ShowLogViewer()
     {
-        _logViewer ??= new LogViewer();
-        _logViewer.Show();
-        _logViewer.Activate();
+        var dialog = new LogViewer();
+        dialog.ShowDialog();
     }
 
     private void ShowSendDialog()
     {
-        _sendDialog ??= new SendNotificationDialog();
-        _sendDialog.Show();
-        _sendDialog.Activate();
+        var dialog = new SendNotificationDialog();
+        dialog.ShowDialog();
     }
 
     private void ShowConfigEditor()
     {
-        _configEditor ??= new ConfigEditor(_monitor);
-        _configEditor.Show();
-        _configEditor.Activate();
+        var dialog = new ConfigEditor(_monitor);
+        dialog.ShowDialog();
     }
 
     private async void ShowConnectionValidator()
@@ -126,7 +135,8 @@ internal sealed class TrayIcon : IDisposable
     {
         var menu = new ContextMenu();
 
-        menu.Items.Add(new MenuItem { Header = "Status", Command = new DelegateCommand(_ => ShowStatusWindow()) });
+        menu.Items.Add(new MenuItem { Header = "Open Control Panel", Command = new DelegateCommand(_ => ShowControlPanel()) });
+        menu.Items.Add(new MenuItem { Header = "Status Details", Command = new DelegateCommand(_ => ShowStatusWindow()) });
         menu.Items.Add(new MenuItem { Header = "View Logs", Command = new DelegateCommand(_ => ShowLogViewer()) });
         menu.Items.Add(new MenuItem { Header = "Send Notification", Command = new DelegateCommand(_ => ShowSendDialog()) });
         menu.Items.Add(new MenuItem { Header = "Validate Connections", Command = new DelegateCommand(_ => ShowConnectionValidator()) });

@@ -103,11 +103,9 @@ public partial class LogViewer : Window
             Process.Start("explorer.exe", ConfigPathResolver.GetLogDir());
     }
 
-    protected override void OnClosing(CancelEventArgs e)
+    protected override void OnClosed(EventArgs e)
     {
-        e.Cancel = true;
         _refreshTimer.Stop();
-        Hide();
-        base.OnClosing(e);
+        base.OnClosed(e);
     }
 }

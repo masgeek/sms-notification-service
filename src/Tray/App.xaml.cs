@@ -18,6 +18,8 @@ public partial class App : Application
             base.OnStartup(e);
 
             _trayIcon = new TrayIcon();
+            if (e.Args.Any(arg => string.Equals(arg, "--setup", StringComparison.OrdinalIgnoreCase)))
+                _trayIcon.ShowSetup();
 
             AppLogger.Info("App", "Tray app initialized successfully");
         }

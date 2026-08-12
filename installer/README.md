@@ -6,13 +6,13 @@ Inno Setup installer for FeeSyncer. Two variants available:
 - **Framework-dependent** (`installer-framework.iss`) — requires .NET 10 runtime on target machine
 
 The installer installs separate Windows services for SMS notification processing
-and school integration. The agent is enabled by default. The SMS service reads
+and school integration. Both services are installed stopped with manual startup;
+the SMS tray monitor opens the maximized Control Panel and application settings
+after installation. The agent is enabled by default. The SMS service reads
 the root `appsettings.Production.json`; the agent reads
-`Agent\appsettings.Production.json`. During setup, the wizard accepts a
-short-lived `enroll_...` code, exchanges it over HTTPS for the permanent
-`fsk_...` token, and writes the token directly to protected agent configuration.
-The enrollment code and returned token are never passed as process arguments or
-written to installer logs.
+`Agent\appsettings.Production.json`. Enrollment and agent configuration are
+managed after installation from the FeeSyncer tray app; the installer does not
+handle enrollment codes or bearer tokens.
 
 ## Structure
 
@@ -25,7 +25,6 @@ installer/
 │   ├── utils.iss              # RunCmd, BoolToStr, JsonEscape
 │   ├── services.iss           # Windows Service management
 │   ├── eventlog.iss           # Event Log helpers
-│   ├── config.iss             # Config writer
 │   ├── wizard.iss             # Wizard pages and validation
 │   ├── install.iss            # Fresh install, upgrade logic
 │   └── uninstall.iss          # Uninstall logic
@@ -77,7 +76,6 @@ Add `#include` in the `[Code]` section (order matters for dependencies):
 #include "code\utils.iss"        # Functions used by other modules
 #include "code\services.iss"     # Depends on utils
 #include "code\eventlog.iss"
-#include "code\config.iss"
 #include "code\globals.iss"      # Variables used by wizard
 #include "code\wizard.iss"       # Depends on globals, config
 #include "code\install.iss"      # Depends on all above
@@ -91,9 +89,8 @@ Add `#include` in the `[Code]` section (order matters for dependencies):
 | `utils.iss` | Utility functions | None |
 | `services.iss` | Service management | `utils.iss` (RunCmd) |
 | `eventlog.iss` | Event Log | None |
-| `config.iss` | Config writer | `utils.iss` (JsonEscape, BoolToStr) |
 | `globals.iss` | Variables, InitSetup | `services.iss` |
-| `wizard.iss` | UI pages, validation | `globals.iss`, `config.iss` |
+| `wizard.iss` | UI pages and install choices | `globals.iss` |
 | `install.iss` | Install logic | All above |
 | `uninstall.iss` | Uninstall logic | `services.iss`, `eventlog.iss` |
 
@@ -104,40 +101,12 @@ Add `#include` in the `[Code]` section (order matters for dependencies):
 3. **Functions are global** — all `#include` files share the same `[Code]` scope
 4. **Both installers share the same code modules** — changes to `code/` affect both installers
 
-## Agent Configuration
-
-The installer writes these safe defaults into the generated configuration:
-
-```json
-"Agent": {
-  "Enabled": true,
-  "ServerUrl": "https://fees.munywele.co.ke/",
-  "AgentToken": "replace-with-a-provisioned-agent-token",
-  "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",
-  "LocalApiUsername": "",
-  "LocalApiPassword": "",
-  "RequestTimeoutSeconds": 30,
-  "IdleDelaySeconds": 5,
-  "HeartbeatSeconds": 60,
-  "MqttEnabled": true,
-  "MqttBrokerHost": "mqtt.munywele.co.ke",
-  "MqttBrokerPort": 8883,
-  "MqttUseTls": true,
-  "MqttUsername": "",
-  "MqttPassword": "",
-  "MqttTopicPrefix": "fee-syncer/agent",
-  "MqttKeepAliveSeconds": 30,
-  "MqttReconnectMinSeconds": 1,
-  "MqttReconnectMaxSeconds": 60
-}
-```
-
-Before running the installer, open the target school in the central fee-syncer
-admin interface and generate a single-use `enroll_...` code. The installer asks
-for that code, the agent name, and the local fee-processor credentials, then
-calls `POST https://fees.munywele.co.ke/api/agent/enroll`, stores the returned
-`fsk_...` token as `Agent:AgentToken`, and starts the services. The enrollment
-code expires after 15 minutes and is not used for runtime requests. See
+After installation, open the FeeSyncer tray app's **Settings** screen. Enter
+the central enrollment code and local fee-processor credentials, then click
+**Enroll / Re-enroll**. The tray app exchanges the single-use `enroll_...` code,
+writes the returned `fsk_...` token to the agent configuration, and can restart
+the agent service. The enrollment code expires after 15 minutes and is not
+used for runtime requests. See
 [`docs/school-integration.md`](../docs/school-integration.md).
 
 Configure MQTT-first work discovery with `Agent:MqttEnabled`, broker

@@ -1,0 +1,52 @@
+<Window x:Class="FeeSyncer.Tray.ControlPanel"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FeeSyncer Control Panel" Width="760" Height="560"
+        MinWidth="680" MinHeight="480" WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True" ResizeMode="CanResize">
+    <Grid Margin="22">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Margin="0,0,0,18">
+            <TextBlock Text="FeeSyncer Control Panel" FontSize="24" FontWeight="Bold"/>
+            <TextBlock Text="Manage services, configuration, enrollment, and diagnostics from one place." Foreground="Gray" Margin="0,5,0,0"/>
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Border Grid.Column="0" BorderBrush="#D8DEE9" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,8,0">
+                <StackPanel>
+                    <TextBlock Text="SMS Notification Service" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="FeeSyncer.Sms" Foreground="Gray" Margin="0,3,0,14"/>
+                    <TextBlock x:Name="SmsStatusText" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="SmsDetailsText" Foreground="Gray" Margin="0,4,0,16" TextWrapping="Wrap"/>
+                    <WrapPanel>
+                        <Button x:Name="StartSmsButton" Content="Start" Click="StartSms_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button x:Name="StopSmsButton" Content="Stop" Click="StopSms_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button x:Name="RestartSmsButton" Content="Restart" Click="RestartSms_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button x:Name="InstallSmsButton" Content="Install" Click="InstallSms_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button x:Name="UninstallSmsButton" Content="Uninstall" Click="UninstallSms_Click" Padding="12,5" Margin="0,0,6,6"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="1" BorderBrush="#D8DEE9" BorderThickness="1" CornerRadius="8" Padding="16" Margin="8,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="School Integration Agent" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="FeeSyncer.Agent" Foreground="Gray" Margin="0,3,0,14"/>
+                    <TextBlock x:Name="AgentStatusText" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="AgentDetailsText" Foreground="Gray" Margin="0,4,0,16" TextWrapping="Wrap"/>
+                    <WrapPanel>
+                        <Button x:Name="StartAgentButton" Content="Start" Click="StartAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button x:Name="StopAgentButton" Content="Stop" Click="StopAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button x:Name="RestartAgentButton" Content="Restart" Click="RestartAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button x:Name="InstallAgentButton" Content="Install" Click="InstallAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button x:Name="UninstallAgentButton" Content="Uninstall" Click="UninstallAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Settings" Click="Settings_Click" Padding="14,6" Margin="0,0,8,0"/>
+            <Button Content="View Logs" Click="Logs_Click" Padding="14,6" Margin="0,0,8,0"/>
+            <Button Content="Minimize to Tray" Click="Minimize_Click" Padding="14,6"/>
+        </StackPanel>
+    </Grid>
+</Window>
