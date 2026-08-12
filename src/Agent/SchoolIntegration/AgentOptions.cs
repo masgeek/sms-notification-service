@@ -21,6 +21,8 @@ internal sealed class AgentOptions
 
     [Range(10, 3600)]
     public int HeartbeatSeconds { get; init; } = 60;
+
+    [Range(5, 3600)]
     public int LeaseRenewalSeconds { get; init; } = 30;
 
     public bool MqttEnabled { get; init; } = true;
