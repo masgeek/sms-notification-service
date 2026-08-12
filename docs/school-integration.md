@@ -29,16 +29,28 @@ school service configuration. Login tokens are refreshed before their expiry.
 
 ## Enrollment
 
-An operator generates a single-use enrollment code in the central fee-syncer
-admin interface. Exchange it once at:
+Enrollment is a two-step bootstrap flow. The enrollment code is not the agent's
+runtime credential.
+
+1. A fee-syncer operator opens the target school in the central admin interface
+   and chooses **Generate agent enrollment code**.
+2. The admin displays a single-use code beginning with `enroll_`. It expires
+   after 15 minutes and is shown only at generation time.
+3. Exchange the code once at:
 
 ```text
 POST https://fees.munywele.co.ke/api/agent/enroll
 ```
 
-Store the returned bearer token in protected service configuration as
-`Agent:AgentToken`. Never put the token in source control, installer arguments,
-logs, or student fixtures.
+Include `enrollment_code` and an `agent_name` in the JSON body. The response
+contains a permanent school-scoped bearer token beginning with `fsk_`.
+Store that returned token in protected service configuration as
+`Agent:AgentToken`, then restart the service. Never put either credential in
+source control, installer arguments, logs, or student fixtures.
+
+After this exchange, the agent never uses the `enroll_` code again. All runtime
+requests use the returned `fsk_` token. If the code expires or is consumed,
+generate a new code in the central admin interface.
 
 ## Configuration
 

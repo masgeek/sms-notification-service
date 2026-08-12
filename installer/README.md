@@ -8,8 +8,11 @@ Inno Setup installer for FeeSyncer. Two variants available:
 The installer installs separate Windows services for SMS notification processing
 and school integration. The agent is enabled by default. The SMS service reads
 the root `appsettings.Production.json`; the agent reads
-`Agent\appsettings.Production.json`. Enrollment tokens must be provisioned
-separately and must never be passed as installer arguments.
+`Agent\appsettings.Production.json`. During setup, the wizard accepts a
+short-lived `enroll_...` code, exchanges it over HTTPS for the permanent
+`fsk_...` token, and writes the token directly to protected agent configuration.
+The enrollment code and returned token are never passed as process arguments or
+written to installer logs.
 
 ## Structure
 
@@ -129,8 +132,12 @@ The installer writes these safe defaults into the generated configuration:
 }
 ```
 
-After installation, enroll the school and set `Agent:Enabled` and
-`Agent:AgentToken` directly in the protected agent configuration. See
+Before running the installer, open the target school in the central fee-syncer
+admin interface and generate a single-use `enroll_...` code. The installer asks
+for that code, the agent name, and the local fee-processor credentials, then
+calls `POST https://fees.munywele.co.ke/api/agent/enroll`, stores the returned
+`fsk_...` token as `Agent:AgentToken`, and starts the services. The enrollment
+code expires after 15 minutes and is not used for runtime requests. See
 [`docs/school-integration.md`](../docs/school-integration.md).
 
 Configure MQTT-first work discovery with `Agent:MqttEnabled`, broker

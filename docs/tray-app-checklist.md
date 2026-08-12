@@ -182,8 +182,10 @@ Temporary working document. Delete after implementation is complete.
 - [x] Results displayed via balloon notification on tray icon
 
 The tray editor does not perform school-agent enrollment. Operators must
-exchange the single-use enrollment code through the central admin interface and
-then enter the returned token in protected service configuration.
+generate a single-use `enroll_...` code for the target school in the central
+fee-syncer admin interface, exchange it at `POST /api/agent/enroll`, and then
+enter the returned `fsk_...` token in protected service configuration. The code
+expires after 15 minutes and is not used after the exchange.
 
 ---
 

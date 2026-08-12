@@ -11,6 +11,8 @@ var
   InstallConsoleApp : Boolean;
   StartTrayAfter   : Boolean;
   ConfigPromptPage : TInputOptionWizardPage;
+  AgentPage        : TInputQueryWizardPage;
+  AgentToken       : String;
 
 function InitializeSetup: Boolean;
 begin

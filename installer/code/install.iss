@@ -29,7 +29,7 @@ begin
   if not KeepExistingCfg then
   begin
     RegisterEventLog;
-    WriteConfigurationFile(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3], ApiUrlPage.Values[0], ApiUrlPage.Values[1]);
+    WriteConfigurationFile(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3], ApiUrlPage.Values[0], ApiUrlPage.Values[1], AgentToken, AgentPage.Values[2], AgentPage.Values[3], AgentPage.Values[4]);
   end
   else
     Log('Skipping configuration write — keeping existing file.');
@@ -88,7 +88,7 @@ begin
   if not KeepExistingCfg then
   begin
     Log('Writing updated configuration...');
-    WriteConfigurationFile(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3], ApiUrlPage.Values[0], ApiUrlPage.Values[1]);
+    WriteConfigurationFile(DbPage.Values[0], DbPage.Values[1], DbPage.Values[2], DbPage.Values[3], ApiUrlPage.Values[0], ApiUrlPage.Values[1], AgentToken, AgentPage.Values[2], AgentPage.Values[3], AgentPage.Values[4]);
   end
   else
     Log('Keeping existing configuration.');

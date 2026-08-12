@@ -200,10 +200,16 @@ Agent configuration is stored in `C:\Program Files\FeeSyncer\Agent\appsettings.P
 Edit the file directly, use the tray app's Config Editor, or reinstall with "Enter new configuration" selected.
 
 The school integration worker is enabled by default. Before starting the
-service, enroll the school and replace the provisioning placeholder in
-`Agent:AgentToken`. See [School integration deployment](school-integration.md)
-for the enrollment flow, local API requirements, and security rules. The
-installer writes the placeholder but does not collect or expose the agent token.
+service, generate a single-use `enroll_...` code from the target school in the
+central fee-syncer admin interface, exchange it once at
+`POST https://fees.munywele.co.ke/api/agent/enroll`, and replace the
+provisioning placeholder with the returned `fsk_...` token in `Agent:AgentToken`.
+The code expires after 15 minutes and is not a runtime credential. See
+[School integration deployment](school-integration.md) for the enrollment flow,
+local API requirements, and security rules. The installer performs the
+exchange and writes the returned token and local API credentials to the agent
+configuration; it does not expose either credential in installer arguments or
+logs.
 
 ### Environment Variables (Fallback)
 
@@ -234,7 +240,7 @@ If the config file is missing, environment variables are used as a fallback:
 | `SmsService:RetryBackoffSeconds` | `SmsService__RetryBackoffSeconds` | `30` | Base retry backoff in seconds |
 | `Agent:Enabled` | `Agent__Enabled` | `true` | Enables the standalone school agent service |
 | `Agent:ServerUrl` | `Agent__ServerUrl` | `https://fees.munywele.co.ke/` | Central agent gateway URL |
-| `Agent:AgentToken` | `Agent__AgentToken` | — | School-scoped bearer token |
+| `Agent:AgentToken` | `Agent__AgentToken` | — | Permanent `fsk_...` school-scoped bearer token returned by enrollment; never the one-time `enroll_...` code |
 | `Agent:LocalApiBaseUrl` | `Agent__LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback school API URL |
 | `Agent:LocalApiUsername` | `Agent__LocalApiUsername` | — | Local school API username |
 | `Agent:LocalApiPassword` | `Agent__LocalApiPassword` | — | Local school API password |
@@ -471,9 +477,9 @@ Each release produces:
 
 ### School integration enrollment failing
 
-1. Generate a fresh single-use enrollment code in the central fee-syncer admin interface
-2. Exchange it once at `POST https://fees.munywele.co.ke/api/agent/enroll`
-3. Store the returned token as protected `Agent:AgentToken` configuration
+1. Generate a fresh single-use `enroll_...` code from the target school in the central fee-syncer admin interface
+2. Exchange it once at `POST https://fees.munywele.co.ke/api/agent/enroll`, sending `enrollment_code` and `agent_name`
+3. Store the returned `fsk_...` token as protected `Agent:AgentToken` configuration; do not store the `enroll_...` code
 4. Restart the Windows service after changing configuration
 
 ### File logs not appearing

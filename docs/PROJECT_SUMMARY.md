@@ -169,6 +169,13 @@ Config lives in the **app directory** (`{app}\appsettings.Production.json`), NOT
 Agent settings use the same convention, for example
 `Agent__Enabled`, `Agent__ServerUrl`, and `Agent__AgentToken`.
 
+`Agent__AgentToken` must contain the permanent school-scoped `fsk_...` token
+returned by `POST /api/agent/enroll`. To obtain it, an operator generates a
+single-use `enroll_...` code for the school in the central fee-syncer admin
+interface, exchanges the code once, and stores the returned token in protected
+configuration. The enrollment code expires after 15 minutes and is never used
+for runtime agent requests.
+
 ---
 
 ## 5. Database Schema

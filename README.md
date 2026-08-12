@@ -54,8 +54,12 @@ Laravel API + queue -> MQTT broker -> Windows agents
 - Access to an SMS API endpoint
 
 For the school integration worker, also configure a reachable FeeSyncer gateway
-and a school-scoped agent token. The local school API must be available through
-the configured loopback URL.
+and a school-scoped agent token. Bootstrap that token by generating a one-time
+`enroll_...` code in the central fee-syncer admin interface, exchanging it at
+`POST /api/agent/enroll`, and storing the returned `fsk_...` token in
+`Agent:AgentToken`. The enrollment code expires after 15 minutes and is never
+used for runtime requests. The local school API must be available through the
+configured loopback URL.
 
 ## Setup
 
@@ -154,7 +158,7 @@ credentials, and service behavior.
 | `MaxLogFileSizeMb` | `10` | Max log file size before rotation |
 | `Agent:Enabled` | `true` | Enables the standalone school integration service |
 | `Agent:ServerUrl` | `https://fees.munywele.co.ke/` | Central agent gateway URL; HTTPS is required except for loopback |
-| `Agent:AgentToken` | — | Provisioned school-scoped bearer token; required when enabled |
+| `Agent:AgentToken` | — | Returned `fsk_...` school-scoped bearer token; required when enabled. Never use the one-time `enroll_...` code here |
 | `Agent:LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback-only school API URL |
 | `Agent:LocalApiUsername` | — | Local school API username |
 | `Agent:LocalApiPassword` | — | Local school API password |
@@ -172,9 +176,12 @@ credentials, and service behavior.
 | `Agent:MqttReconnectMinSeconds` | `1` | Minimum reconnect delay |
 | `Agent:MqttReconnectMaxSeconds` | `60` | Maximum reconnect delay |
 
-The agent is enabled by default. Complete enrollment and replace the
-provisioning placeholder before starting the service; keep the bearer token out
-of source control, installer arguments, logs, and fixtures.
+The agent is enabled by default. Generate a single-use `enroll_...` code in the
+central fee-syncer admin interface, exchange it at `POST /api/agent/enroll`, and
+replace the provisioning placeholder with the returned `fsk_...` token before
+starting the service. The installer can perform this exchange for the user.
+Keep both credentials out of source control, installer arguments, logs, and
+fixtures.
 
 MQTT is enabled by default and is the only work-discovery trigger. MQTT only
 wakes the agent; HTTP remains the authoritative lease and data-transfer protocol

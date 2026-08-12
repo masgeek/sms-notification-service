@@ -1,4 +1,4 @@
-procedure WriteConfigurationFile(const Server, Database, Username, Password, ApiUrl, Token: String);
+procedure WriteConfigurationFile(const Server, Database, Username, Password, ApiUrl, Token, EnrolledAgentToken, LocalApiUrl, LocalApiUsername, LocalApiPassword: String);
 var
   CfgPath: String;
   AgentCfgPath: String;
@@ -30,16 +30,18 @@ begin
     '  "Agent": {' + #13#10 +
     '    "Enabled": true,' + #13#10 +
     '    "ServerUrl": "https://fees.munywele.co.ke/",' + #13#10 +
-    '    "AgentToken": "replace-with-a-provisioned-agent-token",' + #13#10 +
-    '    "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",' + #13#10 +
-    '    "LocalApiUsername": "",' + #13#10 +
-    '    "LocalApiPassword": "",' + #13#10 +
-    '    "LongPollSeconds": 25,' + #13#10 +
-    '    "HeartbeatSeconds": 60,' + #13#10 +
-    '    "MqttEnabled": false,' + #13#10 +
-    '    "MqttBrokerHost": "127.0.0.1",' + #13#10 +
-    '    "MqttBrokerPort": 1883,' + #13#10 +
-    '    "MqttUseTls": false,' + #13#10 +
+     '    "AgentToken": "' + JsonEscape(EnrolledAgentToken) + '",' + #13#10 +
+     '    "LocalApiBaseUrl": "' + JsonEscape(LocalApiUrl) + '",' + #13#10 +
+     '    "LocalApiUsername": "' + JsonEscape(LocalApiUsername) + '",' + #13#10 +
+     '    "LocalApiPassword": "' + JsonEscape(LocalApiPassword) + '",' + #13#10 +
+     '    "RequestTimeoutSeconds": 30,' + #13#10 +
+     '    "IdleDelaySeconds": 5,' + #13#10 +
+     '    "HeartbeatSeconds": 60,' + #13#10 +
+     '    "LeaseRenewalSeconds": 30,' + #13#10 +
+     '    "MqttEnabled": true,' + #13#10 +
+     '    "MqttBrokerHost": "mqtt.munywele.co.ke",' + #13#10 +
+     '    "MqttBrokerPort": 8883,' + #13#10 +
+     '    "MqttUseTls": true,' + #13#10 +
     '    "MqttUsername": "",' + #13#10 +
     '    "MqttPassword": "",' + #13#10 +
     '    "MqttTopicPrefix": "fee-syncer/agent",' + #13#10 +

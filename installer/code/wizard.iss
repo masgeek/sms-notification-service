@@ -21,6 +21,20 @@ begin
     PrevPageID := ConfigPromptPage.ID;
   end;
 
+  AgentPage := CreateInputQueryPage(PrevPageID,
+    'School Agent Enrollment',
+    'Connect this installation to a school in FeeSyncer.',
+    'Generate a single-use enrollment code in the FeeSyncer admin interface, then enter it below. The installer exchanges it for the permanent agent token automatically.' + #13#10 +
+    'The code expires after 15 minutes and can be used once.');
+  AgentPage.Add('Enrollment code (enroll_...):', True);
+  AgentPage.Add('Agent name:', False);
+  AgentPage.Add('Local fee-processor API URL:', False);
+  AgentPage.Add('Local API username:', False);
+  AgentPage.Add('Local API password:', True);
+  AgentPage.Values[1] := 'School Agent';
+  AgentPage.Values[2] := 'http://127.0.0.1:8001/api/';
+  PrevPageID := AgentPage.ID;
+
   DbPage := CreateInputQueryPage(PrevPageID,
     'Database Server',
     'Enter the SQL Server connection details.',
@@ -85,7 +99,7 @@ begin
 
   if KeepExistingCfg then
   begin
-    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = TrayPage.ID) or (PageID = ConsolePage.ID) or (PageID = StartTrayPage.ID);
+    Result := (PageID = DbPage.ID) or (PageID = ApiUrlPage.ID) or (PageID = AgentPage.ID) or (PageID = TrayPage.ID) or (PageID = ConsolePage.ID) or (PageID = StartTrayPage.ID);
     Exit;
   end;
 
@@ -156,6 +170,51 @@ begin
       Result := False;
       Exit;
     end;
+  end;
+
+  if CurPageID = AgentPage.ID then
+  begin
+    if (Pos('enroll_', Trim(AgentPage.Values[0])) <> 1) then
+    begin
+      MsgBox('Enter the enrollment code beginning with enroll_.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if Trim(AgentPage.Values[1]) = '' then
+    begin
+      MsgBox('The agent name cannot be empty.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if Trim(AgentPage.Values[2]) = '' then
+    begin
+      MsgBox('The local fee-processor API URL cannot be empty.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if Trim(AgentPage.Values[3]) = '' then
+    begin
+      MsgBox('The local API username cannot be empty.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    if Trim(AgentPage.Values[4]) = '' then
+    begin
+      MsgBox('The local API password cannot be empty.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+
+    if AgentToken <> '' then
+      Exit;
+
+    AgentToken := EnrollAgent(Trim(AgentPage.Values[0]), Trim(AgentPage.Values[1]));
+    if AgentToken = '' then
+    begin
+      Result := False;
+      Exit;
+    end;
+    Log('School agent enrollment completed. Token was not logged.');
   end;
 
   if CurPageID = TrayPage.ID then
