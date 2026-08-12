@@ -42,6 +42,14 @@ internal sealed class GatewayClient(HttpClient httpClient)
         response.EnsureSuccessStatusCode();
     }
 
+    public async Task RenewLeaseAsync(SyncWork work, CancellationToken cancellationToken)
+    {
+        using var request = CreateLeasedRequest(HttpMethod.Post, $"api/agent/sync-jobs/{work.JobId}/renew", work.LeaseToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        CaptureRequestId(response);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task UploadPageAsync(SyncWork work, int pageNumber, object records, string hash, CancellationToken cancellationToken)
     {
         using var request = CreateLeasedRequest(HttpMethod.Put, $"api/agent/sync-jobs/{work.JobId}/pages/{pageNumber}", work.LeaseToken);

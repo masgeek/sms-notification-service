@@ -91,6 +91,38 @@ internal sealed class SchoolIntegrationWorker(
 
     private async Task ExecuteWorkAsync(SyncWork work, CancellationToken cancellationToken)
     {
+        using var renewalCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var renewalTask = RenewLeaseLoopAsync(work, renewalCts.Token);
+
+        try
+        {
+            await ExecuteWorkWithoutRenewalAsync(work, cancellationToken);
+        }
+        finally
+        {
+            renewalCts.Cancel();
+            try
+            {
+                await renewalTask;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || renewalCts.IsCancellationRequested)
+            {
+            }
+        }
+    }
+
+    private async Task RenewLeaseLoopAsync(SyncWork work, CancellationToken cancellationToken)
+    {
+        var interval = TimeSpan.FromSeconds(Math.Max(5, options.Value.LeaseRenewalSeconds));
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await Task.Delay(interval, cancellationToken);
+            await gateway.RenewLeaseAsync(work, cancellationToken);
+        }
+    }
+
+    private async Task ExecuteWorkWithoutRenewalAsync(SyncWork work, CancellationToken cancellationToken)
+    {
         if (work.SchemaVersion != 1)
         {
             await gateway.FailAsync(work, "UNSUPPORTED_OPERATION", cancellationToken);
