@@ -63,4 +63,10 @@ internal sealed class AgentOptions
     public string FeeProcessorBranch { get; init; } = "main";
     public string FeeProcessorTag { get; init; } = string.Empty;
     public string FeeProcessorBackupPath { get; init; } = "C:\\fee-processor-backups";
+    public string PhpExecutablePath { get; init; } = string.Empty;
+    public string ComposerExecutablePath { get; init; } = string.Empty;
+    public string GitExecutablePath { get; init; } = string.Empty;
+    public string FeeProcessorSshUsername { get; init; } = "git";
+    public string FeeProcessorSshKeyPath { get; init; } = string.Empty;
+    public string FeeProcessorSshPassphrase { get; init; } = string.Empty;
 }

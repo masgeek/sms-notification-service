@@ -4,6 +4,8 @@
         Title="FeeSyncer Control Panel" Width="760" Height="560"
         MinWidth="680" MinHeight="480" WindowStartupLocation="CenterScreen"
          ShowInTaskbar="True" ResizeMode="CanMinimize">
+    <TabControl x:Name="WorkspaceTabs">
+        <TabItem Header="Control Panel">
     <Grid Margin="22">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
@@ -49,4 +51,6 @@
             <Button Content="Minimize to Tray" Click="Minimize_Click" Padding="14,6"/>
         </StackPanel>
     </Grid>
+        </TabItem>
+    </TabControl>
 </Window>

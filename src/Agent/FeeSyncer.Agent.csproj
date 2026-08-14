@@ -21,8 +21,4 @@
     <ProjectReference Include="..\Shared\FeeSyncer.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="scripts\Update-FeeProcessor.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>

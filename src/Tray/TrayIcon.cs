@@ -91,6 +91,7 @@ internal sealed class TrayIcon : IDisposable
     private void ShowControlPanel()
     {
         _controlPanel ??= new ControlPanel(_monitor);
+        _controlPanel.WindowState = WindowState.Normal;
         _controlPanel.Show();
         _controlPanel.Activate();
     }
@@ -98,14 +99,33 @@ internal sealed class TrayIcon : IDisposable
     public void ShowSetup()
     {
         ShowControlPanel();
-        var dialog = new ConfigEditor(_monitor) { Owner = _controlPanel };
-        dialog.ShowDialog();
+        _controlPanel?.OpenSettings();
+    }
+
+    public void ShowConfiguredStartupWindow()
+    {
+        try
+        {
+            var path = ConfigPathResolver.FindConfigFile();
+            if (!System.IO.File.Exists(path)) return;
+            using var document = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(path));
+            var startMinimized = document.RootElement.TryGetProperty("Tray", out var tray)
+                && tray.TryGetProperty("StartMinimizedToTray", out var minimized)
+                && minimized.ValueKind == System.Text.Json.JsonValueKind.True;
+            AppLogger.Info("Tray", $"Start minimized to tray: {startMinimized}");
+            if (!startMinimized)
+                ShowControlPanel();
+        }
+        catch (Exception exception)
+        {
+            AppLogger.Warn("Tray", $"Could not read tray startup settings: {exception.Message}");
+        }
     }
 
     private void ShowLogViewer()
     {
-        var dialog = new LogViewer();
-        dialog.ShowDialog();
+        ShowControlPanel();
+        _controlPanel?.OpenLogs();
     }
 
     private void ShowSendDialog()
@@ -116,8 +136,8 @@ internal sealed class TrayIcon : IDisposable
 
     private void ShowConfigEditor()
     {
-        var dialog = new ConfigEditor(_monitor);
-        dialog.ShowDialog();
+        ShowControlPanel();
+        _controlPanel?.OpenSettings();
     }
 
     private async void ShowConnectionValidator()

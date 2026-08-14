@@ -19,7 +19,7 @@ public sealed class AppLogger
 
         var today = DateTime.Now.ToString("yyyy-MM-dd");
         _filePath = Path.Combine(_logDirectory, $"{today}_{appName}.log");
-        _writer = new StreamWriter(new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+        _writer = new StreamWriter(new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
         {
             AutoFlush = true
         };
@@ -44,13 +44,27 @@ public sealed class AppLogger
                 if (ex is not null)
                     line += Environment.NewLine + ex;
 
-                _instance?._writer?.WriteLine(line);
+                if (_instance is not null)
+                {
+                    _instance.EnsureWriter();
+                    _instance._writer?.WriteLine(line);
+                }
             }
         }
         catch
         {
             // Best effort
         }
+    }
+
+    private void EnsureWriter()
+    {
+        if (File.Exists(_filePath) && _writer is not null) return;
+        _writer?.Dispose();
+        _writer = new StreamWriter(new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
+        {
+            AutoFlush = true
+        };
     }
 
     public static void Info(string tag, string message) => Log("INFO", tag, message);

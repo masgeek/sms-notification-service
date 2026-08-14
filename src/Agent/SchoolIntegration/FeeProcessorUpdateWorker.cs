@@ -1,13 +1,12 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using FeeSyncer.Shared;
 
 namespace FeeSyncer.Agent.SchoolIntegration;
 
 internal sealed class FeeProcessorUpdateWorker(
     IOptions<AgentOptions> options,
-    ILogger<FeeProcessorUpdateWorker> logger,
-    IHostEnvironment environment) : BackgroundService
+    ILogger<FeeProcessorUpdateWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -39,42 +38,29 @@ internal sealed class FeeProcessorUpdateWorker(
             return;
         }
 
-        var script = Path.Combine(environment.ContentRootPath, "scripts", "Update-FeeProcessor.ps1");
-        if (!File.Exists(script))
+        var php = FeeProcessorToolResolver.Resolve(settings.PhpExecutablePath, "php");
+        var composer = FeeProcessorToolResolver.Resolve(settings.ComposerExecutablePath, "composer");
+        if (string.IsNullOrWhiteSpace(php) || string.IsNullOrWhiteSpace(composer))
         {
-            logger.LogError("Fee-processor updater script was not found at {ScriptPath}.", script);
+            logger.LogWarning("Fee-processor update requires PHP and Composer. Configure executable paths or add them to PATH.");
             return;
         }
 
-        var arguments = new List<string> { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script,
-            "-AppPath", settings.FeeProcessorPath, "-Repository", settings.FeeProcessorRepository, "-BackupRoot", settings.FeeProcessorBackupPath };
-        arguments.AddRange(string.IsNullOrWhiteSpace(settings.FeeProcessorTag)
-            ? ["-Branch", string.IsNullOrWhiteSpace(settings.FeeProcessorBranch) ? "main" : settings.FeeProcessorBranch]
-            : ["-Tag", settings.FeeProcessorTag]);
-
-        logger.LogInformation("Starting fee-processor update from {Repository}.", settings.FeeProcessorRepository);
-        using var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                WorkingDirectory = settings.FeeProcessorPath,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-            },
-        };
-        foreach (var argument in arguments)
-            process.StartInfo.ArgumentList.Add(argument);
-        process.Start();
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        var output = await outputTask;
-        var error = await errorTask;
-        if (!string.IsNullOrWhiteSpace(output)) logger.LogInformation("Fee-processor updater: {Output}", output.Trim());
-        if (process.ExitCode != 0) throw new InvalidOperationException($"Updater exited with code {process.ExitCode}: {error.Trim()}");
+        var request = new FeeProcessorDeploymentRequest(
+            settings.FeeProcessorPath,
+            settings.FeeProcessorRepository,
+            string.IsNullOrWhiteSpace(settings.FeeProcessorBranch) ? "main" : settings.FeeProcessorBranch,
+            settings.FeeProcessorTag.Trim(),
+            settings.FeeProcessorBackupPath,
+            php,
+            composer,
+            settings.FeeProcessorSshUsername,
+            settings.FeeProcessorSshKeyPath,
+            settings.FeeProcessorSshPassphrase);
+        await new FeeProcessorDeploymentRunner().RunAsync(
+            request,
+            message => logger.LogInformation("Fee-processor update: {Message}", message),
+            cancellationToken);
     }
 
 }

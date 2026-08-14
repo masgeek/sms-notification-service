@@ -1,8 +1,7 @@
-<Window x:Class="FeeSyncer.Tray.LogViewer"
+<UserControl x:Class="FeeSyncer.Tray.LogViewer"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Logs — FeeSyncer.Sms" Height="450" Width="650"
-         WindowStartupLocation="CenterScreen" ShowInTaskbar="False" ResizeMode="NoResize">
+         MinHeight="250" MinWidth="400">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -20,7 +19,8 @@
                 <ComboBoxItem Content="DB"/>
                 <ComboBoxItem Content="Listener"/>
                 <ComboBoxItem Content="Queue"/>
-                <ComboBoxItem Content="SMS"/>
+            <ComboBoxItem Content="SMS"/>
+            <ComboBoxItem Content="FeeProcessor"/>
             </ComboBox>
         </StackPanel>
 
@@ -35,4 +35,4 @@
             <Button Content="Open Folder" Click="OpenFolderButton_Click" Padding="12,4"/>
         </StackPanel>
     </Grid>
-</Window>
+</UserControl>

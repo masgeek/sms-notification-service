@@ -5,12 +5,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
 using FeeSyncer.Shared;
 
 namespace FeeSyncer.Tray;
 
-public partial class ConfigEditor : Window
+public partial class ConfigEditor : UserControl
 {
     private readonly ServiceMonitor _monitor;
 
@@ -23,6 +24,7 @@ public partial class ConfigEditor : Window
         {
             ConfigPathText.Text = ConfigPathResolver.FindConfigFile();
             LoadConfig();
+            UpdateFeeToolDetectionText();
         };
     }
 
@@ -31,6 +33,7 @@ public partial class ConfigEditor : Window
         try
         {
             LoadSmsDefaults();
+            LoadTrayDefaults();
             var configPath = ConfigPathResolver.FindConfigFile();
             if (!File.Exists(configPath))
             {
@@ -77,6 +80,8 @@ public partial class ConfigEditor : Window
             }
 
             LoadAgentConfig();
+            if (doc.RootElement.TryGetProperty("Tray", out var tray))
+                TrayStartMinimizedBox.IsChecked = BoolValue(tray, "StartMinimizedToTray", true);
         }
         catch (Exception ex)
         {
@@ -126,6 +131,13 @@ public partial class ConfigEditor : Window
         FeeUpdateTagBox.Text = StringValue(agent, "FeeProcessorTag", "(none)");
         FeeUpdateIntervalBox.Text = NumberValue(agent, "FeeProcessorUpdateIntervalHours", 24);
         FeeUpdateBackupBox.Text = StringValue(agent, "FeeProcessorBackupPath", "C:\\fee-processor-backups");
+        PhpExecutablePathBox.Text = StringValue(agent, "PhpExecutablePath");
+        ComposerExecutablePathBox.Text = StringValue(agent, "ComposerExecutablePath");
+        GitExecutablePathBox.Text = StringValue(agent, "GitExecutablePath");
+        FeeProcessorSshUsernameBox.Text = StringValue(agent, "FeeProcessorSshUsername", "git");
+        FeeProcessorSshKeyPathBox.Text = StringValue(agent, "FeeProcessorSshKeyPath", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_ed25519"));
+        FeeProcessorSshPassphraseBox.Password = StringValue(agent, "FeeProcessorSshPassphrase");
+        UpdateFeeToolDetectionText();
         AgentStatusText.Text = AgentTokenBox.Text.StartsWith("fsk_", StringComparison.Ordinal)
             ? "Enrolled"
             : "Not enrolled";
@@ -145,6 +157,8 @@ public partial class ConfigEditor : Window
         RetentionBox.Text = "7";
         MaxSizeBox.Text = "10";
     }
+
+    private void LoadTrayDefaults() => TrayStartMinimizedBox.IsChecked = false;
 
     private void LoadAgentDefaults()
     {
@@ -176,6 +190,15 @@ public partial class ConfigEditor : Window
         FeeUpdateTagBox.Text = "(none)";
         FeeUpdateIntervalBox.Text = "24";
         FeeUpdateBackupBox.Text = "C:\\fee-processor-backups";
+        PhpExecutablePathBox.Text = string.Empty;
+        ComposerExecutablePathBox.Text = string.Empty;
+        GitExecutablePathBox.Text = string.Empty;
+        FeeProcessorSshUsernameBox.Text = "git";
+        FeeProcessorSshKeyPathBox.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_ed25519");
+        FeeProcessorSshPassphraseBox.Password = string.Empty;
+        PhpDetectionText.Text = "PHP path is detected from PATH when blank.";
+        ComposerDetectionText.Text = "Composer path is detected from PATH when blank.";
+        GitDetectionText.Text = "Git path is detected from PATH when blank.";
     }
 
     private static string StringValue(JsonElement element, string name, string fallback = "") =>
@@ -273,6 +296,12 @@ public partial class ConfigEditor : Window
             ? string.Empty
             : FeeUpdateTagBox.Text.Trim();
         agent["FeeProcessorBackupPath"] = FeeUpdateBackupBox.Text.Trim();
+        agent["PhpExecutablePath"] = PhpExecutablePathBox.Text.Trim();
+        agent["ComposerExecutablePath"] = ComposerExecutablePathBox.Text.Trim();
+        agent["GitExecutablePath"] = GitExecutablePathBox.Text.Trim();
+        agent["FeeProcessorSshUsername"] = FeeProcessorSshUsernameBox.Text.Trim();
+        agent["FeeProcessorSshKeyPath"] = FeeProcessorSshKeyPathBox.Text.Trim();
+        agent["FeeProcessorSshPassphrase"] = FeeProcessorSshPassphraseBox.Password;
         root["Agent"] = agent;
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
         await File.WriteAllTextAsync(configPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
@@ -367,54 +396,35 @@ public partial class ConfigEditor : Window
         try
         {
             await SaveAgentConfigAsync(string.Empty);
-            var script = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Agent", "scripts", "Update-FeeProcessor.ps1"));
-            if (!File.Exists(script))
-                throw new FileNotFoundException("The Fee Processor updater script was not found.", script);
-
             var appPath = FeeUpdatePathBox.Text.Trim();
             var repository = FeeUpdateRepositoryBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(appPath) || string.IsNullOrWhiteSpace(repository))
                 throw new InvalidOperationException("Fee Processor application path and repository are required.");
 
-            using var process = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    WorkingDirectory = appPath,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                }
-            };
-            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script,
-                "-AppPath", appPath, "-Repository", repository, "-BackupRoot", FeeUpdateBackupBox.Text.Trim() })
-                process.StartInfo.ArgumentList.Add(argument);
+            var php = FeeProcessorToolResolver.Resolve(PhpExecutablePathBox.Text.Trim(), "php");
+            var composer = FeeProcessorToolResolver.Resolve(ComposerExecutablePathBox.Text.Trim(), "composer");
+            if (string.IsNullOrWhiteSpace(php) || string.IsNullOrWhiteSpace(composer))
+                throw new InvalidOperationException("PHP and Composer must be available on PATH or configured explicitly.");
 
             var tag = FeeUpdateTagBox.Text.Trim();
-            if (!string.IsNullOrWhiteSpace(tag) && !string.Equals(tag, "(none)", StringComparison.OrdinalIgnoreCase))
-            {
-                process.StartInfo.ArgumentList.Add("-Tag");
-                process.StartInfo.ArgumentList.Add(tag);
-            }
-            else
-            {
-                process.StartInfo.ArgumentList.Add("-Branch");
-                process.StartInfo.ArgumentList.Add(string.IsNullOrWhiteSpace(FeeUpdateBranchBox.Text) ? "main" : FeeUpdateBranchBox.Text.Trim());
-            }
+            var branch = string.IsNullOrWhiteSpace(FeeUpdateBranchBox.Text) ? "main" : FeeUpdateBranchBox.Text.Trim();
 
             FeeUpdateOutputBox.Clear();
             FeeUpdateOutputBox.Visibility = Visibility.Visible;
             FeeUpdateProgressBar.Visibility = Visibility.Visible;
-            process.Start();
-            process.OutputDataReceived += (_, args) => AppendFeeUpdateOutput(args.Data);
-            process.ErrorDataReceived += (_, args) => AppendFeeUpdateOutput(args.Data);
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            await process.WaitForExitAsync();
-            if (process.ExitCode != 0)
-                throw new InvalidOperationException($"Updater exited with code {process.ExitCode}. See the progress output for details.");
+            await new FeeProcessorDeploymentRunner().RunAsync(
+                new FeeProcessorDeploymentRequest(
+                    appPath,
+                    repository,
+                    branch,
+                    tag.Equals("(none)", StringComparison.OrdinalIgnoreCase) ? string.Empty : tag,
+                    FeeUpdateBackupBox.Text.Trim(),
+                    php,
+                    composer,
+                    FeeProcessorSshUsernameBox.Text.Trim(),
+                    FeeProcessorSshKeyPathBox.Text.Trim(),
+                    FeeProcessorSshPassphraseBox.Password),
+                AppendFeeUpdateOutput);
 
             FeeUpdateStatusText.Text = "Update completed";
             MessageBox.Show("Fee Processor update completed.", "Fee Processor Update", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -434,11 +444,98 @@ public partial class ConfigEditor : Window
     private void AppendFeeUpdateOutput(string? line)
     {
         if (string.IsNullOrWhiteSpace(line)) return;
+        FeeProcessorActivityLogger.Write(line);
+        AppLogger.Info("FeeProcessorTools", line);
         Dispatcher.Invoke(() =>
         {
             FeeUpdateOutputBox.AppendText(line + Environment.NewLine);
             FeeUpdateOutputBox.ScrollToEnd();
         });
+    }
+
+    private async void DetectPhpButton_Click(object sender, RoutedEventArgs e)
+    {
+        DetectPhpButton.IsEnabled = false;
+        DetectPhpButton.Content = "Detecting...";
+        PhpDetectionText.Text = "Checking PHP...";
+        var configuredPath = PhpExecutablePathBox.Text.Trim();
+        FeeUpdateOutputBox.Clear();
+        FeeUpdateOutputBox.Visibility = Visibility.Visible;
+        try
+        {
+            var result = await Task.Run(() => FeeProcessorToolResolver.Resolve(configuredPath, "php", AppendFeeUpdateOutput));
+            PhpDetectionText.Text = $"PHP: {(string.IsNullOrWhiteSpace(result) ? "not found" : result)}";
+        }
+        finally
+        {
+            DetectPhpButton.Content = "Detect PHP";
+            DetectPhpButton.IsEnabled = true;
+        }
+    }
+
+    private async void DetectComposerButton_Click(object sender, RoutedEventArgs e)
+    {
+        DetectComposerButton.IsEnabled = false;
+        DetectComposerButton.Content = "Detecting...";
+        ComposerDetectionText.Text = "Checking Composer...";
+        var configuredPath = ComposerExecutablePathBox.Text.Trim();
+        FeeUpdateOutputBox.Clear();
+        FeeUpdateOutputBox.Visibility = Visibility.Visible;
+        try
+        {
+            var result = await Task.Run(() => FeeProcessorToolResolver.Resolve(configuredPath, "composer", AppendFeeUpdateOutput));
+            ComposerDetectionText.Text = $"Composer: {(string.IsNullOrWhiteSpace(result) ? "not found" : result)}";
+        }
+        finally
+        {
+            DetectComposerButton.Content = "Detect Composer";
+            DetectComposerButton.IsEnabled = true;
+        }
+    }
+
+    private async void DetectGitButton_Click(object sender, RoutedEventArgs e)
+    {
+        DetectGitButton.IsEnabled = false;
+        DetectGitButton.Content = "Detecting...";
+        GitDetectionText.Text = "Checking Git...";
+        var configuredPath = GitExecutablePathBox.Text.Trim();
+        FeeUpdateOutputBox.Clear();
+        FeeUpdateOutputBox.Visibility = Visibility.Visible;
+        try
+        {
+            var result = await Task.Run(() => FeeProcessorToolResolver.Resolve(configuredPath, "git", AppendFeeUpdateOutput));
+            GitDetectionText.Text = $"Git: {(string.IsNullOrWhiteSpace(result) ? "not found" : result)}";
+        }
+        finally
+        {
+            DetectGitButton.Content = "Detect Git";
+            DetectGitButton.IsEnabled = true;
+        }
+    }
+
+    private void UpdateFeeToolDetectionText()
+    {
+        UpdatePhpDetectionText();
+        UpdateComposerDetectionText();
+        UpdateGitDetectionText();
+    }
+
+    private void UpdatePhpDetectionText()
+    {
+        var php = FeeProcessorToolResolver.Resolve(PhpExecutablePathBox.Text.Trim(), "php");
+        PhpDetectionText.Text = $"PHP: {(string.IsNullOrWhiteSpace(php) ? "not found" : php)}";
+    }
+
+    private void UpdateComposerDetectionText()
+    {
+        var composer = FeeProcessorToolResolver.Resolve(ComposerExecutablePathBox.Text.Trim(), "composer");
+        ComposerDetectionText.Text = $"Composer: {(string.IsNullOrWhiteSpace(composer) ? "not found" : composer)}";
+    }
+
+    private void UpdateGitDetectionText()
+    {
+        var git = FeeProcessorToolResolver.Resolve(GitExecutablePathBox.Text.Trim(), "git");
+        GitDetectionText.Text = $"Git: {(string.IsNullOrWhiteSpace(git) ? "not found" : git)}";
     }
 
     private async void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -481,6 +578,11 @@ public partial class ConfigEditor : Window
                 mutable["SmsService"] = smsDict;
             }
 
+            mutable["Tray"] = new Dictionary<string, object?>
+            {
+                ["StartMinimizedToTray"] = TrayStartMinimizedBox.IsChecked == true,
+            };
+
             var output = JsonSerializer.Serialize(mutable, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(configPath, output);
             await SaveAgentConfigAsync(string.Empty);
@@ -503,6 +605,10 @@ public partial class ConfigEditor : Window
         }
     }
 
-    private void CancelButton_Click(object sender, RoutedEventArgs e) => Close();
+    private void CancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Parent is ContentControl content)
+            content.Content = null;
+    }
 
 }

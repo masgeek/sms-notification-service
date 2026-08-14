@@ -8,7 +8,7 @@ using FeeSyncer.Shared;
 
 namespace FeeSyncer.Tray;
 
-public partial class LogViewer : Window
+public partial class LogViewer : UserControl
 {
     private readonly DispatcherTimer _refreshTimer;
     private string? _selectedFilter;
@@ -25,6 +25,7 @@ public partial class LogViewer : Window
             LoadLogs();
             _refreshTimer.Start();
         };
+        Unloaded += (_, _) => StopRefresh();
     }
 
     private void LoadLogs()
@@ -41,7 +42,6 @@ public partial class LogViewer : Window
 
             var logFiles = Directory.GetFiles(ConfigPathResolver.GetLogDir(), "*.log")
                 .OrderByDescending(f => f)
-                .Take(1)
                 .ToList();
 
             if (logFiles.Count == 0)
@@ -50,14 +50,16 @@ public partial class LogViewer : Window
                 return;
             }
 
-            using var stream = new FileStream(logFiles[0], FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            using var reader = new StreamReader(stream);
             var allLines = new List<string>();
-            while (!reader.EndOfStream)
+            foreach (var logFile in logFiles)
             {
-                var line = reader.ReadLine();
-                if (line is not null)
-                    allLines.Add(line);
+                using var stream = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                while (!reader.EndOfStream)
+                {
+                    var line = reader.ReadLine();
+                    if (line is not null) allLines.Add(line);
+                }
             }
 
             var lines = allLines.Reverse<string>().Take(500).Reverse().ToList();
@@ -103,9 +105,9 @@ public partial class LogViewer : Window
             Process.Start("explorer.exe", ConfigPathResolver.GetLogDir());
     }
 
-    protected override void OnClosed(EventArgs e)
+    private void StopRefresh()
     {
         _refreshTimer.Stop();
-        base.OnClosed(e);
     }
+
 }

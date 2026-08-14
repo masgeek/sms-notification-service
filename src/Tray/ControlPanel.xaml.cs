@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.ServiceProcess;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using FeeSyncer.Shared;
 
@@ -10,6 +11,8 @@ public partial class ControlPanel : Window
 {
     private readonly ServiceMonitor monitor;
     private readonly DispatcherTimer refreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private TabItem? settingsTab;
+    private TabItem? logsTab;
 
     public ControlPanel(ServiceMonitor monitor)
     {
@@ -103,15 +106,40 @@ public partial class ControlPanel : Window
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
+        => OpenSettings();
+
+    public void OpenSettings()
     {
-        var dialog = new ConfigEditor(monitor) { Owner = this };
-        dialog.ShowDialog();
+        if (settingsTab is not null)
+        {
+            WorkspaceTabs.SelectedItem = settingsTab;
+            return;
+        }
+
+        settingsTab = new TabItem
+        {
+            Header = "Settings",
+            Content = new ConfigEditor(monitor),
+        };
+        WorkspaceTabs.Items.Add(settingsTab);
+        WorkspaceTabs.SelectedItem = settingsTab;
     }
 
     private void Logs_Click(object sender, RoutedEventArgs e)
+        => OpenLogs();
+
+    public void OpenLogs()
     {
-        var dialog = new LogViewer { Owner = this };
-        dialog.ShowDialog();
+        if (logsTab is null)
+        {
+            logsTab = new TabItem
+            {
+                Header = "Logs",
+                Content = new LogViewer(),
+            };
+            WorkspaceTabs.Items.Add(logsTab);
+        }
+        WorkspaceTabs.SelectedItem = logsTab;
     }
 
     private void Minimize_Click(object sender, RoutedEventArgs e) => Hide();
