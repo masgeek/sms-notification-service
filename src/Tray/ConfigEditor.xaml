@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Settings — FeeSyncer" Width="700" SizeToContent="Height"
         MinWidth="620" MinHeight="560" MaxHeight="1000"
-        WindowStartupLocation="CenterScreen" ShowInTaskbar="True"
-        ResizeMode="CanResize">
+         WindowStartupLocation="CenterScreen" ShowInTaskbar="False"
+         ResizeMode="NoResize">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -99,6 +99,13 @@
                             <DockPanel><TextBox x:Name="FeeUpdateIntervalBox" Width="55"/><TextBox x:Name="FeeUpdateBackupBox" Margin="6,0,0,0"/></DockPanel>
                         </StackPanel>
                     </Grid>
+                    <TextBlock Text="Use * in Tag to deploy the latest remote tag. A tag takes precedence over Branch." Foreground="Gray" TextWrapping="Wrap" Margin="0,10,0,6"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Pull Updates Now" x:Name="PullFeeUpdateButton" Click="PullFeeUpdateButton_Click" Padding="12,4"/>
+                        <TextBlock x:Name="FeeUpdateStatusText" VerticalAlignment="Center" Foreground="Gray" Margin="10,0,0,0"/>
+                    </StackPanel>
+                    <ProgressBar x:Name="FeeUpdateProgressBar" Height="8" IsIndeterminate="True" Visibility="Collapsed" Margin="0,8,0,0"/>
+                    <TextBox x:Name="FeeUpdateOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="120" Margin="0,8,0,0" Visibility="Collapsed"/>
                 </StackPanel>
             </TabItem>
         </TabControl>

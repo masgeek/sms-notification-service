@@ -49,7 +49,17 @@ try {
         if (Get-Website -Name $IisSiteName -ErrorAction SilentlyContinue) { Stop-Website $IisSiteName }
     }
     Run $git @("fetch", "--prune", "--tags", "origin")
-    if ($Tag) { Run $git @("checkout", "--force", "tags/$Tag") }
+    if ($Tag) {
+        $resolvedTag = $Tag
+        if ($Tag -eq "*") {
+            $resolvedTag = (& $git -C $AppPath ls-remote --tags --sort=-v:refname origin "refs/tags/*" |
+                Where-Object { $_ -notmatch '\^\{\}$' } |
+                Select-Object -First 1) -replace '^\S+\s+refs/tags/', ''
+            if ([string]::IsNullOrWhiteSpace($resolvedTag)) { throw "No remote tags were found." }
+            Write-Host "Resolved * to latest tag $resolvedTag."
+        }
+        Run $git @("checkout", "--force", "tags/$resolvedTag")
+    }
     else { Run $git @("checkout", "--force", $Branch); Run $git @("reset", "--hard", "origin/$Branch") }
     Run $composer @("install", "--no-dev", "--optimize-autoloader", "--no-interaction")
     Run $php @("artisan", "migrate", "--force")

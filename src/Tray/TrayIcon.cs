@@ -92,7 +92,6 @@ internal sealed class TrayIcon : IDisposable
     {
         _controlPanel ??= new ControlPanel(_monitor);
         _controlPanel.Show();
-        _controlPanel.WindowState = WindowState.Maximized;
         _controlPanel.Activate();
     }
 

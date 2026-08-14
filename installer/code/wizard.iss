@@ -28,7 +28,7 @@ begin
   StartTrayPage := CreateInputOptionPage(ConsolePage.ID,
     'Start Tray App',
      'Start the SMS tray monitor after installation?',
-     'The SMS tray monitor will open the maximized Control Panel and configuration screen.',
+     'The SMS tray monitor will open the Control Panel and configuration screen.',
     True, False);
   StartTrayPage.Add('Start SMS tray monitor and open configuration');
   StartTrayPage.Values[0] := True;

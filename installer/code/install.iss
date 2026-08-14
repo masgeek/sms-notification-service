@@ -1,12 +1,16 @@
 procedure MaybeStartTrayApp;
 var
   ResultCode: Integer;
+  TrayPath: String;
+  CommandLine: String;
 begin
   if InstallTrayApp and StartTrayAfter then
   begin
-    Log('Starting tray app...');
-    ShellExec('', ExpandConstant('{app}\{#TrayDir}\{#TrayAppName}.exe'), '--setup', ExpandConstant('{app}\{#TrayDir}'), SW_SHOWNORMAL, ewNoWait, ResultCode);
-    Log('Tray app launched.');
+    TrayPath := ExpandConstant('{app}\{#TrayDir}\{#TrayAppName}.exe');
+    CommandLine := '/c timeout /t 2 /nobreak >nul & start "" "' + TrayPath + '" --setup';
+    Log('Scheduling tray app to start after installer exit...');
+    ShellExec('', ExpandConstant('{cmd}'), CommandLine, ExpandConstant('{app}'), SW_HIDE, ewNoWait, ResultCode);
+    Log('Tray app startup scheduled.');
   end;
 end;
 
@@ -17,19 +21,9 @@ begin
   RegisterEventLog;
   Log('Configuration is managed by the application; installer will not write credentials.');
 
-  Log('Creating Windows service...');
-  ExecuteOrFail(
-    'sc.exe',
-    'create {#ServiceName} binPath= "' + ExpandConstant('{app}') + '\FeeSyncer.Sms.exe" start= demand DisplayName= "{#ServiceDisplay}" obj= LocalSystem',
-    'Failed to create Windows service.'
-  );
-  Log('Service created.');
-
-  ExecuteOrFail(
-    'sc.exe',
-    'create {#AgentServiceName} binPath= "' + ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe" start= demand DisplayName= "{#AgentServiceDisplay}" obj= LocalSystem',
-    'Failed to create the school integration agent service.'
-  );
+  Log('Creating or updating Windows services...');
+  EnsureService('{#ServiceName}', '{#ServiceDisplay}', ExpandConstant('{app}') + '\FeeSyncer.Sms.exe');
+  EnsureService('{#AgentServiceName}', '{#AgentServiceDisplay}', ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe');
   ConfigureServiceDescription('{#AgentServiceName}', '{#AgentServiceDesc}');
   ConfigureRecovery('{#AgentServiceName}');
 
@@ -38,7 +32,7 @@ begin
 
   Log('Services installed but left stopped until configuration and connection checks pass.');
 
-  Log('=== Fresh install completed ===');
+  Log('=== Fresh install completed; only the tray monitor will be started ===');
   MaybeStartTrayApp;
 end;
 
@@ -55,6 +49,9 @@ begin
   else
     RaiseException('Failed to stop the {#ServiceName} service. Please stop it manually and try again.');
 
+  EnsureService('{#ServiceName}', '{#ServiceDisplay}', ExpandConstant('{app}') + '\FeeSyncer.Sms.exe');
+  EnsureService('{#AgentServiceName}', '{#AgentServiceDisplay}', ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe');
+
   Log('Configuration is managed by the application; existing configuration was not changed.');
 
   Log('=== Upgrade pre-install completed (files will be replaced, service restarted in post-install) ===');
@@ -64,7 +61,7 @@ procedure DoPostUpgrade;
 begin
   Log('Upgrade completed; services remain stopped until configuration is verified.');
 
-  Log('=== Upgrade completed ===');
+  Log('=== Upgrade completed; only the tray monitor will be started ===');
   MaybeStartTrayApp;
 end;
 

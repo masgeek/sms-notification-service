@@ -43,10 +43,18 @@ public partial class ConfigEditor : Window
             if (doc.RootElement.TryGetProperty("SmsService", out var sms))
             {
                 if (sms.TryGetProperty("ConnectionString", out var connStr))
-                    ParseConnectionString(connStr.GetString() ?? string.Empty);
+                {
+                    var connectionString = connStr.GetString() ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(connectionString))
+                        ParseConnectionString(connectionString);
+                }
 
                 if (sms.TryGetProperty("SmsApiUrl", out var url))
-                    ApiUrlBox.Text = url.GetString() ?? string.Empty;
+                {
+                    var apiUrl = url.GetString();
+                    if (!string.IsNullOrWhiteSpace(apiUrl))
+                        ApiUrlBox.Text = apiUrl;
+                }
 
                 if (sms.TryGetProperty("AuthorizationToken", out var token))
                         TokenBox.Password = token.GetString() ?? string.Empty;
@@ -112,10 +120,10 @@ public partial class ConfigEditor : Window
         MqttReconnectMinBox.Text = NumberValue(agent, "MqttReconnectMinSeconds", 1);
         MqttReconnectMaxBox.Text = NumberValue(agent, "MqttReconnectMaxSeconds", 60);
         FeeUpdateEnabledBox.IsChecked = BoolValue(agent, "FeeProcessorUpdateEnabled", false);
-        FeeUpdatePathBox.Text = StringValue(agent, "FeeProcessorPath");
-        FeeUpdateRepositoryBox.Text = StringValue(agent, "FeeProcessorRepository");
+        FeeUpdatePathBox.Text = StringValue(agent, "FeeProcessorPath", "C:\\fee-processor");
+        FeeUpdateRepositoryBox.Text = StringValue(agent, "FeeProcessorRepository", "https://github.com/masgeek/fee-processor.git");
         FeeUpdateBranchBox.Text = StringValue(agent, "FeeProcessorBranch", "main");
-        FeeUpdateTagBox.Text = StringValue(agent, "FeeProcessorTag");
+        FeeUpdateTagBox.Text = StringValue(agent, "FeeProcessorTag", "(none)");
         FeeUpdateIntervalBox.Text = NumberValue(agent, "FeeProcessorUpdateIntervalHours", 24);
         FeeUpdateBackupBox.Text = StringValue(agent, "FeeProcessorBackupPath", "C:\\fee-processor-backups");
         AgentStatusText.Text = AgentTokenBox.Text.StartsWith("fsk_", StringComparison.Ordinal)
@@ -126,6 +134,10 @@ public partial class ConfigEditor : Window
 
     private void LoadSmsDefaults()
     {
+        DbServerBox.Text = "127.0.0.1";
+        DbNameBox.Text = "school";
+        DbUserIdBox.Text = "sa";
+        DbPasswordBox.Password = string.Empty;
         ApiUrlBox.Text = "https://fees.munywele.co.ke/api/v1/notifications";
         TokenBox.Password = string.Empty;
         BackoffBox.Text = "30";
@@ -139,6 +151,7 @@ public partial class ConfigEditor : Window
         AgentEnabledBox.IsChecked = true;
         AgentServerUrlBox.Text = "https://fees.munywele.co.ke/";
         AgentTokenBox.Text = string.Empty;
+        AgentNameBox.Text = Environment.MachineName;
         RequestTimeoutBox.Text = "30";
         IdleDelayBox.Text = "5";
         HeartbeatBox.Text = "60";
@@ -157,17 +170,17 @@ public partial class ConfigEditor : Window
         MqttReconnectMinBox.Text = "1";
         MqttReconnectMaxBox.Text = "60";
         FeeUpdateEnabledBox.IsChecked = false;
-        FeeUpdatePathBox.Text = string.Empty;
-        FeeUpdateRepositoryBox.Text = string.Empty;
+        FeeUpdatePathBox.Text = "C:\\fee-processor";
+        FeeUpdateRepositoryBox.Text = "https://github.com/masgeek/fee-processor.git";
         FeeUpdateBranchBox.Text = "main";
-        FeeUpdateTagBox.Text = string.Empty;
+        FeeUpdateTagBox.Text = "(none)";
         FeeUpdateIntervalBox.Text = "24";
         FeeUpdateBackupBox.Text = "C:\\fee-processor-backups";
     }
 
     private static string StringValue(JsonElement element, string name, string fallback = "") =>
-        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString() ?? fallback
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())
+            ? value.GetString()!
             : fallback;
 
     private static string NumberValue(JsonElement element, string name, int fallback) =>
@@ -256,7 +269,9 @@ public partial class ConfigEditor : Window
         agent["FeeProcessorPath"] = FeeUpdatePathBox.Text.Trim();
         agent["FeeProcessorRepository"] = FeeUpdateRepositoryBox.Text.Trim();
         agent["FeeProcessorBranch"] = FeeUpdateBranchBox.Text.Trim();
-        agent["FeeProcessorTag"] = FeeUpdateTagBox.Text.Trim();
+        agent["FeeProcessorTag"] = string.Equals(FeeUpdateTagBox.Text.Trim(), "(none)", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : FeeUpdateTagBox.Text.Trim();
         agent["FeeProcessorBackupPath"] = FeeUpdateBackupBox.Text.Trim();
         root["Agent"] = agent;
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
@@ -343,6 +358,87 @@ public partial class ConfigEditor : Window
             TestAgentButton.IsEnabled = true;
             TestAgentButton.Content = "Test Agent Connections";
         }
+    }
+
+    private async void PullFeeUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        PullFeeUpdateButton.IsEnabled = false;
+        FeeUpdateStatusText.Text = "Updating...";
+        try
+        {
+            await SaveAgentConfigAsync(string.Empty);
+            var script = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Agent", "scripts", "Update-FeeProcessor.ps1"));
+            if (!File.Exists(script))
+                throw new FileNotFoundException("The Fee Processor updater script was not found.", script);
+
+            var appPath = FeeUpdatePathBox.Text.Trim();
+            var repository = FeeUpdateRepositoryBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(appPath) || string.IsNullOrWhiteSpace(repository))
+                throw new InvalidOperationException("Fee Processor application path and repository are required.");
+
+            using var process = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    WorkingDirectory = appPath,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                }
+            };
+            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script,
+                "-AppPath", appPath, "-Repository", repository, "-BackupRoot", FeeUpdateBackupBox.Text.Trim() })
+                process.StartInfo.ArgumentList.Add(argument);
+
+            var tag = FeeUpdateTagBox.Text.Trim();
+            if (!string.IsNullOrWhiteSpace(tag) && !string.Equals(tag, "(none)", StringComparison.OrdinalIgnoreCase))
+            {
+                process.StartInfo.ArgumentList.Add("-Tag");
+                process.StartInfo.ArgumentList.Add(tag);
+            }
+            else
+            {
+                process.StartInfo.ArgumentList.Add("-Branch");
+                process.StartInfo.ArgumentList.Add(string.IsNullOrWhiteSpace(FeeUpdateBranchBox.Text) ? "main" : FeeUpdateBranchBox.Text.Trim());
+            }
+
+            FeeUpdateOutputBox.Clear();
+            FeeUpdateOutputBox.Visibility = Visibility.Visible;
+            FeeUpdateProgressBar.Visibility = Visibility.Visible;
+            process.Start();
+            process.OutputDataReceived += (_, args) => AppendFeeUpdateOutput(args.Data);
+            process.ErrorDataReceived += (_, args) => AppendFeeUpdateOutput(args.Data);
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            await process.WaitForExitAsync();
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException($"Updater exited with code {process.ExitCode}. See the progress output for details.");
+
+            FeeUpdateStatusText.Text = "Update completed";
+            MessageBox.Show("Fee Processor update completed.", "Fee Processor Update", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            FeeUpdateStatusText.Text = "Update failed";
+            MessageBox.Show($"Fee Processor update failed: {ex.Message}", "Fee Processor Update", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            FeeUpdateProgressBar.Visibility = Visibility.Collapsed;
+            PullFeeUpdateButton.IsEnabled = true;
+        }
+    }
+
+    private void AppendFeeUpdateOutput(string? line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return;
+        Dispatcher.Invoke(() =>
+        {
+            FeeUpdateOutputBox.AppendText(line + Environment.NewLine);
+            FeeUpdateOutputBox.ScrollToEnd();
+        });
     }
 
     private async void SaveButton_Click(object sender, RoutedEventArgs e)
