@@ -60,7 +60,8 @@ internal sealed class FeeProcessorUpdateWorker(
             composer,
             settings.FeeProcessorSshUsername,
             settings.FeeProcessorSshKeyPath,
-            settings.FeeProcessorSshPassphrase);
+            settings.FeeProcessorSshPassphrase,
+            GitExecutablePath: settings.GitExecutablePath);
         await new FeeProcessorDeploymentRunner().RunAsync(
             request,
             message => logger.LogInformation("Fee-processor update: {Message}", message),

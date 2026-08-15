@@ -1,5 +1,7 @@
 using System.ComponentModel;
+using System.IO;
 using System.ServiceProcess;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -81,10 +83,12 @@ public partial class ControlPanel : Window
     {
         try
         {
-            var result = await new ConnectionValidator().ValidateAsync();
-            if (!result.AllPassed)
+            var validation = serviceName == Constants.AgentServiceName
+                ? await ValidateAgentPrerequisitesAsync()
+                : await ValidateSmsPrerequisitesAsync();
+            if (!validation.Passed)
             {
-                MessageBox.Show(result.Summary, "Connection Check Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(validation.Summary, "Connection Check Required", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -94,6 +98,52 @@ public partial class ControlPanel : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Connection check failed: {ex.Message}", "Connection Check Required", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private static async Task<(bool Passed, string Summary)> ValidateSmsPrerequisitesAsync()
+    {
+        var result = await new ConnectionValidator().ValidateAsync();
+        return (result.AllPassed, result.Summary);
+    }
+
+    private static async Task<(bool Passed, string Summary)> ValidateAgentPrerequisitesAsync()
+    {
+        try
+        {
+            var baseUrl = Constants.DefaultBaseUrl;
+            var rootPath = ConfigPathResolver.FindConfigFile();
+            if (File.Exists(rootPath))
+            {
+                using var root = JsonDocument.Parse(await File.ReadAllTextAsync(rootPath));
+                if (root.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer)
+                    && feeSyncer.TryGetProperty("BaseUrl", out var configuredBaseUrl))
+                    baseUrl = configuredBaseUrl.GetString() ?? baseUrl;
+            }
+
+            var agentPath = ConfigPathResolver.FindAgentConfigFile();
+            if (!File.Exists(agentPath))
+                return (false, "Agent configuration file was not found.");
+
+            using var agentDocument = JsonDocument.Parse(await File.ReadAllTextAsync(agentPath));
+            if (!agentDocument.RootElement.TryGetProperty("Agent", out var agent))
+                return (false, "Agent configuration section was not found.");
+
+            var token = agent.TryGetProperty("AgentToken", out var tokenValue) ? tokenValue.GetString() : string.Empty;
+            var localApi = agent.TryGetProperty("LocalApiBaseUrl", out var localValue)
+                ? localValue.GetString()
+                : "http://127.0.0.1:8001/api/";
+            var gatewayTask = ConnectionValidator.ValidateHttpAsync(
+                baseUrl.TrimEnd('/') + "/api/agent/work?wait=0", token);
+            var localTask = ConnectionValidator.ValidateHttpAsync(localApi?.TrimEnd('/') + "/", null);
+            var results = await Task.WhenAll(gatewayTask, localTask);
+            var summary = $"Agent gateway: {(results[0].Passed ? "OK" : "FAIL")} {results[0].Details}\n" +
+                          $"Local API: {(results[1].Passed ? "OK" : "FAIL")} {results[1].Details}";
+            return (results.All(result => result.Passed), summary);
+        }
+        catch (Exception exception)
+        {
+            return (false, $"Agent prerequisite check failed: {exception.Message}");
         }
     }
 

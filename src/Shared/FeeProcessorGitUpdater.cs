@@ -11,7 +11,8 @@ public sealed record FeeProcessorGitRequest(
     string Tag,
     string SshUsername = "git",
     string SshKeyPath = "",
-    string SshPassphrase = "");
+    string SshPassphrase = "",
+    string GitPath = "git");
 
 public sealed class FeeProcessorGitUpdater
 {
@@ -139,7 +140,7 @@ public sealed class FeeProcessorGitUpdater
     private static void RunExternalGit(FeeProcessorGitRequest request, IReadOnlyList<string> arguments,
         Action<string>? progress = null, string? workingDirectory = null)
     {
-        var command = Cli.Wrap("git")
+        var command = Cli.Wrap(string.IsNullOrWhiteSpace(request.GitPath) ? "git" : request.GitPath)
             .WithArguments(arguments)
             .WithWorkingDirectory(workingDirectory ?? request.AppPath)
             .WithStandardOutputPipe(PipeTarget.ToDelegate(line => progress?.Invoke(line)))

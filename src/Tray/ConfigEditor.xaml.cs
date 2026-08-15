@@ -429,7 +429,8 @@ public partial class ConfigEditor : UserControl
                     ComposerExecutablePathBox.Text.Trim(),
                     FeeProcessorSshUsernameBox.Text.Trim(),
                     FeeProcessorSshKeyPathBox.Text.Trim(),
-                    FeeProcessorSshPassphraseBox.Password);
+                    FeeProcessorSshPassphraseBox.Password,
+                    GitExecutablePath: GitExecutablePathBox.Text.Trim());
             await Task.Run(() => new FeeProcessorDeploymentRunner().RunAsync(request, AppendFeeUpdateOutput));
 
             FeeUpdateStatusText.Text = "Update completed";

@@ -16,7 +16,8 @@ public sealed record FeeProcessorDeploymentRequest(
     string SshKeyPath = "",
     string SshPassphrase = "",
     string IisSiteName = "FeeProcessor",
-    IReadOnlyList<string>? WindowsServices = null);
+    IReadOnlyList<string>? WindowsServices = null,
+    string GitExecutablePath = "");
 
 public sealed class FeeProcessorDeploymentRunner
 {
@@ -44,7 +45,7 @@ public sealed class FeeProcessorDeploymentRunner
 
             if (!string.IsNullOrWhiteSpace(appCmd))
                 await RunAsync(appCmd, ["stop", "site", $"/{request.IisSiteName}"], request.AppPath, message => Report(progress, message), cancellationToken, false);
-            gitUpdater.Update(new FeeProcessorGitRequest(request.AppPath, request.Repository, request.Branch, request.Tag, request.SshUsername, request.SshKeyPath, request.SshPassphrase), message => Report(progress, message));
+            gitUpdater.Update(new FeeProcessorGitRequest(request.AppPath, request.Repository, request.Branch, request.Tag, request.SshUsername, request.SshKeyPath, request.SshPassphrase, request.GitExecutablePath), message => Report(progress, message));
             // await RunAsync(composer, ["install", "--no-dev", "--optimize-autoloader", "--no-interaction", "-vvv"], request.AppPath, message => Report(progress, message), cancellationToken);
             await RunAsync(composer, ["install", "--optimize-autoloader", "--no-interaction", "-vvv"], request.AppPath, message => Report(progress, message), cancellationToken);
             await RunAsync(php, ["artisan", "migrate", "--force"], request.AppPath, message => Report(progress, message), cancellationToken);
