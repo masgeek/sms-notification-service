@@ -71,6 +71,7 @@ jobs:
         with:
           dotnet-version: "10.0.x"
           cache: true
+          cache-dependency-path: "**/packages.lock.json"
 
       - name: Debug tag outputs
         id: resolve-version
