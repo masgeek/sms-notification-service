@@ -1,6 +1,6 @@
-# SmsNotificationService
+# FeeSyncer
 
-A .NET 10 background worker service that listens to a SQL Server table for new SMS notifications and sends them via an external HTTP API.
+A .NET 10 Windows service that listens to a SQL Server table for new SMS notifications and sends them via an external HTTP API. The separate school agent service handles student, fee, and payment synchronization.
 
 ## Architecture
 
@@ -21,6 +21,19 @@ NotificationRepository          SmsApiService
     | Dapper                     | HttpClient
     v                            v
 SQL Server                     SMS API
+
+School Integration Worker
+    |
+    +--> MQTT broker (direct Laravel publication, wake-up only)
+    +--> https://fees.munywele.co.ke/ (authoritative work, heartbeat, metrics)
+    +--> http://127.0.0.1:8001/api/ (fixed local school API)
+
+```
+
+The notification path is:
+
+```text
+Laravel API + queue -> MQTT broker -> Windows agents
 ```
 
 ## Tech Stack
@@ -39,6 +52,14 @@ SQL Server                     SMS API
 - SQL Server (local or remote)
 - SQL Server **Service Broker** enabled on the target database
 - Access to an SMS API endpoint
+
+For the school integration worker, also configure a reachable FeeSyncer gateway
+and a school-scoped agent token. Bootstrap that token by generating a one-time
+`enroll_...` code in the central fee-syncer admin interface, exchanging it at
+`POST /api/agent/enroll`, and storing the returned `fsk_...` token in
+`Agent:AgentToken`. The enrollment code expires after 15 minutes and is never
+used for runtime requests. The local school API must be available through the
+configured loopback URL.
 
 ## Setup
 
@@ -83,7 +104,9 @@ CREATE TABLE sms_notifications (
 
 ### 3. Configure
 
-Edit `appsettings.Development.json`:
+Edit the root `appsettings.Development.json` for SMS settings and
+`src/Agent/appsettings.Development.json` for the agent
+settings shown below:
 
 ```json
 {
@@ -95,9 +118,34 @@ Edit `appsettings.Development.json`:
     "RetryPollIntervalSeconds": 30,
     "LogRetentionDays": 7,
     "MaxLogFileSizeMb": 10
+  },
+  "Agent": {
+    "Enabled": true,
+    "ServerUrl": "https://fees.munywele.co.ke/",
+    "AgentToken": "replace-with-a-provisioned-agent-token",
+    "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",
+    "LocalApiUsername": "",
+    "LocalApiPassword": "",
+    "RequestTimeoutSeconds": 30,
+    "IdleDelaySeconds": 5,
+    "HeartbeatSeconds": 60,
+    "MqttEnabled": true,
+    "MqttBrokerHost": "mqtt.munywele.co.ke",
+    "MqttBrokerPort": 8883,
+    "MqttUseTls": true,
+    "MqttUsername": "",
+    "MqttPassword": "",
+    "MqttTopicPrefix": "fee-syncer/agent",
+    "MqttKeepAliveSeconds": 30,
+    "MqttReconnectMinSeconds": 1,
+    "MqttReconnectMaxSeconds": 60
   }
 }
 ```
+
+The `Agent` section configures the standalone school integration service. See
+[School integration deployment](docs/school-integration.md) for enrollment,
+credentials, and service behavior.
 
 | Config Key | Default | Description |
 |---|---|---|
@@ -108,6 +156,48 @@ Edit `appsettings.Development.json`:
 | `RetryPollIntervalSeconds` | `30` | How often the retry poller checks for eligible notifications |
 | `LogRetentionDays` | `7` | Days to keep log files before cleanup |
 | `MaxLogFileSizeMb` | `10` | Max log file size before rotation |
+| `Agent:Enabled` | `true` | Enables the standalone school integration service |
+| `Agent:ServerUrl` | `https://fees.munywele.co.ke/` | Central agent gateway URL; HTTPS is required except for loopback |
+| `Agent:AgentToken` | — | Returned `fsk_...` school-scoped bearer token; required when enabled. Never use the one-time `enroll_...` code here |
+| `Agent:LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback-only school API URL |
+| `Agent:LocalApiUsername` | — | Local school API username |
+| `Agent:LocalApiPassword` | — | Local school API password |
+| `Agent:RequestTimeoutSeconds` | `30` | HTTP request timeout |
+| `Agent:IdleDelaySeconds` | `5` | Delay after an empty or failed work cycle |
+| `Agent:HeartbeatSeconds` | `60` | Heartbeat interval |
+| `Agent:MqttEnabled` | `true` | Enables MQTT-first work discovery |
+| `Agent:MqttBrokerHost` | `mqtt.munywele.co.ke` | MQTT broker host |
+| `Agent:MqttBrokerPort` | `8883` | TLS MQTT broker port |
+| `Agent:MqttUseTls` | `true` | Enables TLS for MQTT |
+| `Agent:MqttUsername` | — | MQTT username; token is used when empty |
+| `Agent:MqttPassword` | — | MQTT password |
+| `Agent:MqttTopicPrefix` | `fee-syncer/agent` | MQTT topic prefix |
+| `Agent:MqttKeepAliveSeconds` | `30` | MQTT keep-alive interval |
+| `Agent:MqttReconnectMinSeconds` | `1` | Minimum reconnect delay |
+| `Agent:MqttReconnectMaxSeconds` | `60` | Maximum reconnect delay |
+
+The agent is enabled by default. Generate a single-use `enroll_...` code in the
+central fee-syncer admin interface, exchange it at `POST /api/agent/enroll`, and
+replace the provisioning placeholder with the returned `fsk_...` token before
+starting the service. The installer can perform this exchange for the user.
+Keep both credentials out of source control, installer arguments, logs, and
+fixtures.
+
+MQTT is enabled by default and is the only work-discovery trigger. MQTT only
+wakes the agent; HTTP remains the authoritative lease and data-transfer protocol
+after a wake-up. If MQTT is unavailable, work discovery pauses until it
+reconnects; there is no HTTP polling fallback.
+
+The SMS processor and school agent run as separate processes and Windows
+services. Run the agent independently during development:
+
+```bash
+dotnet run --project src/Agent/FeeSyncer.Agent.csproj
+```
+
+`dotnet run` uses the Agent project's launch profile and therefore loads
+`appsettings.Development.json`. A Windows service runs as `Production` and
+loads `appsettings.Production.json` instead.
 
 ### 4. Run
 
@@ -115,21 +205,33 @@ Edit `appsettings.Development.json`:
 dotnet run
 ```
 
+### Test
+
+Run the agent contract and school API mapping tests with:
+
+```bash
+dotnet test tests/Agent/FeeSyncer.Agent.Tests.csproj --no-restore
+```
+
+The GitHub Actions workflow runs the same project automatically. Tests do not
+require SQL Server, an SMS provider, or live school API credentials.
+
 ### 5. Install as Windows Service
 
 **Installer (recommended):**
 
 Download the latest release from [GitHub Releases](../../releases). Two installer variants are available:
 
-- `SmsNotificationService-Setup-<version>.exe` — self-contained (no .NET runtime needed)
-- `SmsNotificationService-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime)
+- `FeeSyncer-Setup-<version>.exe` — self-contained (no .NET runtime needed)
+- `FeeSyncer-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime)
 
 Run the installer as Administrator. It will:
 
-- Install files to `C:\Program Files\SmsNotificationService\`
+- Install files to `C:\Program Files\FeeSyncer\`
 - Prompt for database connection, API URL, and auth token
 - Create the Windows Service (delayed auto-start)
-- Write config to `C:\Program Files\SmsNotificationService\appsettings.Production.json`
+- Write SMS config to `C:\Program Files\FeeSyncer\appsettings.Production.json`
+- Write agent config to `C:\Program Files\FeeSyncer\Agent\appsettings.Production.json`
 - Register an Event Log source
 - Configure service recovery (restart on failure)
 - Optionally install the system tray app
@@ -137,9 +239,9 @@ Run the installer as Administrator. It will:
 **Manual:**
 
 ```bash
-dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained
-sc create SmsNotificationService binPath="C:\path\to\publish\SmsNotificationService.exe" start=delayed-auto
-sc start SmsNotificationService
+dotnet publish src/Sms/FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained
+sc create FeeSyncer.Sms binPath="C:\path\to\publish\FeeSyncer.Sms.exe" start=delayed-auto
+sc start FeeSyncer.Sms
 ```
 
 > Full deployment guide: [docs/deployment.md](docs/deployment.md)
@@ -155,6 +257,12 @@ sc start SmsNotificationService
 7. **On success** — Status → `PROCESSED`
 8. **On failure** — Increments `retry_count`, sets `retry_after` with exponential backoff
 9. **Max retries exceeded** — Status → `CANCELLED`
+
+The school integration agent runs as a separate process and Windows service. It
+heartbeats to the central gateway, discovers work MQTT-first, reads
+student and fee data from the loopback school API, uploads resumable pages, and
+records approved payments. An agent failure cannot stop SMS processing.
+
 
 ## Status Enum
 
@@ -195,6 +303,7 @@ Each notification has its own `max_retries` (DB column, default 5) and `retry_co
 - **Error logging** — API error responses saved to `description` column for debugging
 - **Null safety** — Nullable enabled with warnings-as-errors
 - **Structured logging** — `[Tag]` prefixed logs for quick filtering
+- **School integration worker** — MQTT-first work discovery, resumable snapshots, fee synchronization, and payment write-back
 
 ## CI/CD
 
@@ -235,61 +344,41 @@ To manually trigger a release:
 dotnet test
 ```
 
-12 unit tests covering:
+26 unit tests covering:
 - `WorkerTests` — pending processing, success/failure flows, retry scheduling, concurrency
 - `SmsApiServiceTests` — HTTP retry logic, success/failure, `CalculateRetryAfter` backoff
+- `SchoolApiStudentAdapterTests` — student and fee pagination and field mapping
+- `StudentSyncContractTests` — approved student contract serialization and hashing
 
 ## Project Structure
 
 ```
-SmsNotificationService/
-├── Program.cs                              # Entry point, DI, config, file logging
+FeeSyncer/
 ├── Directory.Build.props                   # Centralized versioning (auto-updated by CI)
-├── appsettings.json                        # Production config template
-├── appsettings.Development.json            # Dev config
 ├── src/
-│   ├── Workers/
-│   │   ├── NotificationProcessor.cs        # Shared processing logic (thread-safe)
-│   │   ├── TableChangeListener.cs          # SqlDependency real-time listener
-│   │   └── RetryPoller.cs                  # Periodic polling for retry-eligible notifications
-│   ├── Data/
-│   │   ├── INotificationRepository.cs      # Data access contract
-│   │   ├── NotificationRepository.cs       # DB reads/writes (Dapper)
-│   │   └── SqlDependencyListener.cs        # Service Broker listener
-│   ├── Services/
-│   │   ├── ISmsSender.cs                   # SMS sending contract
-│   │   └── SmsApiService.cs               # HTTP calls with retry
-│   ├── Models/
-│   │   ├── SmsNotification.cs              # Entity (PascalCase, Dapper-mapped)
-│   │   └── NotificationStatus.cs           # Status enum
-│   ├── Configuration/
-│   │   └── SmsServiceOptions.cs            # Typed config
-│   ├── Checks/
-│   │   └── DatabaseConnectionCheck.cs      # Startup DB check (10s timeout)
-│   └── Logging/
-│       └── FileLoggerProvider.cs           # File logging with daily rotation
-├── SmsNotificationService.Shared/
-│   ├── SmsNotificationService.Shared.csproj
-│   ├── Constants.cs                        # Service name, table name, paths
-│   ├── ConfigPathResolver.cs               # Find config file (app dir → ProgramData)
-│   ├── VersionHelper.cs                    # Assembly version info
-│   ├── ConfigReader.cs                     # Load config values
-│   └── StatusHelper.cs                     # Format status strings
-├── SmsNotificationService.Tray/
-│   ├── SmsNotificationService.Tray.csproj  # WPF WinExe
-│   ├── App.xaml / App.xaml.cs              # WPF app entry, ShutdownMode
-│   ├── TrayIcon.cs                         # GDI+ icons, context menu
-│   ├── ServiceMonitor.cs                   # 3-tier service detection, control
-│   ├── UpdateChecker.cs                    # GitHub Releases polling
-│   ├── ConnectionValidator.cs              # DB/API/Broker connectivity checks
-│   ├── StatusWindow.xaml / .cs             # Service status display
-│   ├── LogViewer.xaml / .cs                # Log file tailing
-│   ├── ConfigEditor.xaml / .cs             # Edit all SmsService settings
-│   └── SendNotificationDialog.xaml / .cs   # Manual SMS insert
+│   ├── Sms/                                # SMS Windows service and all SMS source
+│   │   ├── FeeSyncer.Sms.csproj
+│   │   ├── Program.cs
+│   │   ├── appsettings.json
+│   │   ├── Checks/ Data/ Models/            # Application layers
+│   │   ├── Configuration/ Services/
+│   │   └── Workers/ Logging/
+│   ├── Agent/                              # School integration Windows service
+│   │   ├── FeeSyncer.Agent.csproj
+│   │   └── src/SchoolIntegration/
+│   ├── Shared/                             # Shared libraries and models
+│   │   └── FeeSyncer.Shared.csproj
+│   ├── Tray/                               # Optional WPF management app
+│   │   └── FeeSyncer.Tray.csproj
+│   └── Console/                            # Console monitor
+│       └── FeeSyncer.Console.csproj
 ├── tests/
-│   └── SmsNotificationService.Tests/
-│       ├── WorkerTests.cs                  # Worker unit tests
-│       └── SmsApiServiceTests.cs           # SMS service unit tests
+│   ├── Sms/
+│   ├── Agent/
+│   └── Tray/
+│       ├── Sms/                            # SMS service tests
+│       ├── Agent/                          # School agent tests
+│       └── Tray/                           # Tray tests
 ├── installer/
 │   ├── installer.iss                       # Self-contained installer
 │   ├── installer-framework.iss             # Framework-dependent installer
@@ -309,15 +398,16 @@ SmsNotificationService/
 │   └── auto-review.yml                     # Auto-approve after checks pass
 ├── docs/
 │   ├── deployment.md                       # Deployment guide
+│   ├── school-integration.md                # Enrollment and agent operations
 │   └── plan.md                             # Feature plan
 ├── publish.ps1                             # Self-contained publish script
 ├── publish-framework.ps1                   # Framework-dependent publish script
-└── SmsNotificationService.slnx             # Solution file
+└── FeeSyncer.slnx                           # Solution file
 ```
 
 ## Tray App
 
-The system tray app (`SmsNotificationService.Tray.exe`) provides real-time service management:
+The system tray app (`FeeSyncer.Tray.exe`) provides real-time service management:
 
 - **Status monitoring** — real-time service status, uptime, version, detection method
 - **Service control** — start, stop, restart from the tray menu
@@ -349,21 +439,21 @@ The SMS API receives raw data fields (snake_case):
 
 ## Logging
 
-**File logs** are written to `ProgramData\Munywele\SmsNotificationService\logs\` with daily rotation and configurable retention (default 7 days).
+**File logs** are written to `ProgramData\Munywele\FeeSyncer\logs\` with daily rotation and configurable retention (default 7 days).
 
-**Config location:** `C:\Program Files\SmsNotificationService\appsettings.Production.json` (app directory, not ProgramData).
+**Config location:** `C:\Program Files\FeeSyncer\appsettings.Production.json` (app directory, not ProgramData).
 
 **Console output:**
 
 ```
-[App]      SmsNotificationService starting (Environment: Development)
+[App]      FeeSyncer.Sms starting (Environment: Development)
 [Config]   Configuration validated — API: https://api.munywele.co.ke/v1/send
 [DB]       Connected to school on 127.0.0.1 (16.0.1000) in 42ms
-[App]      SmsNotificationService ready
+[App]      FeeSyncer.Sms ready
 [Queue]    Found 3 pending notification(s)
 [SMS]      Sending notification 1 to 07130000000 (attempt 1/3)
 [SMS]      Sent notification 1 to 07130000000 — status updated to PROCESSED
 [Listener] Query registered successfully. Waiting for table changes...
 ```
 
-Log tags: `[App]`, `[Config]`, `[DB]`, `[Listener]`, `[Queue]`, `[SMS]`, `[Shutdown]`
+Log tags: `[App]`, `[Config]`, `[DB]`, `[Listener]`, `[Queue]`, `[SMS]`, `[Agent]`, `[Shutdown]`

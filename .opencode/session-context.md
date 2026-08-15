@@ -26,9 +26,9 @@
 
 ### 3. Zip splitting (fix duplicate filename clash)
 - Each component zipped separately to avoid DLL clashes
-- `SmsNotificationService-service-win-x64.zip`
-- `SmsNotificationService-tray-win-x64.zip`
-- `SmsNotificationService-console-win-x64.zip`
+- `FeeSyncer-sms-win-x64.zip`
+- `FeeSyncer-tray-win-x64.zip`
+- `FeeSyncer-console-win-x64.zip`
 - Commits: `bcf8e53`, `b7014e5`
 
 ### 4. Server 2016 compatibility fix
@@ -50,7 +50,7 @@
 - `installer/code/globals.iss`, `wizard.iss`, `install.iss`, `uninstall.iss`
 - `.github/workflows/tests.yml`, `.github/workflows/release.yml`
 - `.gitignore`
-- `SmsNotificationService.Tray/TrayIcon.cs` (ForceCreate fix)
-- `tests/SmsNotificationService.Tests/TrayIconForceCreateTests.cs` (new)
+- `src/Tray/TrayIcon.cs` (ForceCreate fix)
+- `tests/Sms/TrayIconForceCreateTests.cs` (new)
 - `docs/PROJECT_SUMMARY.md`, `docs/deployment.md`
 - `docs/tray-app-checklist.md`, `docs/tray-app-plan.md`

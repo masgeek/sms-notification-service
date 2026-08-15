@@ -58,6 +58,30 @@ begin
   Result := (RunCmd('sc.exe', 'delete ' + SvcName) = 0);
 end;
 
+procedure EnsureService(const SvcName, DisplayName, BinaryPath: String);
+begin
+  if ServiceExists(SvcName) then
+  begin
+    Log('Service already exists; updating ' + SvcName + '.');
+    StopService(SvcName);
+    WaitForServiceState(SvcName, 'STOPPED', 30000);
+    ExecuteOrFail(
+      'sc.exe',
+      'config ' + SvcName + ' binPath= "' + BinaryPath + '" start= demand DisplayName= "' + DisplayName + '" obj= LocalSystem',
+      'Failed to update existing service ' + SvcName + '.'
+    );
+  end
+  else
+  begin
+    Log('Creating service ' + SvcName + '.');
+    ExecuteOrFail(
+      'sc.exe',
+      'create ' + SvcName + ' binPath= "' + BinaryPath + '" start= demand DisplayName= "' + DisplayName + '" obj= LocalSystem',
+      'Failed to create service ' + SvcName + '.'
+    );
+  end;
+end;
+
 procedure ConfigureServiceDescription(const SvcName, Description: String);
 var
   ExitCode: Integer;

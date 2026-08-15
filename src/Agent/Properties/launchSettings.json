@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "FeeSyncer.Agent": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
