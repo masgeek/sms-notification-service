@@ -1,7 +1,24 @@
 <UserControl x:Class="FeeSyncer.Tray.ConfigEditor"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-         MinWidth="620" MinHeight="560">
+          MinWidth="760" MinHeight="640" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+    <UserControl.Resources>
+        <Style TargetType="TextBox">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="MaxWidth" Value="520"/>
+        </Style>
+        <Style TargetType="PasswordBox">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="MaxWidth" Value="520"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="MaxWidth" Value="520"/>
+        </Style>
+    </UserControl.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -11,9 +28,10 @@
         <TextBlock Grid.Row="0" Text="Configuration" FontSize="16" FontWeight="Bold" Margin="0,0,0,12"/>
         <TabControl Grid.Row="1">
             <TabItem Header="SMS Service">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
                 <Grid x:Name="SmsSection">
-                <StackPanel Margin="10">
-                        <TextBlock Text="Database" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
+                        <GroupBox Header="Database" Margin="0,0,0,10" Padding="8">
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -22,14 +40,16 @@
                             <TextBlock Grid.Row="2" Text="User ID:" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="DbUserIdBox" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Text="Password:" VerticalAlignment="Center"/><PasswordBox Grid.Row="3" Grid.Column="1" x:Name="DbPasswordBox" Margin="0,2"/>
                         </Grid>
-                        <TextBlock Text="SMS API" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        </GroupBox>
+                        <GroupBox Header="SMS API" Margin="0,0,0,10" Padding="8">
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="URL:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="ApiUrlBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Text="FeeSyncer base URL:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="ApiUrlBox" Margin="0,2"/>
                             <TextBlock Grid.Row="1" Text="Authorization token:" VerticalAlignment="Center"/><PasswordBox Grid.Row="1" Grid.Column="1" x:Name="TokenBox" Margin="0,2"/>
                         </Grid>
-                        <TextBlock Text="Retry and Logging" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        </GroupBox>
+                        <GroupBox Header="Retry and Logging" Margin="0,0,0,10" Padding="8">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -38,29 +58,41 @@
                             <TextBlock Grid.Row="2" Text="Log retention (days):" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="RetentionBox" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Text="Max log size (MB):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="MaxSizeBox" Margin="0,2"/>
                         </Grid>
-                        <Button Content="Test SMS Connections" x:Name="TestSmsButton" Click="TestSmsButton_Click" HorizontalAlignment="Left" Padding="12,4" Margin="0,12,0,0"/>
-                        <TextBlock Text="Tray behavior" FontWeight="SemiBold" Margin="0,14,0,4"/>
-                        <CheckBox x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray"/>
+                        </GroupBox>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="Test Database" x:Name="TestDatabaseButton" Click="TestDatabaseButton_Click" Padding="12,4" Margin="0,0,8,0"/>
+                            <Button Content="Test SMS API" x:Name="TestSmsButton" Click="TestSmsButton_Click" Padding="12,4"/>
+                        </StackPanel>
+                        <GroupBox Header="Tray behavior" Padding="8">
+                            <CheckBox x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray"/>
+                        </GroupBox>
                 </StackPanel>
                 </Grid>
+                </ScrollViewer>
             </TabItem>
             <TabItem Header="School Agent">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
                 <Grid x:Name="AgentSection">
-                <StackPanel Margin="10">
-                    <TextBlock Text="Enrollment" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
+                    <GroupBox Header="Enrollment" Margin="0,0,0,10" Padding="8">
+                    <StackPanel>
                     <TextBlock Text="Single-use code from fee-syncer; it is never stored." Foreground="Gray" Margin="0,0,0,6"/>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Enrollment code:"/><TextBox x:Name="EnrollmentCodeBox" Margin="0,2"/></StackPanel>
                         <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="Agent name:"/><TextBox x:Name="AgentNameBox" Margin="0,2"/></StackPanel>
                     </Grid>
-                    <TextBlock Text="Agent and Local API" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="Agent and Local API" Margin="0,0,0,10" Padding="8">
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Enabled:"/><CheckBox x:Name="AgentEnabledBox" Margin="0,5"/><TextBlock Text="Gateway URL:"/><TextBox x:Name="AgentServerUrlBox" Margin="0,2"/><TextBlock Text="Agent token:"/><TextBox x:Name="AgentTokenBox" Margin="0,2"/></StackPanel>
+                         <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Agent token:"/><TextBox x:Name="AgentTokenBox" Margin="0,2"/><TextBlock Text="Enabled:" Margin="0,6,0,0"/><CheckBox x:Name="AgentEnabledBox" Margin="0,5"/></StackPanel>
                         <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="Local API URL:"/><TextBox x:Name="LocalApiUrlBox" Margin="0,2"/><TextBlock Text="Username:"/><TextBox x:Name="LocalApiUsernameBox" Margin="0,2"/><TextBlock Text="Password:"/><PasswordBox x:Name="LocalApiPasswordBox" Margin="0,2"/></StackPanel>
                     </Grid>
-                    <TextBlock Text="Timing and MQTT" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    </GroupBox>
+                    <GroupBox Header="Timing and MQTT" Margin="0,0,0,10" Padding="8">
+                    <StackPanel>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,4,0"><TextBlock Text="Request timeout"/><TextBox x:Name="RequestTimeoutBox"/><TextBlock Text="Idle delay" Margin="0,4,0,0"/><TextBox x:Name="IdleDelayBox"/><TextBlock Text="Heartbeat" Margin="0,4,0,0"/><TextBox x:Name="HeartbeatBox"/><TextBlock Text="Lease renewal" Margin="0,4,0,0"/><TextBox x:Name="LeaseRenewalBox"/></StackPanel>
@@ -73,6 +105,8 @@
                         <StackPanel Grid.Column="1" Margin="4,0"><TextBlock Text="Reconnect max"/><TextBox x:Name="MqttReconnectMaxBox"/></StackPanel>
                         <StackPanel Grid.Column="2" Margin="4,0,0,0"><TextBlock Text="Agent status"/><TextBlock x:Name="AgentStatusSummaryText" Margin="0,5" Foreground="Gray"/></StackPanel>
                     </Grid>
+                    </StackPanel>
+                    </GroupBox>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                             <Button Content="Enroll / Re-enroll" x:Name="EnrollButton" Click="EnrollButton_Click" Padding="12,4" Margin="0,0,8,0"/>
                             <Button Content="Test Agent Connections" x:Name="TestAgentButton" Click="TestAgentButton_Click" Padding="12,4" Margin="0,0,8,0"/>
@@ -80,29 +114,53 @@
                         </StackPanel>
                 </StackPanel>
                 </Grid>
+                </ScrollViewer>
             </TabItem>
             <TabItem Header="Fee Processor Updates">
-                <StackPanel Margin="10">
-                    <TextBlock Text="Automatic Fee Processor Updates" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <Grid>
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
+                <StackPanel Margin="10" HorizontalAlignment="Stretch">
+                    <Grid MaxWidth="1100" HorizontalAlignment="Stretch">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
-                            <TextBlock Text="Enabled"/><CheckBox x:Name="FeeUpdateEnabledBox" Margin="0,5"/>
-                            <TextBlock Text="Application directory"/><TextBox x:Name="FeeUpdatePathBox" Margin="0,2"/>
-                            <TextBlock Text="Repository"/><TextBox x:Name="FeeUpdateRepositoryBox" Margin="0,2"/>
-                            <TextBlock Text="SSH username"/><TextBox x:Name="FeeProcessorSshUsernameBox" Margin="0,2"/>
-                            <TextBlock Text="SSH private key path"/><TextBox x:Name="FeeProcessorSshKeyPathBox" Margin="0,2"/>
-                            <TextBlock Text="SSH passphrase"/><PasswordBox x:Name="FeeProcessorSshPassphraseBox" Margin="0,2"/>
-                            <TextBlock Text="PHP executable (blank = PATH)"/><TextBox x:Name="PhpExecutablePathBox" Margin="0,2"/>
-                            <TextBlock Text="Git executable (blank = PATH)"/><TextBox x:Name="GitExecutablePathBox" Margin="0,2"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                            <TextBlock Text="Branch"/><TextBox x:Name="FeeUpdateBranchBox" Margin="0,2"/>
-                            <TextBlock Text="Tag (optional)"/><TextBox x:Name="FeeUpdateTagBox" Margin="0,2"/>
-                            <TextBlock Text="Interval / Backup directory"/>
-                            <DockPanel><TextBox x:Name="FeeUpdateIntervalBox" Width="55"/><TextBox x:Name="FeeUpdateBackupBox" Margin="6,0,0,0"/></DockPanel>
-                            <TextBlock Text="Composer executable (blank = PATH)" Margin="0,4,0,0"/><TextBox x:Name="ComposerExecutablePathBox" Margin="0,2"/>
-                        </StackPanel>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <GroupBox Grid.Row="0" Grid.Column="0" Header="Repository" Margin="0,0,5,10" Padding="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Application directory:" VerticalAlignment="Center"/><DockPanel Grid.Row="0" Grid.Column="1" LastChildFill="True"><Button DockPanel.Dock="Right" Content="..." Click="BrowseFeeUpdatePath_Click" Width="30" Margin="4,2,0,2"/><TextBox x:Name="FeeUpdatePathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
+                            <TextBlock Grid.Row="1" Text="Repository:" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="FeeUpdateRepositoryBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Text="Branch:" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="FeeUpdateBranchBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Text="Tag (optional):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="FeeUpdateTagBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="4" Text="Enabled:" VerticalAlignment="Center"/><CheckBox Grid.Row="4" Grid.Column="1" x:Name="FeeUpdateEnabledBox" Margin="0,5"/>
+                        </Grid>
+                    </GroupBox>
+                    <GroupBox Grid.Row="0" Grid.Column="1" Header="SSH Authentication" Margin="5,0,0,10" Padding="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="SSH username:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="FeeProcessorSshUsernameBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Text="Private key path:" VerticalAlignment="Center"/><DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Clear" Click="ClearSshKey_Click" Padding="6,0" Margin="4,2,0,2"/><Button Content="..." Click="BrowseSshKey_Click" Width="30" Margin="4,2,0,2"/></StackPanel><TextBox x:Name="FeeProcessorSshKeyPathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
+                            <TextBlock Grid.Row="2" Text="SSH passphrase:" VerticalAlignment="Center"/><PasswordBox Grid.Row="2" Grid.Column="1" x:Name="FeeProcessorSshPassphraseBox" Margin="0,2"/>
+                        </Grid>
+                    </GroupBox>
+                    <GroupBox Grid.Row="1" Grid.Column="0" Header="Tool Paths" Margin="0,0,5,10" Padding="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="PHP (blank = PATH):" VerticalAlignment="Center"/><DockPanel Grid.Row="0" Grid.Column="1" LastChildFill="True"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Clear" Click="ClearPhp_Click" Padding="6,0" Margin="4,2,0,2"/><Button Content="..." Click="BrowsePhp_Click" Width="30" Margin="4,2,0,2"/></StackPanel><TextBox x:Name="PhpExecutablePathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
+                            <TextBlock Grid.Row="1" Text="Composer (blank = PATH):" VerticalAlignment="Center"/><DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Clear" Click="ClearComposer_Click" Padding="6,0" Margin="4,2,0,2"/><Button Content="..." Click="BrowseComposer_Click" Width="30" Margin="4,2,0,2"/></StackPanel><TextBox x:Name="ComposerExecutablePathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
+                            <TextBlock Grid.Row="2" Text="Git (blank = PATH):" VerticalAlignment="Center"/><DockPanel Grid.Row="2" Grid.Column="1" LastChildFill="True"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Clear" Click="ClearGit_Click" Padding="6,0" Margin="4,2,0,2"/><Button Content="..." Click="BrowseGit_Click" Width="30" Margin="4,2,0,2"/></StackPanel><TextBox x:Name="GitExecutablePathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
+                        </Grid>
+                    </GroupBox>
+                    <GroupBox Grid.Row="1" Grid.Column="1" Header="Schedule and Backup" Margin="5,0,0,10" Padding="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Update interval:" VerticalAlignment="Center"/><ComboBox Grid.Row="0" Grid.Column="1" x:Name="FeeUpdateIntervalBox" SelectedValuePath="Content" SelectedValue="24h" ToolTip="Select how often Fee Processor updates run." Margin="0,2">
+                                <ComboBoxItem Content="15m"/><ComboBoxItem Content="30m"/><ComboBoxItem Content="1h"/><ComboBoxItem Content="2h"/><ComboBoxItem Content="6h"/><ComboBoxItem Content="12h"/><ComboBoxItem Content="24h"/><ComboBoxItem Content="2d"/><ComboBoxItem Content="7d"/>
+                            </ComboBox>
+                            <TextBlock Grid.Row="1" Text="Backup directory:" VerticalAlignment="Center"/><DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True"><Button DockPanel.Dock="Right" Content="..." Click="BrowseBackupPath_Click" Width="30" Margin="4,2,0,2"/><TextBox x:Name="FeeUpdateBackupBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
+                        </Grid>
+                    </GroupBox>
                     </Grid>
                     <TextBlock Text="Use * in Tag to deploy the latest remote tag. A tag takes precedence over Branch." Foreground="Gray" TextWrapping="Wrap" Margin="0,10,0,6"/>
                     <StackPanel Orientation="Horizontal">
@@ -116,15 +174,15 @@
                     <TextBlock x:Name="ComposerDetectionText" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
                     <TextBlock x:Name="GitDetectionText" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
                     <ProgressBar x:Name="FeeUpdateProgressBar" Height="8" IsIndeterminate="True" Visibility="Collapsed" Margin="0,8,0,0"/>
-                    <TextBox x:Name="FeeUpdateOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="120" Margin="0,8,0,0" Visibility="Collapsed"/>
+                    <TextBox x:Name="FeeUpdateOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" HorizontalAlignment="Stretch" MaxWidth="2000" MinHeight="180" Height="220" Margin="0,8,0,0" Visibility="Collapsed"/>
                 </StackPanel>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
         <StackPanel Grid.Row="2" Margin="0,12,0,0">
             <TextBlock x:Name="ConfigPathText" FontSize="10" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Save All" x:Name="SaveButton" Click="SaveButton_Click" Margin="0,0,8,0" Padding="12,4"/>
-                <Button Content="Cancel" Click="CancelButton_Click" Padding="12,4"/>
+                <Button Content="Save All" x:Name="SaveButton" Click="SaveButton_Click" Padding="12,4"/>
             </StackPanel>
         </StackPanel>
     </Grid>

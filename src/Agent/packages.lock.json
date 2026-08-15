@@ -63,6 +63,11 @@
         "resolved": "5.2.0.1603",
         "contentHash": "iNuWVo/568aRo2ExEN2qkC4J5b07ckKqt+9Uok2kIbbK7PMBsXvYiKVENPHmOBWFB5ExhlNQb/qQ8M9/IYRTdQ=="
       },
+      "CliWrap": {
+        "type": "Transitive",
+        "resolved": "3.10.0",
+        "contentHash": "Igph39WNImUFqQrpTeBDPafcCnM1u/8IooZHqMRF/5JdV5H78p+AbZkeYY1Nkz1WlbI/Gt2Hq/3rYh55jxRF9Q=="
+      },
       "Dapper": {
         "type": "Transitive",
         "resolved": "2.1.79",
@@ -487,6 +492,7 @@
       "feesyncer.shared": {
         "type": "Project",
         "dependencies": {
+          "CliWrap": "[3.10.0, )",
           "Dapper": "[2.1.79, )",
           "LibGit2Sharp": "[0.27.2, )",
           "Microsoft.Data.SqlClient": "[7.0.2, )",

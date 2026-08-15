@@ -45,6 +45,15 @@ public static class ConfigurationExtensions
         if (!loaded)
             Console.WriteLine("[Config] No config file found — using environment variables or defaults");
 
+        var baseUrl = builder.Build()["FeeSyncer:BaseUrl"];
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            builder.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SmsService:SmsApiUrl"] = baseUrl.TrimEnd('/') + "/api/v1/notifications"
+            });
+        }
+
         return builder;
     }
 

@@ -45,7 +45,8 @@ public sealed class FeeProcessorDeploymentRunner
             if (!string.IsNullOrWhiteSpace(appCmd))
                 await RunAsync(appCmd, ["stop", "site", $"/{request.IisSiteName}"], request.AppPath, message => Report(progress, message), cancellationToken, false);
             gitUpdater.Update(new FeeProcessorGitRequest(request.AppPath, request.Repository, request.Branch, request.Tag, request.SshUsername, request.SshKeyPath, request.SshPassphrase), message => Report(progress, message));
-            await RunAsync(composer, ["install", "--no-dev", "--optimize-autoloader", "--no-interaction", "-vvv"], request.AppPath, message => Report(progress, message), cancellationToken);
+            // await RunAsync(composer, ["install", "--no-dev", "--optimize-autoloader", "--no-interaction", "-vvv"], request.AppPath, message => Report(progress, message), cancellationToken);
+            await RunAsync(composer, ["install", "--optimize-autoloader", "--no-interaction", "-vvv"], request.AppPath, message => Report(progress, message), cancellationToken);
             await RunAsync(php, ["artisan", "migrate", "--force"], request.AppPath, message => Report(progress, message), cancellationToken);
             foreach (var command in new[] { "optimize:clear", "config:cache", "route:cache", "view:cache", "event:cache" })
                 await RunAsync(php, ["artisan", command], request.AppPath, message => Report(progress, message), cancellationToken);
@@ -71,7 +72,12 @@ public sealed class FeeProcessorDeploymentRunner
         var previousCommit = repository?.Head.Tip.Sha ?? "No previous Git checkout.";
         File.WriteAllText(Path.Combine(backup, "previous-commit.txt"), previousCommit);
         var env = Path.Combine(request.AppPath, ".env");
-        if (File.Exists(env)) File.Copy(env, Path.Combine(backup, ".env"), true);
+        if (File.Exists(env))
+        {
+            var envBackup = Path.Combine(backup, ".env");
+            File.Copy(env, envBackup, true);
+            Report(progress, $"Ignored .env preserved and backed up at {envBackup}.");
+        }
         Report(progress, $"Backup prepared at {backup}.");
         return backup;
     }

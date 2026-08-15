@@ -27,9 +27,9 @@ public static class ConfigReader
             if (!File.Exists(configPath)) return string.Empty;
             var json = File.ReadAllText(configPath);
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("SmsService", out var sms) &&
-                sms.TryGetProperty("SmsApiUrl", out var url))
-                return url.GetString() ?? string.Empty;
+            if (doc.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer) &&
+                feeSyncer.TryGetProperty("BaseUrl", out var baseUrl))
+                return (baseUrl.GetString() ?? string.Empty).TrimEnd('/') + "/api/v1/notifications";
         }
         catch { /* ignore */ }
         return string.Empty;

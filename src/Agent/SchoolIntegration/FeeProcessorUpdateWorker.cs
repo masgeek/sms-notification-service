@@ -24,7 +24,11 @@ internal sealed class FeeProcessorUpdateWorker(
                 }
             }
 
-            await Task.Delay(TimeSpan.FromHours(Math.Max(1, options.Value.FeeProcessorUpdateIntervalHours)), stoppingToken);
+            var settings = options.Value;
+            var interval = FeeProcessorInterval.TryParse(settings.FeeProcessorUpdateInterval, out var parsed)
+                ? parsed
+                : TimeSpan.FromHours(Math.Max(1, settings.FeeProcessorUpdateIntervalHours));
+            await Task.Delay(interval, stoppingToken);
         }
     }
 

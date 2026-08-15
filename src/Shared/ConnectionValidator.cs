@@ -43,6 +43,20 @@ public sealed class ConnectionValidator
         return await ValidateApiAsync(url, bearerToken ?? string.Empty);
     }
 
+    public async Task<CheckResult> ValidateDatabaseAsync()
+    {
+        var configPath = ConfigPathResolver.FindConfigFile();
+        return await ValidateDbAsync(ConfigReader.LoadConnectionString(configPath));
+    }
+
+    public async Task<CheckResult> ValidateSmsApiAsync()
+    {
+        var configPath = ConfigPathResolver.FindConfigFile();
+        return await ValidateApiAsync(
+            ConfigReader.LoadApiUrl(configPath),
+            ConfigReader.LoadAuthorizationToken(configPath));
+    }
+
     private static async Task<CheckResult> ValidateDbAsync(string connectionString)
     {
         if (string.IsNullOrWhiteSpace(connectionString))

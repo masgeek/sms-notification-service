@@ -15,9 +15,28 @@ var builder = Host.CreateApplicationBuilder(args);
 
 var environment = builder.Environment.EnvironmentName;
 
-var logDir = ConfigPathResolver.GetLogDir();
+builder.Configuration.Sources.Clear();
+builder.Configuration
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: false)
+    .AddJsonFile(ConfigPathResolver.GetMachineConfigFile(), optional: true, reloadOnChange: false)
+    .AddEnvironmentVariables()
+    .AddCommandLine(args);
 
-builder.Configuration.AddProductionConfig(environment);
+if (string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase))
+    builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: false);
+
+var baseUrl = builder.Configuration["FeeSyncer:BaseUrl"];
+if (!string.IsNullOrWhiteSpace(baseUrl))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["SmsService:SmsApiUrl"] = baseUrl.TrimEnd('/') + "/api/v1/notifications"
+    });
+}
+
+var logDir = ConfigPathResolver.GetLogDir();
 
 var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName)
     .Get<SmsServiceOptions>() ?? new();

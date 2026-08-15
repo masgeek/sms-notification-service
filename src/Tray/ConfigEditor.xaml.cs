@@ -20,11 +20,11 @@ public partial class ConfigEditor : UserControl
         InitializeComponent();
         _monitor = monitor;
 
-        Loaded += (_, _) =>
+        Loaded += async (_, _) =>
         {
-            ConfigPathText.Text = ConfigPathResolver.FindConfigFile();
+            ConfigPathText.Text = ConfigPathResolver.GetMachineConfigFile();
             LoadConfig();
-            UpdateFeeToolDetectionText();
+            await UpdateFeeToolDetectionTextAsync();
         };
     }
 
@@ -43,6 +43,12 @@ public partial class ConfigEditor : UserControl
             var json = File.ReadAllText(configPath);
             using var doc = JsonDocument.Parse(json);
 
+            ApiUrlBox.Text = Constants.DefaultBaseUrl;
+            if (doc.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer)
+                && feeSyncer.TryGetProperty("BaseUrl", out var baseUrl)
+                && !string.IsNullOrWhiteSpace(baseUrl.GetString()))
+                ApiUrlBox.Text = baseUrl.GetString()!;
+
             if (doc.RootElement.TryGetProperty("SmsService", out var sms))
             {
                 if (sms.TryGetProperty("ConnectionString", out var connStr))
@@ -50,13 +56,6 @@ public partial class ConfigEditor : UserControl
                     var connectionString = connStr.GetString() ?? string.Empty;
                     if (!string.IsNullOrWhiteSpace(connectionString))
                         ParseConnectionString(connectionString);
-                }
-
-                if (sms.TryGetProperty("SmsApiUrl", out var url))
-                {
-                    var apiUrl = url.GetString();
-                    if (!string.IsNullOrWhiteSpace(apiUrl))
-                        ApiUrlBox.Text = apiUrl;
                 }
 
                 if (sms.TryGetProperty("AuthorizationToken", out var token))
@@ -105,7 +104,6 @@ public partial class ConfigEditor : UserControl
             return;
 
         AgentEnabledBox.IsChecked = BoolValue(agent, "Enabled", true);
-        AgentServerUrlBox.Text = StringValue(agent, "ServerUrl", "https://fees.munywele.co.ke/");
         AgentTokenBox.Text = StringValue(agent, "AgentToken");
         RequestTimeoutBox.Text = NumberValue(agent, "RequestTimeoutSeconds", 30);
         IdleDelayBox.Text = NumberValue(agent, "IdleDelaySeconds", 5);
@@ -126,10 +124,11 @@ public partial class ConfigEditor : UserControl
         MqttReconnectMaxBox.Text = NumberValue(agent, "MqttReconnectMaxSeconds", 60);
         FeeUpdateEnabledBox.IsChecked = BoolValue(agent, "FeeProcessorUpdateEnabled", false);
         FeeUpdatePathBox.Text = StringValue(agent, "FeeProcessorPath", "C:\\fee-processor");
-        FeeUpdateRepositoryBox.Text = StringValue(agent, "FeeProcessorRepository", "https://github.com/masgeek/fee-processor.git");
+        FeeUpdateRepositoryBox.Text = StringValue(agent, "FeeProcessorRepository", "git@github.com:masgeek/fee-processor.git");
         FeeUpdateBranchBox.Text = StringValue(agent, "FeeProcessorBranch", "main");
         FeeUpdateTagBox.Text = StringValue(agent, "FeeProcessorTag", "(none)");
-        FeeUpdateIntervalBox.Text = NumberValue(agent, "FeeProcessorUpdateIntervalHours", 24);
+        FeeUpdateIntervalBox.SelectedValue = FeeProcessorInterval.Normalize(
+            StringValue(agent, "FeeProcessorUpdateInterval", NumberValue(agent, "FeeProcessorUpdateIntervalHours", 24) + "h"));
         FeeUpdateBackupBox.Text = StringValue(agent, "FeeProcessorBackupPath", "C:\\fee-processor-backups");
         PhpExecutablePathBox.Text = StringValue(agent, "PhpExecutablePath");
         ComposerExecutablePathBox.Text = StringValue(agent, "ComposerExecutablePath");
@@ -137,7 +136,6 @@ public partial class ConfigEditor : UserControl
         FeeProcessorSshUsernameBox.Text = StringValue(agent, "FeeProcessorSshUsername", "git");
         FeeProcessorSshKeyPathBox.Text = StringValue(agent, "FeeProcessorSshKeyPath", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_ed25519"));
         FeeProcessorSshPassphraseBox.Password = StringValue(agent, "FeeProcessorSshPassphrase");
-        UpdateFeeToolDetectionText();
         AgentStatusText.Text = AgentTokenBox.Text.StartsWith("fsk_", StringComparison.Ordinal)
             ? "Enrolled"
             : "Not enrolled";
@@ -150,7 +148,7 @@ public partial class ConfigEditor : UserControl
         DbNameBox.Text = "school";
         DbUserIdBox.Text = "sa";
         DbPasswordBox.Password = string.Empty;
-        ApiUrlBox.Text = "https://fees.munywele.co.ke/api/v1/notifications";
+        ApiUrlBox.Text = Constants.DefaultBaseUrl;
         TokenBox.Password = string.Empty;
         BackoffBox.Text = "30";
         PollIntervalBox.Text = "30";
@@ -163,7 +161,6 @@ public partial class ConfigEditor : UserControl
     private void LoadAgentDefaults()
     {
         AgentEnabledBox.IsChecked = true;
-        AgentServerUrlBox.Text = "https://fees.munywele.co.ke/";
         AgentTokenBox.Text = string.Empty;
         AgentNameBox.Text = Environment.MachineName;
         RequestTimeoutBox.Text = "30";
@@ -185,10 +182,10 @@ public partial class ConfigEditor : UserControl
         MqttReconnectMaxBox.Text = "60";
         FeeUpdateEnabledBox.IsChecked = false;
         FeeUpdatePathBox.Text = "C:\\fee-processor";
-        FeeUpdateRepositoryBox.Text = "https://github.com/masgeek/fee-processor.git";
+        FeeUpdateRepositoryBox.Text = "git@github.com:masgeek/fee-processor.git";
         FeeUpdateBranchBox.Text = "main";
         FeeUpdateTagBox.Text = "(none)";
-        FeeUpdateIntervalBox.Text = "24";
+        FeeUpdateIntervalBox.SelectedValue = "24h";
         FeeUpdateBackupBox.Text = "C:\\fee-processor-backups";
         PhpExecutablePathBox.Text = string.Empty;
         ComposerExecutablePathBox.Text = string.Empty;
@@ -228,7 +225,7 @@ public partial class ConfigEditor : UserControl
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
             var response = await http.PostAsJsonAsync(
-                AgentServerUrlBox.Text.TrimEnd('/') + "/api/agent/enroll",
+                ApiUrlBox.Text.TrimEnd('/') + "/api/agent/enroll",
                 new { enrollment_code = code, agent_name = name });
             if (!response.IsSuccessStatusCode)
             {
@@ -262,13 +259,13 @@ public partial class ConfigEditor : UserControl
 
     private async Task SaveAgentConfigAsync(string token)
     {
-        var configPath = ConfigPathResolver.FindAgentConfigFile();
-        var root = File.Exists(configPath)
-            ? JsonNode.Parse(await File.ReadAllTextAsync(configPath))?.AsObject() ?? new JsonObject()
+        var configPath = ConfigPathResolver.GetMachineAgentConfigFile();
+        var sourcePath = File.Exists(configPath) ? configPath : ConfigPathResolver.FindAgentConfigFile();
+        var root = File.Exists(sourcePath)
+            ? JsonNode.Parse(await File.ReadAllTextAsync(sourcePath))?.AsObject() ?? new JsonObject()
             : new JsonObject();
         var agent = root["Agent"] as JsonObject ?? new JsonObject();
         agent["Enabled"] = AgentEnabledBox.IsChecked == true;
-        agent["ServerUrl"] = AgentServerUrlBox.Text.Trim();
         agent["AgentToken"] = string.IsNullOrWhiteSpace(token) ? AgentTokenBox.Text.Trim() : token;
         agent["RequestTimeoutSeconds"] = ParsedInt(RequestTimeoutBox.Text, 30);
         agent["IdleDelaySeconds"] = ParsedInt(IdleDelayBox.Text, 5);
@@ -288,7 +285,7 @@ public partial class ConfigEditor : UserControl
         agent["MqttReconnectMinSeconds"] = ParsedInt(MqttReconnectMinBox.Text, 1);
         agent["MqttReconnectMaxSeconds"] = ParsedInt(MqttReconnectMaxBox.Text, 60);
         agent["FeeProcessorUpdateEnabled"] = FeeUpdateEnabledBox.IsChecked == true;
-        agent["FeeProcessorUpdateIntervalHours"] = ParsedInt(FeeUpdateIntervalBox.Text, 24);
+        agent["FeeProcessorUpdateInterval"] = FeeProcessorInterval.Normalize(FeeUpdateIntervalBox.SelectedValue?.ToString());
         agent["FeeProcessorPath"] = FeeUpdatePathBox.Text.Trim();
         agent["FeeProcessorRepository"] = FeeUpdateRepositoryBox.Text.Trim();
         agent["FeeProcessorBranch"] = FeeUpdateBranchBox.Text.Trim();
@@ -335,6 +332,27 @@ public partial class ConfigEditor : UserControl
             DbServerBox.Text, DbNameBox.Text, DbUserIdBox.Text, DbPasswordBox.Password);
     }
 
+    private async void TestDatabaseButton_Click(object sender, RoutedEventArgs e)
+    {
+        TestDatabaseButton.IsEnabled = false;
+        TestDatabaseButton.Content = "Testing...";
+        try
+        {
+            var result = await new ConnectionValidator().ValidateDatabaseAsync();
+            MessageBox.Show($"Database: {(result.Passed ? "OK" : "FAIL")} {result.Details}", "Database Connection Test",
+                MessageBoxButton.OK, result.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Database test failed: {ex.Message}", "Database Connection Test", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            TestDatabaseButton.IsEnabled = true;
+            TestDatabaseButton.Content = "Test Database";
+        }
+    }
+
     private async void TestSmsButton_Click(object sender, RoutedEventArgs e)
     {
         TestSmsButton.IsEnabled = false;
@@ -342,25 +360,19 @@ public partial class ConfigEditor : UserControl
 
         try
         {
-            var validator = new ConnectionValidator();
-            var result = await validator.ValidateAsync();
-
-            var msg = $"Database: {(result.DbStatus.Passed ? "OK" : "FAIL")} {result.DbStatus.Details}\n" +
-                      $"SMS API: {(result.ApiStatus.Passed ? "OK" : "FAIL")} {result.ApiStatus.Details}\n" +
-                      $"Broker: {(result.BrokerStatus.Passed ? "OK" : "FAIL")} {result.BrokerStatus.Details}";
-
-            MessageBox.Show(msg, "SMS Connection Test",
+            var result = await new ConnectionValidator().ValidateSmsApiAsync();
+            MessageBox.Show($"SMS API: {(result.Passed ? "OK" : "FAIL")} {result.Details}", "SMS API Test",
                 MessageBoxButton.OK,
-                result.AllPassed ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                result.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"SMS test failed: {ex.Message}", "SMS Connection Test", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"SMS API test failed: {ex.Message}", "SMS API Test", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
             TestSmsButton.IsEnabled = true;
-            TestSmsButton.Content = "Test SMS Connections";
+            TestSmsButton.Content = "Test SMS API";
         }
     }
 
@@ -371,7 +383,7 @@ public partial class ConfigEditor : UserControl
         try
         {
             var gateway = await ConnectionValidator.ValidateHttpAsync(
-                AgentServerUrlBox.Text.TrimEnd('/') + "/api/agent/work?wait=0", AgentTokenBox.Text.Trim());
+                ApiUrlBox.Text.TrimEnd('/') + "/api/agent/work?wait=0", AgentTokenBox.Text.Trim());
             var local = await ConnectionValidator.ValidateHttpAsync(LocalApiUrlBox.Text.TrimEnd('/') + "/");
             var message = $"Central gateway: {(gateway.Passed ? "OK" : "FAIL")} {gateway.Details}\n" +
                           $"Local fee processor: {(local.Passed ? "OK" : "FAIL")} {local.Details}";
@@ -401,30 +413,24 @@ public partial class ConfigEditor : UserControl
             if (string.IsNullOrWhiteSpace(appPath) || string.IsNullOrWhiteSpace(repository))
                 throw new InvalidOperationException("Fee Processor application path and repository are required.");
 
-            var php = FeeProcessorToolResolver.Resolve(PhpExecutablePathBox.Text.Trim(), "php");
-            var composer = FeeProcessorToolResolver.Resolve(ComposerExecutablePathBox.Text.Trim(), "composer");
-            if (string.IsNullOrWhiteSpace(php) || string.IsNullOrWhiteSpace(composer))
-                throw new InvalidOperationException("PHP and Composer must be available on PATH or configured explicitly.");
-
             var tag = FeeUpdateTagBox.Text.Trim();
             var branch = string.IsNullOrWhiteSpace(FeeUpdateBranchBox.Text) ? "main" : FeeUpdateBranchBox.Text.Trim();
 
             FeeUpdateOutputBox.Clear();
             FeeUpdateOutputBox.Visibility = Visibility.Visible;
             FeeUpdateProgressBar.Visibility = Visibility.Visible;
-            await new FeeProcessorDeploymentRunner().RunAsync(
-                new FeeProcessorDeploymentRequest(
+            var request = new FeeProcessorDeploymentRequest(
                     appPath,
                     repository,
                     branch,
                     tag.Equals("(none)", StringComparison.OrdinalIgnoreCase) ? string.Empty : tag,
                     FeeUpdateBackupBox.Text.Trim(),
-                    php,
-                    composer,
+                    PhpExecutablePathBox.Text.Trim(),
+                    ComposerExecutablePathBox.Text.Trim(),
                     FeeProcessorSshUsernameBox.Text.Trim(),
                     FeeProcessorSshKeyPathBox.Text.Trim(),
-                    FeeProcessorSshPassphraseBox.Password),
-                AppendFeeUpdateOutput);
+                    FeeProcessorSshPassphraseBox.Password);
+            await Task.Run(() => new FeeProcessorDeploymentRunner().RunAsync(request, AppendFeeUpdateOutput));
 
             FeeUpdateStatusText.Text = "Update completed";
             MessageBox.Show("Fee Processor update completed.", "Fee Processor Update", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -446,7 +452,7 @@ public partial class ConfigEditor : UserControl
         if (string.IsNullOrWhiteSpace(line)) return;
         FeeProcessorActivityLogger.Write(line);
         AppLogger.Info("FeeProcessorTools", line);
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             FeeUpdateOutputBox.AppendText(line + Environment.NewLine);
             FeeUpdateOutputBox.ScrollToEnd();
@@ -513,11 +519,46 @@ public partial class ConfigEditor : UserControl
         }
     }
 
-    private void UpdateFeeToolDetectionText()
+    private async Task UpdateFeeToolDetectionTextAsync()
     {
-        UpdatePhpDetectionText();
-        UpdateComposerDetectionText();
-        UpdateGitDetectionText();
+        var phpPath = PhpExecutablePathBox.Text.Trim();
+        var composerPath = ComposerExecutablePathBox.Text.Trim();
+        var gitPath = GitExecutablePathBox.Text.Trim();
+        var results = await Task.WhenAll(
+            Task.Run(() => FeeProcessorToolResolver.Resolve(phpPath, "php")),
+            Task.Run(() => FeeProcessorToolResolver.Resolve(composerPath, "composer")),
+            Task.Run(() => FeeProcessorToolResolver.Resolve(gitPath, "git")));
+        PhpDetectionText.Text = $"PHP: {(string.IsNullOrWhiteSpace(results[0]) ? "not found" : results[0])}";
+        ComposerDetectionText.Text = $"Composer: {(string.IsNullOrWhiteSpace(results[1]) ? "not found" : results[1])}";
+        GitDetectionText.Text = $"Git: {(string.IsNullOrWhiteSpace(results[2]) ? "not found" : results[2])}";
+    }
+
+    private void BrowseFeeUpdatePath_Click(object sender, RoutedEventArgs e) => BrowseFolder(FeeUpdatePathBox);
+    private void BrowseBackupPath_Click(object sender, RoutedEventArgs e) => BrowseFolder(FeeUpdateBackupBox);
+    private void BrowseSshKey_Click(object sender, RoutedEventArgs e) => BrowseFile(FeeProcessorSshKeyPathBox, "SSH private key|*|All files|*.*");
+    private void BrowsePhp_Click(object sender, RoutedEventArgs e) => BrowseFile(PhpExecutablePathBox, "PHP executable|php.exe;php.bat;php.cmd|All files|*.*");
+    private void BrowseComposer_Click(object sender, RoutedEventArgs e) => BrowseFile(ComposerExecutablePathBox, "Composer executable|composer.phar;composer.exe;composer.bat|All files|*.*");
+    private void BrowseGit_Click(object sender, RoutedEventArgs e) => BrowseFile(GitExecutablePathBox, "Git executable|git.exe|All files|*.*");
+    private void ClearSshKey_Click(object sender, RoutedEventArgs e) => FeeProcessorSshKeyPathBox.Clear();
+    private void ClearPhp_Click(object sender, RoutedEventArgs e) => PhpExecutablePathBox.Clear();
+    private void ClearComposer_Click(object sender, RoutedEventArgs e) => ComposerExecutablePathBox.Clear();
+    private void ClearGit_Click(object sender, RoutedEventArgs e) => GitExecutablePathBox.Clear();
+
+    private static void BrowseFolder(TextBox target)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Select folder", InitialDirectory = Directory.Exists(target.Text) ? target.Text : string.Empty };
+        if (dialog.ShowDialog() == true) target.Text = dialog.FolderName;
+    }
+
+    private static void BrowseFile(TextBox target, string filter)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select executable or key file",
+            Filter = filter,
+            FileName = File.Exists(target.Text) ? target.Text : string.Empty
+        };
+        if (dialog.ShowDialog() == true) target.Text = dialog.FileName;
     }
 
     private void UpdatePhpDetectionText()
@@ -542,9 +583,10 @@ public partial class ConfigEditor : UserControl
     {
         try
         {
-            var configPath = ConfigPathResolver.FindConfigFile();
+            var configPath = ConfigPathResolver.GetMachineConfigFile();
+            var sourcePath = File.Exists(configPath) ? configPath : ConfigPathResolver.FindConfigFile();
 
-            if (!File.Exists(configPath))
+            if (!File.Exists(sourcePath))
             {
                 MessageBox.Show("Config file not found. Cannot save.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
@@ -552,7 +594,7 @@ public partial class ConfigEditor : UserControl
 
             var connectionString = BuildConnectionString();
 
-            var json = await File.ReadAllTextAsync(configPath);
+            var json = await File.ReadAllTextAsync(sourcePath);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement.Clone();
 
@@ -561,26 +603,30 @@ public partial class ConfigEditor : UserControl
             foreach (var prop in root.EnumerateObject())
                 mutable[prop.Name] = prop.Value.Clone();
 
+            var smsDict = new Dictionary<string, object?>();
             if (mutable.TryGetValue("SmsService", out var smsObj) && smsObj is JsonElement smsElement)
             {
-                var smsDict = new Dictionary<string, object?>();
                 foreach (var prop in smsElement.EnumerateObject())
                     smsDict[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
                         ? (object)prop.Value.GetString()!
                         : prop.Value.GetRawText();
-                smsDict["ConnectionString"] = connectionString;
-                smsDict["SmsApiUrl"] = ApiUrlBox.Text;
-                smsDict["AuthorizationToken"] = TokenBox.Password;
-                if (int.TryParse(BackoffBox.Text, out var backoff)) smsDict["RetryBackoffSeconds"] = backoff;
-                if (int.TryParse(PollIntervalBox.Text, out var poll)) smsDict["RetryPollIntervalSeconds"] = poll;
-                if (int.TryParse(RetentionBox.Text, out var retention)) smsDict["LogRetentionDays"] = retention;
-                if (int.TryParse(MaxSizeBox.Text, out var maxSize)) smsDict["MaxLogFileSizeMb"] = maxSize;
-                mutable["SmsService"] = smsDict;
             }
+            smsDict["ConnectionString"] = connectionString;
+            smsDict["AuthorizationToken"] = TokenBox.Password;
+            if (int.TryParse(BackoffBox.Text, out var backoff)) smsDict["RetryBackoffSeconds"] = backoff;
+            if (int.TryParse(PollIntervalBox.Text, out var poll)) smsDict["RetryPollIntervalSeconds"] = poll;
+            if (int.TryParse(RetentionBox.Text, out var retention)) smsDict["LogRetentionDays"] = retention;
+            if (int.TryParse(MaxSizeBox.Text, out var maxSize)) smsDict["MaxLogFileSizeMb"] = maxSize;
+            mutable["SmsService"] = smsDict;
 
             mutable["Tray"] = new Dictionary<string, object?>
             {
                 ["StartMinimizedToTray"] = TrayStartMinimizedBox.IsChecked == true,
+            };
+
+            mutable["FeeSyncer"] = new Dictionary<string, object?>
+            {
+                ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/"
             };
 
             var output = JsonSerializer.Serialize(mutable, new JsonSerializerOptions { WriteIndented = true });
@@ -603,12 +649,6 @@ public partial class ConfigEditor : UserControl
         {
             MessageBox.Show($"Error saving: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-    }
-
-    private void CancelButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (Parent is ContentControl content)
-            content.Content = null;
     }
 
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FeeSyncer.Shared;
 
 namespace FeeSyncer.Agent.SchoolIntegration;
 
@@ -9,7 +10,7 @@ internal sealed class AgentOptions
     public bool Enabled { get; init; } = true;
 
     [Required, Url]
-    public string ServerUrl { get; init; } = "https://fees.munywele.co.ke/";
+    public string ServerUrl { get; set; } = Constants.DefaultBaseUrl;
 
     public string AgentToken { get; init; } = string.Empty;
 
@@ -56,6 +57,7 @@ internal sealed class AgentOptions
     public string LocalApiPassword { get; init; } = string.Empty;
 
     public bool FeeProcessorUpdateEnabled { get; init; } = false;
+    public string FeeProcessorUpdateInterval { get; init; } = "24h";
     [Range(1, 168)]
     public int FeeProcessorUpdateIntervalHours { get; init; } = 24;
     public string FeeProcessorPath { get; init; } = string.Empty;

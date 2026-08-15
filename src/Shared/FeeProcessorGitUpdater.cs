@@ -1,5 +1,6 @@
 using LibGit2Sharp;
 using LibGit2Sharp.Handlers;
+using CliWrap;
 
 namespace FeeSyncer.Shared;
 
@@ -19,8 +20,24 @@ public sealed class FeeProcessorGitUpdater
         EnsureCheckout(request, progress);
 
         using var repository = new Repository(request.AppPath);
-        if (repository.RetrieveStatus().Any())
-            throw new InvalidOperationException("Fee Processor checkout has local changes.");
+        var localChanges = repository.RetrieveStatus(new StatusOptions
+            {
+                IncludeIgnored = true,
+                IncludeUntracked = true,
+                RecurseIgnoredDirs = true,
+                RecurseUntrackedDirs = true
+            })
+            .Where(status => status.State != FileStatus.Ignored)
+            .Select(status => $"{status.State}: {status.FilePath}")
+            .Take(50)
+            .ToList();
+        if (localChanges.Count > 0)
+        {
+            progress?.Invoke("Fee Processor checkout contains local changes:");
+            foreach (var change in localChanges) progress?.Invoke($"  {change}");
+            throw new InvalidOperationException(
+                $"Fee Processor checkout has {localChanges.Count} local change(s). Commit or remove them before updating.");
+        }
 
         var origin = repository.Network.Remotes["origin"]
             ?? throw new InvalidOperationException("The Fee Processor checkout has no origin remote.");
@@ -28,14 +45,29 @@ public sealed class FeeProcessorGitUpdater
         progress?.Invoke(origin.Url.StartsWith("git@", StringComparison.OrdinalIgnoreCase) || origin.Url.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase)
             ? "Git authentication mode: SSH agent/Pageant"
             : "Git authentication mode: HTTPS/default credential provider");
-        if (!string.Equals(origin.Url, request.Repository, StringComparison.OrdinalIgnoreCase))
+        var normalizedOrigin = NormalizeRepositoryUrl(origin.Url);
+        if (!string.Equals(origin.Url, normalizedOrigin, StringComparison.Ordinal))
+        {
+            repository.Network.Remotes.Update(origin.Name, remote => remote.Url = normalizedOrigin);
+            origin = repository.Network.Remotes[origin.Name]
+                ?? throw new InvalidOperationException("The Fee Processor origin remote could not be updated.");
+        }
+        if (!string.Equals(NormalizeRepositoryUrl(origin.Url), NormalizeRepositoryUrl(request.Repository), StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The Fee Processor origin remote does not match the configured repository.");
 
         progress?.Invoke("Fetching branches and tags...");
         try
         {
-            Commands.Fetch(repository, origin.Name, origin.FetchRefSpecs.Select(spec => spec.Specification),
-                new FetchOptions { Prune = true, CredentialsProvider = Credentials(request) }, $"Fetch {origin.Name}");
+            if (IsSshRepository(request.Repository))
+            {
+                progress?.Invoke("Using system Git SSH transport...");
+                RunExternalGit(request, ["fetch", "--prune", origin.Name], progress);
+            }
+            else
+            {
+                Commands.Fetch(repository, origin.Name, origin.FetchRefSpecs.Select(spec => spec.Specification),
+                    new FetchOptions { Prune = true, CredentialsProvider = Credentials(request) }, $"Fetch {origin.Name}");
+            }
         }
         catch (Exception exception)
         {
@@ -79,22 +111,76 @@ public sealed class FeeProcessorGitUpdater
 
         Directory.CreateDirectory(request.AppPath);
         progress?.Invoke($"Cloning Fee Processor repository into {request.AppPath}...");
-        Repository.Clone(request.Repository, request.AppPath, new CloneOptions
+        if (IsSshRepository(request.Repository))
         {
-            IsBare = false,
-            Checkout = true,
-            FetchOptions = new FetchOptions { CredentialsProvider = Credentials(request) },
-        });
+            progress?.Invoke("Using system Git SSH transport...");
+            RunExternalGit(request, ["clone", request.Repository, request.AppPath], progress, Directory.GetParent(request.AppPath)?.FullName);
+        }
+        else
+        {
+            Repository.Clone(request.Repository, request.AppPath, new CloneOptions
+            {
+                IsBare = false,
+                Checkout = true,
+                FetchOptions = new FetchOptions { CredentialsProvider = Credentials(request) },
+            });
+        }
     }
 
     private static CredentialsHandler? Credentials(FeeProcessorGitRequest request)
     {
-        if (!request.Repository.StartsWith("git@", StringComparison.OrdinalIgnoreCase)
-            && !request.Repository.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase))
-            return null;
-        // LibGit2Sharp delegates SSH key handling to the configured SSH agent/Pageant.
-        // The key path remains available for diagnostics and external Git setups.
-        return (_, _, _) => new DefaultCredentials();
+        return null;
+    }
+
+    private static bool IsSshRepository(string repository) =>
+        repository.StartsWith("git@", StringComparison.OrdinalIgnoreCase)
+        || repository.StartsWith("ssh://", StringComparison.OrdinalIgnoreCase);
+
+    private static void RunExternalGit(FeeProcessorGitRequest request, IReadOnlyList<string> arguments,
+        Action<string>? progress = null, string? workingDirectory = null)
+    {
+        var command = Cli.Wrap("git")
+            .WithArguments(arguments)
+            .WithWorkingDirectory(workingDirectory ?? request.AppPath)
+            .WithStandardOutputPipe(PipeTarget.ToDelegate(line => progress?.Invoke(line)))
+            .WithStandardErrorPipe(PipeTarget.ToDelegate(line => progress?.Invoke(line)))
+            .WithValidation(CommandResultValidation.None);
+
+        if (!string.IsNullOrWhiteSpace(request.SshKeyPath) && File.Exists(request.SshKeyPath))
+        {
+            var sshCommand = $"ssh -i \"{request.SshKeyPath}\" -o IdentitiesOnly=yes";
+            command = command.WithEnvironmentVariables(new Dictionary<string, string?>
+            {
+                ["GIT_SSH_COMMAND"] = sshCommand
+            });
+        }
+
+        CommandResult result;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        try
+        {
+            result = command
+                .ExecuteAsync(timeout.Token)
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            throw new InvalidOperationException("Git SSH operation timed out after 120 seconds.");
+        }
+        if (result.ExitCode != 0)
+            throw new InvalidOperationException($"Git SSH operation failed with exit code {result.ExitCode}.");
+    }
+
+    private static string NormalizeRepositoryUrl(string repository)
+    {
+        if (!repository.StartsWith("git@", StringComparison.OrdinalIgnoreCase))
+            return repository;
+
+        var separator = repository.IndexOf(':');
+        return separator > 0
+            ? $"ssh://{repository[..separator]}/{repository[(separator + 1)..]}"
+            : repository;
     }
 
     private static string FindLatestTag(Repository repository)

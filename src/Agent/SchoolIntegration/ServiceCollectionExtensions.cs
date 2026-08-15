@@ -13,6 +13,12 @@ public static class SchoolIntegrationServiceCollectionExtensions
             .AddSingleton<FeeSyncer.Agent.SchoolIntegration.MqttAgentState>()
             .AddOptions<FeeSyncer.Agent.SchoolIntegration.AgentOptions>()
             .Bind(configuration.GetSection(FeeSyncer.Agent.SchoolIntegration.AgentOptions.SectionName))
+            .PostConfigure(options =>
+            {
+                var baseUrl = configuration["FeeSyncer:BaseUrl"];
+                if (!string.IsNullOrWhiteSpace(baseUrl))
+                    options.ServerUrl = baseUrl.TrimEnd('/') + "/";
+            })
             .Validate(ValidateOptions, "School integration options are invalid.")
             .Validate(options => IsSecureOrLoopback(options.ServerUrl), "Agent:ServerUrl must use HTTPS unless it targets loopback.")
             .Validate(IsLoopbackApi, "Agent:LocalApiBaseUrl must target loopback.")

@@ -18,6 +18,14 @@ public partial class ControlPanel : Window
     {
         InitializeComponent();
         this.monitor = monitor;
+        settingsTab = new TabItem
+        {
+            Header = "Settings",
+            Content = new ConfigEditor(monitor),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Stretch,
+        };
+        WorkspaceTabs.Items.Add(settingsTab);
         refreshTimer.Tick += (_, _) => Refresh();
         Loaded += (_, _) => { Refresh(); refreshTimer.Start(); };
     }
@@ -105,9 +113,6 @@ public partial class ControlPanel : Window
         Refresh();
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e)
-        => OpenSettings();
-
     public void OpenSettings()
     {
         if (settingsTab is not null)
@@ -116,12 +121,6 @@ public partial class ControlPanel : Window
             return;
         }
 
-        settingsTab = new TabItem
-        {
-            Header = "Settings",
-            Content = new ConfigEditor(monitor),
-        };
-        WorkspaceTabs.Items.Add(settingsTab);
         WorkspaceTabs.SelectedItem = settingsTab;
     }
 
@@ -136,6 +135,8 @@ public partial class ControlPanel : Window
             {
                 Header = "Logs",
                 Content = new LogViewer(),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                VerticalContentAlignment = VerticalAlignment.Stretch,
             };
             WorkspaceTabs.Items.Add(logsTab);
         }

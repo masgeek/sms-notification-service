@@ -11,6 +11,7 @@ public partial class App : Application
     {
         try
         {
+            ConfigPathResolver.EnsureMachineConfigFiles();
             AppLogger.Initialize("TrayApp");
             AppLogger.Info("App", $"FeeSyncer.Tray starting (v{VersionHelper.GetCurrentVersion()})");
             AppLogger.Info("App", $"OS: {Environment.OSVersion}, .NET: {Environment.Version}");

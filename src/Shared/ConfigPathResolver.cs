@@ -10,8 +10,39 @@ public static class ConfigPathResolver
     public static string GetAppDir() =>
         Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location) ?? AppContext.BaseDirectory;
 
+    public static string GetMachineConfigFile() =>
+        Path.Combine(GetProgramDataDir(), Constants.ConfigFileName);
+
+    public static string GetMachineAgentConfigFile() =>
+        Path.Combine(GetProgramDataDir(), "agentsettings.json");
+
+    public static void EnsureMachineAgentConfigFile()
+    {
+        var path = GetMachineAgentConfigFile();
+        if (File.Exists(path)) return;
+
+        Directory.CreateDirectory(GetProgramDataDir());
+        File.WriteAllText(path, "{\n  \"Agent\": {}\n}\n");
+    }
+
+    public static void EnsureMachineConfigFiles()
+    {
+        var directory = GetProgramDataDir();
+        Directory.CreateDirectory(directory);
+
+        var smsPath = GetMachineConfigFile();
+        if (!File.Exists(smsPath))
+            File.WriteAllText(smsPath, "{}\n");
+
+        EnsureMachineAgentConfigFile();
+    }
+
     public static string FindConfigFile()
     {
+        var machinePath = GetMachineConfigFile();
+        if (File.Exists(machinePath))
+            return machinePath;
+
         foreach (var appDir in ApplicationDirectories())
         {
             var productionPath = Path.Combine(appDir, Constants.ConfigFileName);
@@ -23,15 +54,15 @@ public static class ConfigPathResolver
                 return defaultPath;
         }
 
-        var programDataPath = Path.Combine(GetProgramDataDir(), Constants.ConfigFileName);
-        if (File.Exists(programDataPath))
-            return programDataPath;
-
-        return Path.Combine(GetAppDir(), Constants.ConfigFileName);
+        return machinePath;
     }
 
     public static string FindAgentConfigFile()
     {
+        var machinePath = GetMachineAgentConfigFile();
+        if (File.Exists(machinePath))
+            return machinePath;
+
         foreach (var appDir in ApplicationDirectories())
         {
             var agentDir = Path.Combine(appDir, "Agent");
@@ -44,7 +75,7 @@ public static class ConfigPathResolver
                 return defaultPath;
         }
 
-        return Path.Combine(GetAppDir(), "Agent", Constants.ConfigFileName);
+        return machinePath;
     }
 
     private static IEnumerable<string> ApplicationDirectories()

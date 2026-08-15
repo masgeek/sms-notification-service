@@ -9,4 +9,5 @@ public static class Constants
     public const string TableName = "sms_notifications";
     public const string SubDir = "Munywele\\FeeSyncer";
     public const string ConfigFileName = "appsettings.Production.json";
+    public const string DefaultBaseUrl = "https://fees.munywele.co.ke/";
 }

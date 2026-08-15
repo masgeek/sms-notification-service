@@ -35,8 +35,15 @@ public static class FeeProcessorToolResolver
                     }
                 };
                 lookup.Start();
-                var output = lookup.StandardOutput.ReadToEnd();
-                lookup.WaitForExit(5000);
+                var outputTask = lookup.StandardOutput.ReadToEndAsync();
+                var errorTask = lookup.StandardError.ReadToEndAsync();
+                if (!lookup.WaitForExit(5000))
+                {
+                    TryKill(lookup);
+                    continue;
+                }
+                Task.WaitAll(outputTask, errorTask);
+                var output = outputTask.Result;
                 foreach (var path in output.Split([Environment.NewLine, "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
                     progress?.Invoke($"Running {path} --version");
@@ -91,9 +98,16 @@ public static class FeeProcessorToolResolver
             }
 
             process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit(5000);
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(5000))
+            {
+                TryKill(process);
+                return false;
+            }
+            Task.WaitAll(outputTask, errorTask);
+            var output = outputTask.Result;
+            var error = errorTask.Result;
             if (!string.IsNullOrWhiteSpace(output)) progress?.Invoke(output.Trim());
             if (process.ExitCode != 0 && !string.IsNullOrWhiteSpace(error)) progress?.Invoke(error.Trim());
             return process.ExitCode == 0;
@@ -101,6 +115,18 @@ public static class FeeProcessorToolResolver
         catch
         {
             return false;
+        }
+    }
+
+    private static void TryKill(Process process)
+    {
+        try
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+        }
+        catch
+        {
+            // The process may have exited between the timeout and termination attempt.
         }
     }
 
