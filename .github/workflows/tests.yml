@@ -149,6 +149,8 @@ jobs:
         run: |
           mkdir build\service
            echo placeholder > build\service\FeeSyncer.Sms.exe
+          mkdir build\agent
+           echo placeholder > build\agent\FeeSyncer.Agent.exe
           mkdir build\tray
            echo placeholder > build\tray\FeeSyncer.Tray.exe
           mkdir build\console
@@ -173,6 +175,8 @@ jobs:
         run: |
           mkdir build\service-framework
            echo placeholder > build\service-framework\FeeSyncer.Sms.exe
+          mkdir build\agent-framework
+           echo placeholder > build\agent-framework\FeeSyncer.Agent.exe
           mkdir build\tray-framework
            echo placeholder > build\tray-framework\FeeSyncer.Tray.exe
           mkdir build\console-framework
