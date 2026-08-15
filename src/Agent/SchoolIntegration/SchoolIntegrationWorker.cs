@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using FeeSyncer.Shared;
 
 namespace FeeSyncer.Agent.SchoolIntegration;
 
@@ -24,7 +25,7 @@ internal sealed class SchoolIntegrationWorker(
                 if (DateTimeOffset.UtcNow >= nextHeartbeat)
                 {
                     await gateway.HeartbeatAsync(new AgentHeartbeat(
-                        "1.0.0",
+                        VersionHelper.GetCurrentVersion(),
                         ["students.snapshot.v1", "fees.snapshot.v1", "payments.record.v1"],
                         [$"{adapter.Id}:{adapter.Version}"]), stoppingToken);
                     nextHeartbeat = DateTimeOffset.UtcNow.AddSeconds(options.Value.HeartbeatSeconds);
