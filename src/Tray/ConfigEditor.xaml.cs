@@ -59,7 +59,7 @@ public partial class ConfigEditor : UserControl
                 }
 
                 if (sms.TryGetProperty("AuthorizationToken", out var token))
-                        TokenBox.Password = token.GetString() ?? string.Empty;
+                    TokenBox.Password = token.GetString() ?? string.Empty;
 
                 if (sms.TryGetProperty("RetryBackoffSeconds", out var backoff) &&
                     backoff.TryGetInt32(out var backoffVal))

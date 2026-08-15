@@ -22,12 +22,12 @@ public sealed class FeeProcessorGitUpdater
 
         using var repository = new Repository(request.AppPath);
         var localChanges = repository.RetrieveStatus(new StatusOptions
-            {
-                IncludeIgnored = true,
-                IncludeUntracked = true,
-                RecurseIgnoredDirs = true,
-                RecurseUntrackedDirs = true
-            })
+        {
+            IncludeIgnored = true,
+            IncludeUntracked = true,
+            RecurseIgnoredDirs = true,
+            RecurseUntrackedDirs = true
+        })
             .Where(status => status.State != FileStatus.Ignored)
             .Select(status => $"{status.State}: {status.FilePath}")
             .Take(50)
