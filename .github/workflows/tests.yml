@@ -48,7 +48,7 @@ jobs:
 
       - name: Check code formatting
         if: steps.test-cache.outputs.cache-hit != 'true'
-         run: dotnet format FeeSyncer.slnx --verify-no-changes --verbosity diagnostic
+        run: dotnet format FeeSyncer.slnx --verify-no-changes --verbosity diagnostic
 
       - name: Run unit tests
         if: steps.test-cache.outputs.cache-hit != 'true'
@@ -95,7 +95,7 @@ jobs:
           cache: true
 
       - name: Publish tray app
-         run: dotnet publish src/Tray/FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
+        run: dotnet publish src/Tray/FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
 
       - name: Verify tray app binary
         shell: bash
@@ -122,7 +122,7 @@ jobs:
           cache: true
 
       - name: Publish console app
-         run: dotnet publish src/Console/FeeSyncer.Console.csproj -c Release -r win-x64 --self-contained -o build\console
+        run: dotnet publish src/Console/FeeSyncer.Console.csproj -c Release -r win-x64 --self-contained -o build\console
 
       - name: Verify console app binary
         shell: bash
