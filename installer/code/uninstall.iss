@@ -21,7 +21,9 @@ begin
 
   Log('Stopping service...');
   StopService('{#ServiceName}');
+  StopService('{#AgentServiceName}');
   WaitForServiceState('{#ServiceName}', 'STOPPED', 30000);
+  WaitForServiceState('{#AgentServiceName}', 'STOPPED', 30000);
 
   Log('Deleting service...');
   if ServiceExists('{#ServiceName}') then
@@ -41,6 +43,12 @@ begin
     Log('Service could not be deleted via sc. Registry cleanup will handle it.')
   else
     Log('Service deleted successfully.');
+
+  if ServiceExists('{#AgentServiceName}') then
+  begin
+    DeleteService('{#AgentServiceName}');
+    Sleep(1000);
+  end;
 
   RemoveEventLog;
 

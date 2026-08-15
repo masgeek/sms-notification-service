@@ -2,12 +2,12 @@ now # System Tray Application — Plan
 
 ## Overview
 
-A lightweight WPF system tray application that monitors the SmsNotificationService and provides a UI for status, logs, and update notifications.
+A lightweight WPF system tray application that monitors FeeSyncer.Sms and provides a UI for status, logs, update notifications, and configuration of the school integration worker.
 
 ## Architecture
 
 ```
-SmsNotificationService.Tray/
+src/Tray/
 ├── Program.cs                    # Entry point
 ├── App.xaml                      # WPF app (hidden window)
 ├── TrayIcon.cs                   # System tray icon + context menu
@@ -18,7 +18,7 @@ SmsNotificationService.Tray/
 ├── SendNotificationDialog.cs     # Manual SMS send form
 ├── ConfigEditor.cs               # Edit appsettings.Production.json
 ├── ConnectionValidator.cs        # Test DB and API connectivity
-└── SmsNotificationService.Tray.csproj
+└── FeeSyncer.Tray.csproj
 ```
 
 ## Features
@@ -28,7 +28,7 @@ SmsNotificationService.Tray/
 - Green icon = service running
 - Red icon = service stopped
 - Yellow icon = service paused/unknown
-- Tooltip: `SmsNotificationService — Running (v1.2.3)`
+- Tooltip: `FeeSyncer.Sms — Running (v1.2.3)`
 - Right-click context menu:
   - `Status` — opens status window
   - `View Logs` — opens log viewer
@@ -45,7 +45,7 @@ SmsNotificationService.Tray/
 
 ```
 ┌─────────────────────────────────────────┐
-│ SmsNotificationService                  │
+│ FeeSyncer.Sms                            │
 │                                         │
 │ Status:     Running                     │
 │ Uptime:     3 days 14 hours             │
@@ -56,7 +56,7 @@ SmsNotificationService.Tray/
 └─────────────────────────────────────────┘
 ```
 
-- Polls `sc query SmsNotificationService` every 10 seconds
+- Polls `sc query FeeSyncer.Sms` every 10 seconds
 - Shows status, uptime, version
 - Start/Stop/Restart buttons
 
@@ -78,7 +78,7 @@ SmsNotificationService.Tray/
 
 ```
 ┌─────────────────────────────────────────┐
-│ Logs — SmsNotificationService           │
+│ Logs — FeeSyncer.Sms                     │
 │                                         │
 │ [2026-07-16 14:30:01] [App] Service...  │
 │ [2026-07-16 14:30:02] [DB] Connected... │
@@ -89,7 +89,7 @@ SmsNotificationService.Tray/
 └─────────────────────────────────────────┘
 ```
 
-- Reads log files from `ProgramData\Munywele\SmsNotificationService\logs\`
+- Reads log files from `ProgramData\Munywele\FeeSyncer\logs\`
 - Auto-refresh every 5 seconds
 - Filter by tag: `[App]`, `[Config]`, `[DB]`, `[Listener]`, `[Queue]`, `[SMS]`
 - Export to clipboard or file
@@ -121,7 +121,7 @@ SmsNotificationService.Tray/
 
 ```
 ╔══════════════════════════════════════════════╗
-║  Configuration — SmsNotificationService     ║
+║  Configuration — FeeSyncer.Sms               ║
 ║─────────────────────────────────────────────║
 ║                                             ║
 ║  Database                                    ║
@@ -148,8 +148,10 @@ SmsNotificationService.Tray/
 ```
 
 - Opens from context menu: `Settings`
-- Loads current `appsettings.Production.json` from `ProgramData\Munywele\SmsNotificationService\`
+- Loads current `appsettings.Production.json` from `C:\Program Files\FeeSyncer\`
 - Editable fields with validation (required, numeric, URL format)
+- Includes the `Agent` section: enablement, central gateway URL, local loopback API settings, polling intervals, timeout, and credentials
+- Does not enroll agents; enrollment is performed through the central fee-syncer admin interface
 - API Key field masked by default, "Show" toggle
 - `Test Connection` button validates DB connectivity before save
 - `Save` writes to file, shows confirmation
@@ -312,7 +314,7 @@ public class UpdateChecker
 
     private string GetCurrentVersion()
     {
-        var psi = new ProcessStartInfo("SmsNotificationService.exe", "--version")
+        var psi = new ProcessStartInfo("FeeSyncer.Sms.exe", "--version")
         {
             RedirectStandardOutput = true, UseShellExecute = false
         };
@@ -322,7 +324,7 @@ public class UpdateChecker
     private async Task<string?> GetLatestVersion()
     {
         using var http = new HttpClient();
-        http.DefaultRequestHeaders.UserAgent.Add(new("app", "SmsNotificationService"));
+        http.DefaultRequestHeaders.UserAgent.Add(new("app", "FeeSyncer.Tray"));
         var json = await http.GetStringAsync($"{_repoUrl}/releases/latest");
         // parse tag_name from JSON
         return ExtractVersion(json);
@@ -342,14 +344,14 @@ public class TrayIcon
 
     public TrayIcon()
     {
-        _monitor = new ServiceMonitor("SmsNotificationService");
+        _monitor = new ServiceMonitor("FeeSyncer.Sms");
         _updater = new UpdateChecker("https://github.com/masgeek/sms-notification-service");
         _validator = new ConnectionValidator(config);
 
         _icon = new TaskbarIcon
         {
             Icon = GetIcon(_monitor.Status),
-            ToolTipText = "SmsNotificationService"
+            ToolTipText = "FeeSyncer.Sms"
         };
 
         _icon.ContextMenu = BuildMenu();
@@ -361,7 +363,7 @@ public class TrayIcon
     private void OnStatusChanged(ServiceStatus status)
     {
         _icon.Icon = GetIcon(status);
-        _icon.ToolTipText = $"SmsNotificationService — {status}";
+        _icon.ToolTipText = $"FeeSyncer.Sms — {status}";
     }
 
     private void OnUpdateAvailable(string current, string latest)
@@ -592,7 +594,7 @@ public class CheckResult
 ### Status Window
 ```
 ╔══════════════════════════════════════════════╗
-║  SmsNotificationService                     ║
+║  FeeSyncer.Sms                               ║
 ║                                             ║
 ║  ● Status:    Running                       ║
 ║  ⏱  Uptime:    3 days 14 hours              ║
@@ -606,7 +608,7 @@ public class CheckResult
 ### Log Viewer
 ```
 ╔══════════════════════════════════════════════╗
-║  Logs — SmsNotificationService    [▼ Filter]║
+║  Logs — FeeSyncer.Sms              [▼ Filter]║
 ║─────────────────────────────────────────────║
 ║ 14:30:01 [App]     Service starting...      ║
 ║ 14:30:02 [DB]      Connected to school      ║
@@ -691,7 +693,7 @@ public class CheckResult
 ## Build & Publish
 
 ```bash
-dotnet publish SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
+dotnet publish FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
 ```
 
 The tray app can be:

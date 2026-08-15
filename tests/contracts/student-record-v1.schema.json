@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://munywele.co.ke/schemas/student-record-v1.schema.json",
+  "title": "StudentRecordV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_student_id",
+    "admission_number",
+    "enrollment_status",
+    "class_identifier",
+    "source_updated_at"
+  ],
+  "properties": {
+    "source_student_id": { "type": "string", "minLength": 1, "maxLength": 191 },
+    "admission_number": { "type": ["string", "null"], "maxLength": 191 },
+    "enrollment_status": { "enum": ["active", "inactive", "completed", "withdrawn"] },
+    "class_identifier": { "type": ["string", "null"], "maxLength": 100 },
+    "source_updated_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

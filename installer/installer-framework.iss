@@ -1,10 +1,10 @@
 ; ============================================================================
-; SmsNotificationService - Framework-Dependent Installer
+; FeeSyncer - Framework-Dependent Installer
 ; ============================================================================
 ; Requires: Inno Setup 6.4+ and .NET 10 Runtime on target machine
 ; Build:    ./publish-framework.ps1
 ; Compile:  Open in Inno Setup Compiler -> Build -> Compile
-; Output:   installer\output\SmsNotificationService-Framework-Setup-<version>.exe
+; Output:   installer\output\FeeSyncer-Framework-Setup-<version>.exe
 ; ============================================================================
 ;
 ; Modular structure (shared with installer.iss):
@@ -12,32 +12,35 @@
 ;   code/utils.iss      - Utility functions (RunCmd, BoolToStr, JsonEscape)
 ;   code/services.iss   - Windows Service management
 ;   code/eventlog.iss   - Windows Event Log helpers
-;   code/config.iss     - Configuration and database helpers
 ;   code/wizard.iss     - Wizard page initialization and validation
 ;   code/install.iss    - Install, upgrade, and post-install logic
 ;   code/uninstall.iss  - Uninstall logic
 ; ============================================================================
 
-#define MyAppName        "SmsNotificationService"
+#define MyAppName        "FeeSyncer"
 #ifndef MyAppVersion
   #define MyAppVersion     "1.0.0"
 #endif
 #define MyAppPublisher   "Munywele Consulting LTD"
 #define MyAppCopyright   "Copyright (C) 2026 Munywele Consulting LTD"
-#define ServiceName      "SmsNotificationService"
-#define ServiceDisplay   "SmsNotificationService"
+#define ServiceName      "FeeSyncer.Sms"
+#define ServiceDisplay   "FeeSyncer SMS"
 #define ServiceDesc      "Listens to SQL Server for SMS notifications and sends them via HTTP API"
-#define TrayAppName      "SmsNotificationService.Tray"
-#define TrayAppDisplay   "SmsNotificationService Tray"
-#define ConsoleAppName   "SmsNotificationService.Console"
-#define ConsoleAppDisplay "SmsNotificationService Console"
-#define EventLogSource   "SmsNotificationService"
-#define ConfigDir        "Munywele\SmsNotificationService"
+#define AgentServiceName "FeeSyncer.Agent"
+#define AgentServiceDisplay "FeeSyncer Agent"
+#define AgentServiceDesc "Synchronizes school data and processes agent work from the central gateway"
+#define TrayAppName      "FeeSyncer.Tray"
+#define TrayAppDisplay   "FeeSyncer Tray"
+#define ConsoleAppName   "FeeSyncer.Console"
+#define ConsoleAppDisplay "FeeSyncer Console"
+#define EventLogSource   "FeeSyncer.Sms"
+#define ConfigDir        "Munywele\FeeSyncer"
 #define ConfigFile       "appsettings.Production.json"
 #define LogRetentionDays "7"
 #define MaxLogFileSizeMb "10"
 #define TrayDir          "Tray"
 #define ConsoleDir       "Console"
+#define AgentDir         "Agent"
 #define FrameworkInstall true
 
 ; ============================================================================
@@ -60,15 +63,15 @@ VersionInfoCopyright={#MyAppCopyright}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir=output
-OutputBaseFilename=SmsNotificationService-Framework-Setup-{#MyAppVersion}
+OutputBaseFilename=FeeSyncer-Framework-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64os
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
-SetupIconFile=..\favicon.ico
-UninstallDisplayIcon={app}\SmsNotificationService.exe
+SetupIconFile=..\src\Tray\favicon.ico
+UninstallDisplayIcon={app}\FeeSyncer.Sms.exe
 UninstallDisplayName={#MyAppName} {#MyAppVersion} (Framework)
 WizardStyle=modern
 WizardSizePercent=110
@@ -96,6 +99,7 @@ Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full 
 ; ============================================================================
 [Files]
 Source: "..\build\service-framework\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
+Source: "..\build\agent-framework\*"; DestDir: "{app}\{#AgentDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 Source: "..\build\tray-framework\*"; DestDir: "{app}\{#TrayDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 Source: "..\build\console-framework\*"; DestDir: "{app}\{#ConsoleDir}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "appsettings.Development.json"
 
@@ -121,7 +125,6 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 #include "code\utils.iss"
 #include "code\services.iss"
 #include "code\eventlog.iss"
-#include "code\config.iss"
 #include "code\globals.iss"
 #include "code\wizard.iss"
 #include "code\install.iss"

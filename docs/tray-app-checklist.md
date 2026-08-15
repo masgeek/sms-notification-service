@@ -6,7 +6,7 @@ Temporary working document. Delete after implementation is complete.
 
 ## Phase 1: Project Scaffold ✅
 
-- [x] Create `SmsNotificationService.Tray/SmsNotificationService.Tray.csproj`
+- [x] Create `src/Tray/FeeSyncer.Tray.csproj`
   - SDK: `Microsoft.NET.Sdk`
   - OutputType: `WinExe`
   - TargetFramework: `net10.0-windows`
@@ -23,10 +23,10 @@ Temporary working document. Delete after implementation is complete.
   - `Microsoft.Extensions.Configuration.Json` 10.0.10 (config loading)
   - ~~`CommunityToolkit.Mvvm`~~ — not needed, using manual DelegateCommand
 - [x] ~~Create `Properties/AssemblyInfo.cs`~~ — version inherited from `Directory.Build.props`
-- [x] Add tray project to `SmsNotificationService.slnx`
+- [x] Add tray project to `FeeSyncer.slnx`
 - [x] Create directory structure:
   ```
-  SmsNotificationService.Tray/
+  src/Tray/
   ├── App.xaml
   ├── App.xaml.cs
   ├── TrayIcon.cs
@@ -42,7 +42,7 @@ Temporary working document. Delete after implementation is complete.
   │   └── ServiceStatusInfo.cs
   ├── Helpers/
   │   └── Paths.cs
-  └── SmsNotificationService.Tray.csproj
+  └── FeeSyncer.Tray.csproj
   ```
 
 ---
@@ -58,10 +58,10 @@ Temporary working document. Delete after implementation is complete.
 ### 2b. Paths Helper
 
 - [x] `Helpers/Paths.cs` — centralized path constants:
-  - `AppDataDir` → `CommonApplicationData\Munywele\SmsNotificationService`
+  - `AppDataDir` → `CommonApplicationData\Munywele\FeeSyncer`
   - `ConfigFile` → `appsettings.Production.json`
   - `LogDir` → `logs\`
-  - `ServiceExe` → `SmsNotificationService.exe`
+  - `ServiceExe` → `FeeSyncer.Sms.exe`
 
 ### 2c. Service Monitor
 
@@ -81,7 +81,7 @@ Temporary working document. Delete after implementation is complete.
 - [x] `TrayIcon.cs` — uses `H.NotifyIcon.Wpf.TaskbarIcon`:
   - Icon states: green (running), red (stopped), yellow (unknown/paused) — generated programmatically
   - ~~Embed icon resources~~ — using `Graphics.Clear(color)` bitmap generation instead
-  - Tooltip: `SmsNotificationService — {status} (v{version})`
+  - Tooltip: `FeeSyncer.Sms — {status} (v{version})`
   - Context menu items:
     - Status → open `StatusWindow`
     - View Logs → open `LogViewer`
@@ -154,9 +154,10 @@ Temporary working document. Delete after implementation is complete.
   - Loads `appsettings.Production.json` from `Paths.ConfigFile`
   - Editable fields:
     - **Database**: Server, Database, User ID, Password, Encrypt (dropdown: Mandatory/Optional/Strict)
-    - **SMS API**: URL, Authorization Token (masked, Show/Hide toggle)
-    - **Retry**: Backoff Seconds, Poll Interval Seconds
-    - **Logging**: Retention Days, Max File Size (MB)
+     - **SMS API**: URL, Authorization Token (masked, Show/Hide toggle)
+     - **Retry**: Backoff Seconds, Poll Interval Seconds
+     - **Logging**: Retention Days, Max File Size (MB)
+     - **School Agent**: Enabled, central Server URL, enrollment token, local API URL, local API username, local API password, request timeout, heartbeat interval, and MQTT broker settings
   - Uses `SqlConnectionStringBuilder` to parse/build connection string
   - Buttons: Test Connection, Save, Cancel
   - Saves with `System.Text.Json` (indented)
@@ -179,6 +180,12 @@ Temporary working document. Delete after implementation is complete.
   - `AllPassed` computed property
   - `Summary` formatted string
 - [x] Results displayed via balloon notification on tray icon
+
+The tray editor does not perform school-agent enrollment. Operators must
+generate a single-use `enroll_...` code for the target school in the central
+fee-syncer admin interface, exchange it at `POST /api/agent/enroll`, and then
+enter the returned `fsk_...` token in protected service configuration. The code
+expires after 15 minutes and is not used after the exchange.
 
 ---
 
@@ -208,8 +215,8 @@ Temporary working document. Delete after implementation is complete.
 
 - [x] Publish commands documented in `installer/installer.iss` header:
   ```bash
-  dotnet publish SmsNotificationService.csproj -c Release -r win-x64 --self-contained -o build\service
-  dotnet publish SmsNotificationService.Tray\SmsNotificationService.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
+  dotnet publish src/Sms/FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained -o build\service
+  dotnet publish FeeSyncer.Tray\FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
   ```
 - [x] Solution builds cleanly: 0 warnings, 0 errors
 - [x] All three projects build successfully (main, tray, tests)
@@ -224,8 +231,8 @@ Temporary working document. Delete after implementation is complete.
 | Target framework | `net10.0-windows` | Match main project |
 | Tray icon library | `H.NotifyIcon.Wpf` 2.2.0 | Mature WPF tray support |
 | Service control | `sc.exe` via `Process.Start` | `ServiceController` doesn't support Start/Stop for non-admin |
-| Config path | `CommonApplicationData\Munywele\SmsNotificationService\appsettings.Production.json` | Same as main service |
-| Log path | `CommonApplicationData\Munywele\SmsNotificationService\logs\` | Same as main service |
+| Config path | `C:\Program Files\FeeSyncer\appsettings.Production.json` | Main SMS service config |
+| Log path | `CommonApplicationData\Munywele\FeeSyncer\logs\` | Same as main service |
 | Exit behavior | `ShutdownMode.OnExplicitShutdown` | Stay in tray when windows close |
 | Manual notification `adm_no` | `"MANUAL"` sentinel | Consistent with existing pattern |
 | Icon rendering | `Graphics.Clear(color)` bitmap | No need for .ico files at runtime |

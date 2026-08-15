@@ -20,12 +20,21 @@ end;
 
 procedure ExecuteOrFail(const Exe, Params, FailureMsg: String);
 var
-  ExitCode: Integer;
+  ResultCode: Integer;
   Res: Boolean;
 begin
-  Res := Exec(Exe, Params, '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
-  if (not Res) or (ExitCode <> 0) then
-    RaiseException(FailureMsg + ' (exit code: ' + IntToStr(ExitCode) + ')');
+  ResultCode := -1;
+  Res := Exec(Exe, Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if not Res then
+  begin
+    MsgBox(FailureMsg + ' (could not start the process)', mbError, MB_OK);
+    Abort;
+  end;
+  if ResultCode <> 0 then
+  begin
+    MsgBox(FailureMsg + ' (exit code: ' + IntToStr(ResultCode) + ')', mbError, MB_OK);
+    Abort;
+  end;
 end;
 
 function JsonEscape(const S: String): String;
