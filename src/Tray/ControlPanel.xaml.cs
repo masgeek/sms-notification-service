@@ -99,7 +99,10 @@ public partial class ControlPanel : Window
 
     private void Install(string name, string display, string executable)
     {
-        var path = System.IO.Path.Combine(AppContext.BaseDirectory, "..", executable);
+        var directory = string.Equals(executable, Constants.AgentExecutableName, StringComparison.OrdinalIgnoreCase)
+            ? System.IO.Path.Combine("..", "Agent")
+            : "..";
+        var path = System.IO.Path.Combine(AppContext.BaseDirectory, directory, executable);
         var ok = monitor.InstallService(name, display, System.IO.Path.GetFullPath(path));
         MessageBox.Show(ok ? $"{name} installed." : $"Could not install {name}.", "Service Management", MessageBoxButton.OK, ok ? MessageBoxImage.Information : MessageBoxImage.Error);
         Refresh();
