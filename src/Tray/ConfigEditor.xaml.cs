@@ -115,9 +115,11 @@ public partial class ConfigEditor : UserControl
         LocalApiUsernameBox.Text = StringValue(agent, "LocalApiUsername");
         LocalApiPasswordBox.Password = StringValue(agent, "LocalApiPassword");
         MqttEnabledBox.IsChecked = BoolValue(agent, "MqttEnabled", true);
-        MqttHostBox.Text = StringValue(agent, "MqttBrokerHost", "mqtt.munywele.co.ke");
-        MqttPortBox.Text = NumberValue(agent, "MqttBrokerPort", 8883);
+        MqttHostBox.Text = StringValue(agent, "MqttBrokerHost", "wss://mqtt.munywele.co.ke/mqtt");
+        MqttPortBox.Text = NumberValue(agent, "MqttBrokerPort", 443);
+        MqttPathBox.Text = StringValue(agent, "MqttBrokerPath", "/mqtt");
         MqttTlsBox.IsChecked = BoolValue(agent, "MqttUseTls", true);
+        SetMqttEnvironmentFromUrl();
         MqttUsernameBox.Text = StringValue(agent, "MqttUsername");
         MqttPasswordBox.Password = StringValue(agent, "MqttPassword");
         MqttTopicBox.Text = StringValue(agent, "MqttTopicPrefix", "fee-syncer/agent");
@@ -187,6 +189,42 @@ public partial class ConfigEditor : UserControl
         visibilityButton.Content = show ? "Hide" : "Show";
     }
 
+    private void MqttEnvironmentBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (MqttHostBox is not null && MqttEnvironmentBox.SelectedValue is string environment)
+            ApplyMqttEnvironment(environment);
+    }
+
+    private void SetMqttEnvironmentFromUrl()
+    {
+        var url = MqttHostBox.Text.Trim();
+        MqttEnvironmentBox.SelectedValue = url.StartsWith("ws://127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("ws://localhost", StringComparison.OrdinalIgnoreCase)
+            ? "Development"
+            : url.StartsWith("wss://", StringComparison.OrdinalIgnoreCase)
+                ? "Production"
+                : "Custom";
+    }
+
+    private void ApplyMqttEnvironment(string environment)
+    {
+        switch (environment)
+        {
+            case "Development":
+                MqttHostBox.Text = "ws://127.0.0.1:8083/mqtt";
+                MqttPortBox.Text = "8083";
+                MqttPathBox.Text = "/mqtt";
+                MqttTlsBox.IsChecked = false;
+                break;
+            case "Production":
+                MqttHostBox.Text = "wss://mqtt.munywele.co.ke/mqtt";
+                MqttPortBox.Text = "443";
+                MqttPathBox.Text = "/mqtt";
+                MqttTlsBox.IsChecked = true;
+                break;
+        }
+    }
+
     private void LoadAgentDefaults()
     {
         AgentEnabledBox.IsChecked = true;
@@ -200,9 +238,11 @@ public partial class ConfigEditor : UserControl
         LocalApiUsernameBox.Text = string.Empty;
         LocalApiPasswordBox.Password = string.Empty;
         MqttEnabledBox.IsChecked = true;
-        MqttHostBox.Text = "mqtt.munywele.co.ke";
-        MqttPortBox.Text = "8883";
+        MqttHostBox.Text = "wss://mqtt.munywele.co.ke/mqtt";
+        MqttPortBox.Text = "443";
+        MqttPathBox.Text = "/mqtt";
         MqttTlsBox.IsChecked = true;
+        MqttEnvironmentBox.SelectedValue = "Production";
         MqttUsernameBox.Text = string.Empty;
         MqttPasswordBox.Password = string.Empty;
         MqttTopicBox.Text = "fee-syncer/agent";
@@ -306,7 +346,8 @@ public partial class ConfigEditor : UserControl
         agent["LocalApiPassword"] = LocalApiPasswordBox.Password;
         agent["MqttEnabled"] = MqttEnabledBox.IsChecked == true;
         agent["MqttBrokerHost"] = MqttHostBox.Text.Trim();
-        agent["MqttBrokerPort"] = ParsedInt(MqttPortBox.Text, 8883);
+        agent["MqttBrokerPort"] = ParsedInt(MqttPortBox.Text, 443);
+        agent["MqttBrokerPath"] = NormalizeMqttPath(MqttPathBox.Text);
         agent["MqttUseTls"] = MqttTlsBox.IsChecked == true;
         agent["MqttUsername"] = MqttUsernameBox.Text.Trim();
         agent["MqttPassword"] = MqttPasswordBox.Password;
@@ -429,17 +470,25 @@ public partial class ConfigEditor : UserControl
         button.IsEnabled = false;
         var originalContent = button.Content;
         button.Content = "Testing...";
+        AgentTestOutputGroup.Visibility = Visibility.Visible;
+        AgentTestOutputBox.Clear();
+        AppendAgentTestOutput($"{DateTime.Now:HH:mm:ss} {title}: testing...");
         try
         {
             var result = await check();
+            var logMessage = $"{(result.Passed ? "OK" : "FAIL")} {result.Details}";
+            AppLogger.Info(title.Replace(" ", string.Empty), logMessage);
+            AppendAgentTestOutput($"{DateTime.Now:HH:mm:ss} {title}: {logMessage}");
             MessageBox.Show(
-                $"{(result.Passed ? "OK" : "FAIL")} {result.Details}",
+                logMessage,
                 title,
                 MessageBoxButton.OK,
                 result.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
+            AppLogger.Error(title.Replace(" ", string.Empty), "Connection test failed.", ex);
+            AppendAgentTestOutput($"{DateTime.Now:HH:mm:ss} {title}: FAILED {ex.Message}");
             MessageBox.Show($"{title} failed: {ex.Message}", title, MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -447,6 +496,12 @@ public partial class ConfigEditor : UserControl
             button.IsEnabled = true;
             button.Content = originalContent;
         }
+    }
+
+    private void AppendAgentTestOutput(string message)
+    {
+        AgentTestOutputBox.AppendText(message + Environment.NewLine);
+        AgentTestOutputBox.ScrollToEnd();
     }
 
     private async Task<CheckResult> ValidateMqttAsync()
@@ -463,14 +518,11 @@ public partial class ConfigEditor : UserControl
             using var client = factory.CreateMqttClient();
             var builder = new MqttClientOptionsBuilder()
                 .WithClientId($"feesyncer-tray-test-{Guid.NewGuid():N}")
-                .WithTcpServer(MqttHostBox.Text.Trim(), ParsedInt(MqttPortBox.Text, 8883))
+                .WithWebSocketServer(webSocket => webSocket.WithUri(BuildMqttUri()))
                 .WithCredentials(
                     string.IsNullOrWhiteSpace(MqttUsernameBox.Text) ? AgentTokenBox.Password : MqttUsernameBox.Text.Trim(),
                     MqttPasswordBox.Password)
                 .WithTimeout(TimeSpan.FromSeconds(ParsedInt(RequestTimeoutBox.Text, 30)));
-
-            if (MqttTlsBox.IsChecked == true)
-                builder.WithTlsOptions(tls => tls.UseTls());
 
             await client.ConnectAsync(builder.Build());
             await client.DisconnectAsync();
@@ -479,7 +531,7 @@ public partial class ConfigEditor : UserControl
             {
                 Passed = true,
                 ResponseTime = stopwatch.ElapsedMilliseconds,
-                Details = $"Connected to {MqttHostBox.Text.Trim()}:{MqttPortBox.Text.Trim()} ({stopwatch.ElapsedMilliseconds}ms)"
+                Details = $"Connected to {BuildMqttUri()} ({stopwatch.ElapsedMilliseconds}ms)"
             };
         }
         catch (Exception ex)
@@ -487,6 +539,21 @@ public partial class ConfigEditor : UserControl
             return new CheckResult { Details = ex.Message };
         }
     }
+
+    private string BuildMqttUri()
+    {
+        if (Uri.TryCreate(MqttHostBox.Text.Trim(), UriKind.Absolute, out var configuredUri)
+            && (configuredUri.Scheme == Uri.UriSchemeWs || configuredUri.Scheme == Uri.UriSchemeWss))
+        {
+            return configuredUri.ToString();
+        }
+
+        var scheme = MqttTlsBox.IsChecked == true ? "wss" : "ws";
+        return $"{scheme}://{MqttHostBox.Text.Trim().TrimEnd('/')}:{ParsedInt(MqttPortBox.Text, 443)}{NormalizeMqttPath(MqttPathBox.Text)}";
+    }
+
+    private static string NormalizeMqttPath(string path) =>
+        string.IsNullOrWhiteSpace(path) ? "/mqtt" : "/" + path.Trim().Trim('/');
 
     private async void PullFeeUpdateButton_Click(object sender, RoutedEventArgs e)
     {

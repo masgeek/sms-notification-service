@@ -110,6 +110,7 @@ used for runtime requests. See
 [`docs/school-integration.md`](../docs/school-integration.md).
 
 Configure MQTT-first work discovery with `Agent:MqttEnabled`, broker
-host and port, TLS, and broker credentials. Keep `Agent:MqttPassword` and the
-agent token out of installer arguments and source control. HTTP polling remains
-work discovery channel. Work discovery pauses if MQTT is unavailable.
+host, WebSocket path, TLS, and broker credentials. Production uses secure
+WebSockets (`wss://`) with EMQX, normally on port 443 and path `/mqtt`. Keep
+`Agent:MqttPassword` and the agent token out of installer arguments and source
+control. Work discovery pauses if MQTT is unavailable.

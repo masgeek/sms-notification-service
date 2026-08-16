@@ -130,8 +130,9 @@ settings shown below:
     "IdleDelaySeconds": 5,
     "HeartbeatSeconds": 60,
     "MqttEnabled": true,
-    "MqttBrokerHost": "mqtt.munywele.co.ke",
-    "MqttBrokerPort": 8883,
+    "MqttBrokerHost": "wss://mqtt.munywele.co.ke/mqtt",
+    "MqttBrokerPort": 443,
+    "MqttBrokerPath": "/mqtt",
     "MqttUseTls": true,
     "MqttUsername": "",
     "MqttPassword": "",
@@ -166,9 +167,10 @@ credentials, and service behavior.
 | `Agent:IdleDelaySeconds` | `5` | Delay after an empty or failed work cycle |
 | `Agent:HeartbeatSeconds` | `60` | Heartbeat interval |
 | `Agent:MqttEnabled` | `true` | Enables MQTT-first work discovery |
-| `Agent:MqttBrokerHost` | `mqtt.munywele.co.ke` | MQTT broker host |
-| `Agent:MqttBrokerPort` | `8883` | TLS MQTT broker port |
-| `Agent:MqttUseTls` | `true` | Enables TLS for MQTT |
+| `Agent:MqttBrokerHost` | `wss://mqtt.munywele.co.ke/mqtt` | EMQX MQTT-over-WebSocket broker URL |
+| `Agent:MqttBrokerPort` | `443` | Secure WebSocket listener port |
+| `Agent:MqttBrokerPath` | `/mqtt` | EMQX MQTT-over-WebSocket path |
+| `Agent:MqttUseTls` | `true` | Uses `wss://` instead of `ws://` |
 | `Agent:MqttUsername` | — | MQTT username; token is used when empty |
 | `Agent:MqttPassword` | — | MQTT password |
 | `Agent:MqttTopicPrefix` | `fee-syncer/agent` | MQTT topic prefix |

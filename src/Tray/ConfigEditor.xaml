@@ -96,7 +96,7 @@
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,4,0"><TextBlock Text="Request timeout"/><TextBox x:Name="RequestTimeoutBox"/><TextBlock Text="Idle delay" Margin="0,4,0,0"/><TextBox x:Name="IdleDelayBox"/><TextBlock Text="Heartbeat" Margin="0,4,0,0"/><TextBox x:Name="HeartbeatBox"/><TextBlock Text="Lease renewal" Margin="0,4,0,0"/><TextBox x:Name="LeaseRenewalBox"/></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="4,0"><TextBlock Text="MQTT enabled"/><CheckBox x:Name="MqttEnabledBox" Margin="0,5"/><TextBlock Text="Broker host"/><TextBox x:Name="MqttHostBox"/><TextBlock Text="Broker port" Margin="0,4,0,0"/><TextBox x:Name="MqttPortBox"/><TextBlock Text="TLS" Margin="0,4,0,0"/><CheckBox x:Name="MqttTlsBox" Margin="0,5"/></StackPanel>
+                         <StackPanel Grid.Column="1" Margin="4,0"><TextBlock Text="MQTT environment"/><ComboBox x:Name="MqttEnvironmentBox" SelectedValuePath="Content" SelectedValue="Production" SelectionChanged="MqttEnvironmentBox_SelectionChanged"><ComboBoxItem Content="Development"/><ComboBoxItem Content="Production"/><ComboBoxItem Content="Custom"/></ComboBox><TextBlock Text="MQTT enabled" Margin="0,4,0,0"/><CheckBox x:Name="MqttEnabledBox" Margin="0,5"/><TextBlock Text="Broker URL"/><TextBox x:Name="MqttHostBox"/><TextBlock Text="Broker port (fallback)" Margin="0,4,0,0"/><TextBox x:Name="MqttPortBox"/><TextBlock Text="Broker path (fallback)" Margin="0,4,0,0"/><TextBox x:Name="MqttPathBox"/><TextBlock Text="TLS (fallback)" Margin="0,4,0,0"/><CheckBox x:Name="MqttTlsBox" Margin="0,5"/></StackPanel>
                         <StackPanel Grid.Column="2" Margin="4,0,0,0"><TextBlock Text="MQTT username"/><TextBox x:Name="MqttUsernameBox"/><TextBlock Text="MQTT password" Margin="0,4,0,0"/><PasswordBox x:Name="MqttPasswordBox"/><TextBlock Text="Topic prefix" Margin="0,4,0,0"/><TextBox x:Name="MqttTopicBox"/><TextBlock Text="Keep alive" Margin="0,4,0,0"/><TextBox x:Name="MqttKeepAliveBox"/></StackPanel>
                     </Grid>
                     <Grid Margin="0,0,0,10">
@@ -114,6 +114,9 @@
                             <Button Content="Test Local Agent" x:Name="TestLocalAgentButton" Click="TestLocalAgentButton_Click" Padding="12,4" Margin="0,0,8,0"/>
                             <TextBlock x:Name="AgentStatusText" VerticalAlignment="Center" Foreground="Gray"/>
                         </StackPanel>
+                    <GroupBox Header="Agent Connectivity Test Output" Margin="0,8,0,0" Padding="8" Visibility="Collapsed" x:Name="AgentTestOutputGroup">
+                        <TextBox x:Name="AgentTestOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" MinHeight="100" MaxHeight="180"/>
+                    </GroupBox>
                 </StackPanel>
                 </Grid>
                 </ScrollViewer>

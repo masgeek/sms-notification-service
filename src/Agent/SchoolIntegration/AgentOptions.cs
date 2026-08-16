@@ -28,10 +28,12 @@ internal sealed class AgentOptions
 
     public bool MqttEnabled { get; init; } = true;
 
-    public string MqttBrokerHost { get; init; } = "mqtt.munywele.co.ke";
+    public string MqttBrokerHost { get; init; } = "wss://mqtt.munywele.co.ke/mqtt";
 
     [Range(1, 65535)]
-    public int MqttBrokerPort { get; init; } = 8883;
+    public int MqttBrokerPort { get; init; } = 443;
+
+    public string MqttBrokerPath { get; init; } = "/mqtt";
 
     public bool MqttUseTls { get; init; } = true;
 

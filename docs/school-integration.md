@@ -72,8 +72,9 @@ The development file is loaded only when `DOTNET_ENVIRONMENT=Development`.
     "LocalApiPassword": "",
     "HeartbeatSeconds": 60,
     "MqttEnabled": true,
-    "MqttBrokerHost": "mqtt.munywele.co.ke",
-    "MqttBrokerPort": 8883,
+    "MqttBrokerHost": "wss://mqtt.munywele.co.ke/mqtt",
+    "MqttBrokerPort": 443,
+    "MqttBrokerPath": "/mqtt",
     "MqttUseTls": true,
     "MqttUsername": "",
     "MqttPassword": "",
@@ -85,13 +86,22 @@ The development file is loaded only when `DOTNET_ENVIRONMENT=Development`.
 }
 ```
 
-Production MQTT connections use TLS on port 8883. Development may use plaintext
-MQTT on port 1883 when `DOTNET_ENVIRONMENT=Development`; do not expose that
-listener publicly. `MqttUsername` and `MqttPassword`
+Production MQTT connections use secure WebSockets (`wss://`) through the EMQX
+WebSocket listener on port 443 and path `/mqtt`. Development may use plaintext
+WebSockets (`ws://`) on port 8083 when `DOTNET_ENVIRONMENT=Development`; do not
+expose that listener publicly. `MqttUsername` and `MqttPassword`
 are optional broker credentials; the bearer API token is never sent in MQTT
 payloads and is only used to derive the topic key and default MQTT username.
 The MQTT payload contains notification metadata only, never student, fee,
 payment, lease-token, or job payload data.
+
+### WSS Troubleshooting
+
+The Agent's production MQTT URL is `wss://mqtt.munywele.co.ke/mqtt`. The
+WebSocket handshake must return HTTP `101 Switching Protocols`. HTTP `200`
+means the URL was routed to a normal HTTP or EMQX dashboard handler instead of
+the EMQX WebSocket listener. The proxy must route `/mqtt` to EMQX's WebSocket
+listener on port `8083` and evaluate that route before the dashboard fallback.
 
 Student and fee records use only the approved minimal fields. The worker does not
 delete records, emit deletion markers, or infer deletion from missing pages.

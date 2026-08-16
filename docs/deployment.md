@@ -184,8 +184,9 @@ Agent configuration is stored in `C:\Program Files\FeeSyncer\Agent\appsettings.P
     "IdleDelaySeconds": 5,
     "HeartbeatSeconds": 60,
     "MqttEnabled": true,
-    "MqttBrokerHost": "mqtt.munywele.co.ke",
-    "MqttBrokerPort": 8883,
+    "MqttBrokerHost": "wss://mqtt.munywele.co.ke/mqtt",
+    "MqttBrokerPort": 443,
+    "MqttBrokerPath": "/mqtt",
     "MqttUseTls": true,
     "MqttUsername": "",
     "MqttPassword": "",
@@ -245,9 +246,10 @@ If the config file is missing, environment variables are used as a fallback:
 | `Agent:LocalApiUsername` | `Agent__LocalApiUsername` | — | Local school API username |
 | `Agent:LocalApiPassword` | `Agent__LocalApiPassword` | — | Local school API password |
 | `Agent:MqttEnabled` | `Agent__MqttEnabled` | `true` | Enables MQTT-first work discovery |
-| `Agent:MqttBrokerHost` | `Agent__MqttBrokerHost` | `mqtt.munywele.co.ke` | MQTT broker host |
-| `Agent:MqttBrokerPort` | `Agent__MqttBrokerPort` | `8883` | TLS MQTT broker port |
-| `Agent:MqttUseTls` | `Agent__MqttUseTls` | `true` | Enables MQTT TLS |
+| `Agent:MqttBrokerHost` | `Agent__MqttBrokerHost` | `wss://mqtt.munywele.co.ke/mqtt` | EMQX MQTT-over-WebSocket broker URL |
+| `Agent:MqttBrokerPort` | `Agent__MqttBrokerPort` | `443` | Secure WebSocket listener port |
+| `Agent:MqttBrokerPath` | `Agent__MqttBrokerPath` | `/mqtt` | EMQX MQTT-over-WebSocket path |
+| `Agent:MqttUseTls` | `Agent__MqttUseTls` | `true` | Uses secure WebSockets (`wss://`) |
 | `Agent:MqttUsername` | `Agent__MqttUsername` | — | MQTT username |
 | `Agent:MqttPassword` | `Agent__MqttPassword` | — | MQTT password |
 | `Agent:MqttTopicPrefix` | `Agent__MqttTopicPrefix` | `fee-syncer/agent` | MQTT topic prefix |
