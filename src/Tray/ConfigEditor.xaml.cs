@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -7,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
+using MQTTnet;
 using FeeSyncer.Shared;
 
 namespace FeeSyncer.Tray;
@@ -104,7 +106,7 @@ public partial class ConfigEditor : UserControl
             return;
 
         AgentEnabledBox.IsChecked = BoolValue(agent, "Enabled", true);
-        AgentTokenBox.Text = StringValue(agent, "AgentToken");
+        SetAgentToken(StringValue(agent, "AgentToken"));
         RequestTimeoutBox.Text = NumberValue(agent, "RequestTimeoutSeconds", 30);
         IdleDelayBox.Text = NumberValue(agent, "IdleDelaySeconds", 5);
         HeartbeatBox.Text = NumberValue(agent, "HeartbeatSeconds", 60);
@@ -136,7 +138,7 @@ public partial class ConfigEditor : UserControl
         FeeProcessorSshUsernameBox.Text = StringValue(agent, "FeeProcessorSshUsername", "git");
         FeeProcessorSshKeyPathBox.Text = StringValue(agent, "FeeProcessorSshKeyPath", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_ed25519"));
         FeeProcessorSshPassphraseBox.Password = StringValue(agent, "FeeProcessorSshPassphrase");
-        AgentStatusText.Text = AgentTokenBox.Text.StartsWith("fsk_", StringComparison.Ordinal)
+        AgentStatusText.Text = AgentTokenBox.Password.StartsWith("fsk_", StringComparison.Ordinal)
             ? "Enrolled"
             : "Not enrolled";
         AgentStatusSummaryText.Text = AgentStatusText.Text;
@@ -158,10 +160,37 @@ public partial class ConfigEditor : UserControl
 
     private void LoadTrayDefaults() => TrayStartMinimizedBox.IsChecked = false;
 
+    private void SetAgentToken(string token)
+    {
+        AgentTokenBox.Password = token;
+        AgentTokenVisibleBox.Text = token;
+    }
+
+    private void TokenBox_PasswordChanged(object sender, RoutedEventArgs e) => TokenVisibleBox.Text = TokenBox.Password;
+
+    private void TokenVisibleBox_TextChanged(object sender, TextChangedEventArgs e) => TokenBox.Password = TokenVisibleBox.Text;
+
+    private void AgentTokenBox_PasswordChanged(object sender, RoutedEventArgs e) => AgentTokenVisibleBox.Text = AgentTokenBox.Password;
+
+    private void AgentTokenVisibleBox_TextChanged(object sender, TextChangedEventArgs e) => AgentTokenBox.Password = AgentTokenVisibleBox.Text;
+
+    private void TokenVisibilityButton_Click(object sender, RoutedEventArgs e) => ToggleTokenVisibility(TokenBox, TokenVisibleBox, TokenVisibilityButton);
+
+    private void AgentTokenVisibilityButton_Click(object sender, RoutedEventArgs e) => ToggleTokenVisibility(AgentTokenBox, AgentTokenVisibleBox, AgentTokenVisibilityButton);
+
+    private static void ToggleTokenVisibility(PasswordBox passwordBox, TextBox visibleBox, Button visibilityButton)
+    {
+        var show = passwordBox.Visibility == Visibility.Visible;
+        visibleBox.Text = passwordBox.Password;
+        passwordBox.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        visibleBox.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        visibilityButton.Content = show ? "Hide" : "Show";
+    }
+
     private void LoadAgentDefaults()
     {
         AgentEnabledBox.IsChecked = true;
-        AgentTokenBox.Text = string.Empty;
+        SetAgentToken(string.Empty);
         AgentNameBox.Text = Environment.MachineName;
         RequestTimeoutBox.Text = "30";
         IdleDelayBox.Text = "5";
@@ -240,6 +269,7 @@ public partial class ConfigEditor : UserControl
             if (payload?.Data?.Token is not { } token || !token.StartsWith("fsk_", StringComparison.Ordinal))
                 throw new InvalidOperationException("FeeSyncer returned an invalid agent token.");
 
+            SetAgentToken(token);
             await SaveAgentConfigAsync(token);
             EnrollmentCodeBox.Clear();
             AgentStatusText.Text = "Enrolled";
@@ -266,7 +296,7 @@ public partial class ConfigEditor : UserControl
             : new JsonObject();
         var agent = root["Agent"] as JsonObject ?? new JsonObject();
         agent["Enabled"] = AgentEnabledBox.IsChecked == true;
-        agent["AgentToken"] = string.IsNullOrWhiteSpace(token) ? AgentTokenBox.Text.Trim() : token;
+        agent["AgentToken"] = string.IsNullOrWhiteSpace(token) ? AgentTokenBox.Password.Trim() : token;
         agent["RequestTimeoutSeconds"] = ParsedInt(RequestTimeoutBox.Text, 30);
         agent["IdleDelaySeconds"] = ParsedInt(IdleDelayBox.Text, 5);
         agent["HeartbeatSeconds"] = ParsedInt(HeartbeatBox.Text, 60);
@@ -376,28 +406,85 @@ public partial class ConfigEditor : UserControl
         }
     }
 
-    private async void TestAgentButton_Click(object sender, RoutedEventArgs e)
+    private async void TestAgentApiButton_Click(object sender, RoutedEventArgs e)
     {
-        TestAgentButton.IsEnabled = false;
-        TestAgentButton.Content = "Testing...";
+        await RunConnectionTestAsync(
+            TestAgentApiButton,
+            "Agent API Test",
+            () => ConnectionValidator.ValidateHttpAsync(
+                ApiUrlBox.Text.TrimEnd('/') + "/api/agent/work?wait=0", AgentTokenBox.Password.Trim()));
+    }
+
+    private async void TestMqttButton_Click(object sender, RoutedEventArgs e) =>
+        await RunConnectionTestAsync(TestMqttButton, "MQTT Test", ValidateMqttAsync);
+
+    private async void TestLocalAgentButton_Click(object sender, RoutedEventArgs e) =>
+        await RunConnectionTestAsync(
+            TestLocalAgentButton,
+            "Local Agent Test",
+            () => ConnectionValidator.ValidateHttpAsync(LocalApiUrlBox.Text.TrimEnd('/') + "/"));
+
+    private async Task RunConnectionTestAsync(Button button, string title, Func<Task<CheckResult>> check)
+    {
+        button.IsEnabled = false;
+        var originalContent = button.Content;
+        button.Content = "Testing...";
         try
         {
-            var gateway = await ConnectionValidator.ValidateHttpAsync(
-                ApiUrlBox.Text.TrimEnd('/') + "/api/agent/work?wait=0", AgentTokenBox.Text.Trim());
-            var local = await ConnectionValidator.ValidateHttpAsync(LocalApiUrlBox.Text.TrimEnd('/') + "/");
-            var message = $"Central gateway: {(gateway.Passed ? "OK" : "FAIL")} {gateway.Details}\n" +
-                          $"Local fee processor: {(local.Passed ? "OK" : "FAIL")} {local.Details}";
-            MessageBox.Show(message, "Agent Connection Test", MessageBoxButton.OK,
-                gateway.Passed && local.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            var result = await check();
+            MessageBox.Show(
+                $"{(result.Passed ? "OK" : "FAIL")} {result.Details}",
+                title,
+                MessageBoxButton.OK,
+                result.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Agent test failed: {ex.Message}", "Agent Connection Test", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"{title} failed: {ex.Message}", title, MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
-            TestAgentButton.IsEnabled = true;
-            TestAgentButton.Content = "Test Agent Connections";
+            button.IsEnabled = true;
+            button.Content = originalContent;
+        }
+    }
+
+    private async Task<CheckResult> ValidateMqttAsync()
+    {
+        if (MqttEnabledBox.IsChecked != true)
+            return new CheckResult { Details = "MQTT is disabled" };
+        if (string.IsNullOrWhiteSpace(MqttHostBox.Text))
+            return new CheckResult { Details = "No MQTT broker host configured" };
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var factory = new MqttClientFactory();
+            using var client = factory.CreateMqttClient();
+            var builder = new MqttClientOptionsBuilder()
+                .WithClientId($"feesyncer-tray-test-{Guid.NewGuid():N}")
+                .WithTcpServer(MqttHostBox.Text.Trim(), ParsedInt(MqttPortBox.Text, 8883))
+                .WithCredentials(
+                    string.IsNullOrWhiteSpace(MqttUsernameBox.Text) ? AgentTokenBox.Password : MqttUsernameBox.Text.Trim(),
+                    MqttPasswordBox.Password)
+                .WithTimeout(TimeSpan.FromSeconds(ParsedInt(RequestTimeoutBox.Text, 30)));
+
+            if (MqttTlsBox.IsChecked == true)
+                builder.WithTlsOptions(tls => tls.UseTls());
+
+            await client.ConnectAsync(builder.Build());
+            await client.DisconnectAsync();
+            stopwatch.Stop();
+            return new CheckResult
+            {
+                Passed = true,
+                ResponseTime = stopwatch.ElapsedMilliseconds,
+                Details = $"Connected to {MqttHostBox.Text.Trim()}:{MqttPortBox.Text.Trim()} ({stopwatch.ElapsedMilliseconds}ms)"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new CheckResult { Details = ex.Message };
         }
     }
 
