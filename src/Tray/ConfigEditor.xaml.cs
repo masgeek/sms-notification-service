@@ -191,12 +191,15 @@ public partial class ConfigEditor : UserControl
 
     private void MqttEnvironmentBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (MqttHostBox is not null && MqttEnvironmentBox.SelectedValue is string environment)
+        if (MqttHostBox is not null && sender is ComboBox combo && combo.SelectedValue is string environment)
             ApplyMqttEnvironment(environment);
     }
 
     private void SetMqttEnvironmentFromUrl()
     {
+        if (MqttHostBox is null || MqttEnvironmentBox is null)
+            return;
+
         var url = MqttHostBox.Text.Trim();
         MqttEnvironmentBox.SelectedValue = url.StartsWith("ws://127.0.0.1", StringComparison.OrdinalIgnoreCase)
             || url.StartsWith("ws://localhost", StringComparison.OrdinalIgnoreCase)
@@ -208,6 +211,9 @@ public partial class ConfigEditor : UserControl
 
     private void ApplyMqttEnvironment(string environment)
     {
+        if (MqttHostBox is null || MqttPortBox is null || MqttPathBox is null || MqttTlsBox is null)
+            return;
+
         switch (environment)
         {
             case "Development":

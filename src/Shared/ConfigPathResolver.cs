@@ -16,6 +16,21 @@ public static class ConfigPathResolver
     public static string GetMachineAgentConfigFile() =>
         Path.Combine(GetProgramDataDir(), "agentsettings.json");
 
+    public static bool IsDevelopment()
+    {
+#if DEBUG
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    public static string GetActiveConfigFile() =>
+        IsDevelopment() ? FindDevelopmentConfigFile() : GetMachineConfigFile();
+
+    public static string GetActiveAgentConfigFile() =>
+        IsDevelopment() ? FindDevelopmentAgentConfigFile() : GetMachineAgentConfigFile();
+
     public static void EnsureMachineAgentConfigFile()
     {
         var path = GetMachineAgentConfigFile();
@@ -39,6 +54,9 @@ public static class ConfigPathResolver
 
     public static string FindConfigFile()
     {
+        if (IsDevelopment())
+            return FindDevelopmentConfigFile();
+
         var machinePath = GetMachineConfigFile();
         if (File.Exists(machinePath))
             return machinePath;
@@ -59,6 +77,9 @@ public static class ConfigPathResolver
 
     public static string FindAgentConfigFile()
     {
+        if (IsDevelopment())
+            return FindDevelopmentAgentConfigFile();
+
         var machinePath = GetMachineAgentConfigFile();
         if (File.Exists(machinePath))
             return machinePath;
@@ -78,14 +99,62 @@ public static class ConfigPathResolver
         return machinePath;
     }
 
+    private static string FindDevelopmentConfigFile()
+    {
+        foreach (var appDir in ApplicationDirectories())
+        {
+            var path = Path.Combine(appDir, "appsettings.Development.json");
+            if (File.Exists(path))
+                return path;
+
+            path = Path.Combine(appDir, "Sms", "appsettings.Development.json");
+            if (File.Exists(path))
+                return path;
+
+            path = Path.Combine(appDir, "appsettings.json");
+            if (File.Exists(path))
+                return path;
+
+            path = Path.Combine(appDir, "Sms", "appsettings.json");
+            if (File.Exists(path))
+                return path;
+        }
+
+        return Path.Combine(GetAppDir(), "appsettings.Development.json");
+    }
+
+    private static string FindDevelopmentAgentConfigFile()
+    {
+        foreach (var appDir in ApplicationDirectories())
+        {
+            var path = Path.Combine(appDir, "Agent", "appsettings.Development.json");
+            if (File.Exists(path))
+                return path;
+
+            path = Path.Combine(appDir, "appsettings.Development.json");
+            if (File.Exists(path))
+                return path;
+
+            path = Path.Combine(appDir, "Agent", "appsettings.json");
+            if (File.Exists(path))
+                return path;
+
+            path = Path.Combine(appDir, "appsettings.json");
+            if (File.Exists(path))
+                return path;
+        }
+
+        return Path.Combine(GetAppDir(), "Agent", "appsettings.Development.json");
+    }
+
     private static IEnumerable<string> ApplicationDirectories()
     {
-        var appDir = GetAppDir();
-        yield return appDir;
-
-        var parentDir = Directory.GetParent(appDir)?.FullName;
-        if (!string.IsNullOrWhiteSpace(parentDir) && !string.Equals(parentDir, appDir, StringComparison.OrdinalIgnoreCase))
-            yield return parentDir;
+        var directory = new DirectoryInfo(GetAppDir());
+        while (directory is not null)
+        {
+            yield return directory.FullName;
+            directory = directory.Parent;
+        }
     }
 
     public static string GetLogDir() => Path.Combine(GetProgramDataDir(), "logs");

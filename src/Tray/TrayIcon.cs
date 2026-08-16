@@ -182,7 +182,12 @@ internal sealed class TrayIcon : IDisposable
         var consolePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Console", Constants.ConsoleExecutableName));
         if (!File.Exists(consolePath))
         {
-            _icon.ShowNotification("Console Monitor", "Console monitor executable was not found.", NotificationIcon.Warning);
+            consolePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Console", "bin", "Debug", "net10.0", Constants.ConsoleExecutableName));
+        }
+
+        if (!File.Exists(consolePath))
+        {
+            _icon.ShowNotification("Console Monitor", "Console monitor executable was not found. Publish or install it first.", NotificationIcon.Warning);
             return;
         }
 

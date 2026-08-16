@@ -11,14 +11,16 @@ public sealed class ServiceMonitor : IDisposable
 
     private readonly PeriodicTimer _timer;
     private readonly CancellationTokenSource _cts = new();
+    private readonly string _serviceName;
     private DateTime _startTime;
 
     public ServiceStatusInfo Current { get; private set; } = new();
 
     public event Action<ServiceStatusInfo>? StatusChanged;
 
-    public ServiceMonitor()
+    public ServiceMonitor(string serviceName = Constants.ServiceName)
     {
+        _serviceName = serviceName;
         _startTime = DateTime.Now;
         _timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
         AppLogger.Info("Monitor", "ServiceMonitor initialized");
@@ -70,7 +72,7 @@ public sealed class ServiceMonitor : IDisposable
         }
     }
 
-    private static ServiceStatusInfo DetectStatus()
+    private ServiceStatusInfo DetectStatus()
     {
         var svcResult = DetectByServiceController();
         if (svcResult is not null)
@@ -87,11 +89,11 @@ public sealed class ServiceMonitor : IDisposable
         };
     }
 
-    private static ServiceStatusInfo? DetectByServiceController()
+    private ServiceStatusInfo? DetectByServiceController()
     {
         try
         {
-            using var controller = new ServiceController(Constants.ServiceName);
+            using var controller = new ServiceController(_serviceName);
             var status = controller.Status;
             return new ServiceStatusInfo
             {
@@ -105,11 +107,11 @@ public sealed class ServiceMonitor : IDisposable
         }
     }
 
-    private static ServiceStatusInfo? DetectByProcess()
+    private ServiceStatusInfo? DetectByProcess()
     {
         try
         {
-            var processes = Process.GetProcessesByName(Constants.ServiceName);
+            var processes = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(_serviceName));
             if (processes.Length == 0)
                 return null;
 

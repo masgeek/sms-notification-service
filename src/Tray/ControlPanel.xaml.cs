@@ -69,9 +69,11 @@ public partial class ControlPanel : Window
     }
 
     private async void StartSms_Click(object sender, RoutedEventArgs e) => await StartAfterValidationAsync(Constants.ServiceName);
+    private void RunSmsConsole_Click(object sender, RoutedEventArgs e) => RunConsole(Constants.SmsExecutableName, "SMS");
     private void StopSms_Click(object sender, RoutedEventArgs e) => monitor.StopNamedService(Constants.ServiceName);
     private void RestartSms_Click(object sender, RoutedEventArgs e) => monitor.RestartNamedService(Constants.ServiceName);
     private async void StartAgent_Click(object sender, RoutedEventArgs e) => await StartAfterValidationAsync(Constants.AgentServiceName);
+    private void RunAgentConsole_Click(object sender, RoutedEventArgs e) => RunConsole(Constants.AgentExecutableName, "Agent");
     private void StopAgent_Click(object sender, RoutedEventArgs e) => monitor.StopNamedService(Constants.AgentServiceName);
     private void RestartAgent_Click(object sender, RoutedEventArgs e) => monitor.RestartNamedService(Constants.AgentServiceName);
 
@@ -79,6 +81,23 @@ public partial class ControlPanel : Window
     private void InstallAgent_Click(object sender, RoutedEventArgs e) => Install(Constants.AgentServiceName, "FeeSyncer Agent", Constants.AgentExecutableName);
     private void UninstallSms_Click(object sender, RoutedEventArgs e) => Uninstall(Constants.ServiceName);
     private void UninstallAgent_Click(object sender, RoutedEventArgs e) => Uninstall(Constants.AgentServiceName);
+
+    private void RunConsole(string executableName, string displayName)
+    {
+        var path = ExecutablePathResolver.FindServiceExecutable(executableName);
+        if (path is null)
+        {
+            MessageBox.Show($"{displayName} console executable was not found. Publish or install the {displayName} executable first.", "Console Application", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = path,
+            WorkingDirectory = Path.GetDirectoryName(path),
+            UseShellExecute = true,
+        });
+    }
 
     private async Task StartAfterValidationAsync(string serviceName)
     {

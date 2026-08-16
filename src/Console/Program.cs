@@ -7,7 +7,7 @@ AppLogger.Info("App", $"OS: {Environment.OSVersion}, .NET: {Environment.Version}
 
 Console.WriteLine($"FeeSyncer.Console Monitor v{VersionHelper.GetCurrentVersion()}");
 Console.WriteLine($"OS: {Environment.OSVersion}, .NET: {Environment.Version}");
-Console.WriteLine("Monitoring service... (Ctrl+C to exit)\n");
+Console.WriteLine("Monitoring SMS and Agent services... (Ctrl+C to exit)\n");
 
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
@@ -17,26 +17,33 @@ Console.CancelKeyPress += (_, e) =>
     cts.Cancel();
 };
 
-using var monitor = new ServiceMonitor();
-var lastStatus = (System.ServiceProcess.ServiceControllerStatus)(-1);
+using var smsMonitor = new ServiceMonitor(Constants.ServiceName);
+using var agentMonitor = new ServiceMonitor(Constants.AgentServiceName);
 
-monitor.StatusChanged += info =>
+void Subscribe(ServiceMonitor monitor, string label)
 {
-    var statusStr = StatusHelper.FormatStatus(info.Status);
-    var uptimeStr = info.Uptime > TimeSpan.Zero ? $" | Uptime: {StatusHelper.FormatUptime(info.Uptime)}" : "";
-    var methodStr = $" (via {StatusHelper.FormatDetection(info.DetectionMethod)})";
-
-    var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {statusStr}{methodStr}{uptimeStr} | Version: {info.Version}";
-    Console.WriteLine(line);
-
-    if (info.Status != lastStatus)
+    var lastStatus = (System.ServiceProcess.ServiceControllerStatus)(-1);
+    monitor.StatusChanged += info =>
     {
-        AppLogger.Info("Monitor", $"Status changed: {statusStr} (via {info.DetectionMethod})");
-        lastStatus = info.Status;
-    }
-};
+        var statusStr = StatusHelper.FormatStatus(info.Status);
+        var uptimeStr = info.Uptime > TimeSpan.Zero ? $" | Uptime: {StatusHelper.FormatUptime(info.Uptime)}" : "";
+        var methodStr = $" (via {StatusHelper.FormatDetection(info.DetectionMethod)})";
 
-_ = monitor.StartAsync();
+        var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {label}: {statusStr}{methodStr}{uptimeStr} | Version: {info.Version}";
+        Console.WriteLine(line);
+
+        if (info.Status != lastStatus)
+        {
+            AppLogger.Info("Monitor", $"{label} status changed: {statusStr} (via {info.DetectionMethod})");
+            lastStatus = info.Status;
+        }
+    };
+}
+
+Subscribe(smsMonitor, "SMS");
+Subscribe(agentMonitor, "Agent");
+_ = smsMonitor.StartAsync();
+_ = agentMonitor.StartAsync();
 
 try
 {

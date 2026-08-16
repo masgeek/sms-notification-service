@@ -35,17 +35,17 @@
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Server:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="DbServerBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Text="Database:" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="DbNameBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Text="User ID:" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="DbUserIdBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Text="Password:" VerticalAlignment="Center"/><PasswordBox Grid.Row="3" Grid.Column="1" x:Name="DbPasswordBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Text="Server:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="DbServerBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Text="Database:" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="DbNameBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Text="User ID:" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="DbUserIdBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Text="Password:" VerticalAlignment="Center"/><PasswordBox Grid.Row="3" Grid.Column="1" x:Name="DbPasswordBox" Margin="0,2"/>
                         </Grid>
                         </GroupBox>
                         <GroupBox Header="SMS API" Margin="0,0,0,10" Padding="8">
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="FeeSyncer base URL:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="ApiUrlBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Text="FeeSyncer base URL:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="ApiUrlBox" Margin="0,2"/>
                             <TextBlock Grid.Row="1" Text="Authorization token:" VerticalAlignment="Center"/><Grid Grid.Row="1" Grid.Column="1" Width="520" HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox Grid.Column="0" x:Name="TokenBox" Margin="0,2" PasswordChanged="TokenBox_PasswordChanged"/><TextBox Grid.Column="0" x:Name="TokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="TokenVisibleBox_TextChanged"/><Button Grid.Column="1" x:Name="TokenVisibilityButton" Content="Show" Click="TokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/></Grid>
                         </Grid>
                         </GroupBox>
@@ -53,10 +53,10 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Retry backoff (s):" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="BackoffBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Text="Retry poll interval (s):" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="PollIntervalBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Text="Log retention (days):" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="RetentionBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Text="Max log size (MB):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="MaxSizeBox" Width="520" HorizontalAlignment="Left" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Text="Retry backoff (s):" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="BackoffBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Text="Retry poll interval (s):" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="PollIntervalBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Text="Log retention (days):" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="RetentionBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Text="Max log size (MB):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="MaxSizeBox" Margin="0,2"/>
                         </Grid>
                         </GroupBox>
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
