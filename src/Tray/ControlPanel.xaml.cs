@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
 using System.Text.Json;
@@ -179,6 +180,24 @@ public partial class ControlPanel : Window
 
     private void Logs_Click(object sender, RoutedEventArgs e)
         => OpenLogs();
+
+    private void LaunchConsole_Click(object sender, RoutedEventArgs e)
+    {
+        var consolePath = Path.Combine(AppContext.BaseDirectory, "..", "Console", Constants.ConsoleExecutableName);
+        consolePath = Path.GetFullPath(consolePath);
+        if (!File.Exists(consolePath))
+        {
+            MessageBox.Show($"Console monitor was not found at:\n{consolePath}", "Console Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = consolePath,
+            WorkingDirectory = Path.GetDirectoryName(consolePath),
+            UseShellExecute = true,
+        });
+    }
 
     public void OpenLogs()
     {

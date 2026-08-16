@@ -1,4 +1,6 @@
 using System.Drawing;
+using System.Diagnostics;
+using System.IO;
 using System.ServiceProcess;
 using System.Windows;
 using System.Windows.Controls;
@@ -157,6 +159,7 @@ internal sealed class TrayIcon : IDisposable
         menu.Items.Add(new MenuItem { Header = "Open Control Panel", Command = new DelegateCommand(_ => ShowControlPanel()) });
         menu.Items.Add(new MenuItem { Header = "Status Details", Command = new DelegateCommand(_ => ShowStatusWindow()) });
         menu.Items.Add(new MenuItem { Header = "View Logs", Command = new DelegateCommand(_ => ShowLogViewer()) });
+        menu.Items.Add(new MenuItem { Header = "Launch Console Monitor", Command = new DelegateCommand(_ => LaunchConsoleMonitor()) });
         menu.Items.Add(new MenuItem { Header = "Send Notification", Command = new DelegateCommand(_ => ShowSendDialog()) });
         menu.Items.Add(new MenuItem { Header = "Validate Connections", Command = new DelegateCommand(_ => ShowConnectionValidator()) });
         menu.Items.Add(new MenuItem { Header = "Settings", Command = new DelegateCommand(_ => ShowConfigEditor()) });
@@ -173,6 +176,23 @@ internal sealed class TrayIcon : IDisposable
     }
 
     private void Exit() => Application.Current.Shutdown();
+
+    private void LaunchConsoleMonitor()
+    {
+        var consolePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Console", Constants.ConsoleExecutableName));
+        if (!File.Exists(consolePath))
+        {
+            _icon.ShowNotification("Console Monitor", "Console monitor executable was not found.", NotificationIcon.Warning);
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = consolePath,
+            WorkingDirectory = Path.GetDirectoryName(consolePath),
+            UseShellExecute = true,
+        });
+    }
 
     private static Icon CreateIcon(ServiceControllerStatus status)
     {
