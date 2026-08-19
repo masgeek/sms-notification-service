@@ -219,10 +219,12 @@ Release output:
 - Four self-contained ZIPs: SMS, Agent, Tray, Console
 - Self-contained installer
 - Framework-dependent installer
+- Public S3 manifest and versioned artifacts under `https://s3.munywele.co.ke/fee-syncer/`
 
 `tests.yml` runs on non-documentation pushes and manual dispatch, not ordinary
 pull-request events. `agent-tests.yml` runs on pull requests. The release flow
-uses conventional commits to generate a no-prefix tag.
+uses conventional commits to generate a no-prefix tag. Public clients read the
+S3 `latest.json` manifest rather than the private GitHub Releases API.
 
 ## Packages
 

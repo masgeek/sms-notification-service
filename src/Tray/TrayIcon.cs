@@ -150,7 +150,13 @@ internal sealed class TrayIcon : IDisposable
         _icon.ShowNotification("Connection Validation", result.Summary, level);
     }
 
-    private void CheckForUpdates() => _ = _updater.CheckAsync();
+    private void CheckForUpdates()
+    {
+        var dialog = new UpdateCheckWindow(_updater);
+        if (_controlPanel?.IsVisible == true)
+            dialog.Owner = _controlPanel;
+        dialog.ShowDialog();
+    }
 
     private void ShowAbout()
     {

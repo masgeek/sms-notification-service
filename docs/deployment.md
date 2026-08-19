@@ -175,7 +175,21 @@ machine will be reinstalled or if credentials and diagnostics are still needed.
 | `auto-review.yml` | Pull-request workflow events | Automated guarded review/approval |
 
 Release assets are four self-contained ZIPs for SMS, Agent, Tray, and Console,
-plus self-contained and framework-dependent installers.
+plus self-contained and framework-dependent installers. The release workflow
+also mirrors them to the public `fee-syncer` S3 bucket and publishes
+`https://s3.munywele.co.ke/fee-syncer/latest.json` after all versioned objects.
+
+Configure these private repository secrets before running a release:
+
+```text
+S3_ACCESS_KEY_ID
+S3_SECRET_ACCESS_KEY
+```
+
+The S3 account needs write access to `s3://fee-syncer`, while anonymous users
+need read-only access through `https://s3.munywele.co.ke/fee-syncer/`. The
+administrative console at `https://s3-console.munywele.co.ke` is not used by the
+application.
 
 ## Troubleshooting
 

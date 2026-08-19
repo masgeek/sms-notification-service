@@ -241,7 +241,12 @@ startup is selected.
 - `.github/workflows/tests.yml` runs on non-documentation pushes and manual dispatch.
 - `.github/workflows/agent-tests.yml` runs Agent tests on pushes to `main`/`develop` and on pull requests.
 - Successful Tests runs on `develop` can create or update a release PR to `main`.
-- Successful Tests runs on `main` can tag and publish four ZIPs and two installers.
+- Successful Tests runs on `main` can tag and publish four ZIPs and two installers to the private GitHub release and public S3 update channel.
+
+Public update metadata is available at
+`https://s3.munywele.co.ke/fee-syncer/latest.json`. Versioned artifacts are
+published under `https://s3.munywele.co.ke/fee-syncer/<version>/`. S3 write
+credentials are repository secrets and are never embedded in the application.
 
 Versions are generated from conventional commits during release. The release
 workflow updates `Directory.Build.props` only in its build workspace.

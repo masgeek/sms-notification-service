@@ -69,7 +69,8 @@ they do not encrypt stored values.
 
 - The background tray icon monitors SMS; the Control Panel queries both services.
 - Displayed uptime is time since the monitor observed the current state.
-- Update checks notify about GitHub releases but do not download them.
+- Scheduled checks read the public Munywele S3 update manifest and notify when a new release exists.
+- Manual update checks open a blocking progress dialog with installed/latest versions, GitHub source, cancellation, detailed outcomes, and a releases link when an update exists.
 - Log **Clear** clears the display; refresh reloads files.
 - Log **Export** copies visible text to the clipboard.
 - Manual notification Amount is shown in the UI but not currently inserted.
