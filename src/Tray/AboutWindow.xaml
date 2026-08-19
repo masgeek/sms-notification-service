@@ -3,8 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="About FeeSyncer" Width="500" Height="470"
         MinWidth="460" MinHeight="430" ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Icon="favicon.ico">
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
     <Grid Margin="28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
