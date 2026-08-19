@@ -17,7 +17,7 @@ prototype plan.
 - [x] Fee Processor update settings and execution
 - [x] Manual SMS insertion dialog
 - [x] GitHub release notifications
-- [x] Blocking update-check dialog with progress, version details, cancellation, results, and releases link
+- [x] Blocking update-check dialog from the Control Panel and tray menu with progress, version details, cancellation, results, and installer download
 - [x] About dialog available from the main window and tray icon
 - [x] Installer Start Menu and all-users Startup integration
 - [x] Four WPF tray construction/disposal tests

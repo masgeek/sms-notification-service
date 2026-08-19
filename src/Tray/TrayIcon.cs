@@ -92,7 +92,7 @@ internal sealed class TrayIcon : IDisposable
 
     private void ShowControlPanel()
     {
-        _controlPanel ??= new ControlPanel(_monitor);
+        _controlPanel ??= new ControlPanel(_monitor, _updater);
         _controlPanel.WindowState = WindowState.Normal;
         _controlPanel.Show();
         _controlPanel.Activate();
