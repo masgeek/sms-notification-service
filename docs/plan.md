@@ -1,88 +1,64 @@
-# FeeSyncer — Plan
+# FeeSyncer Roadmap
 
-## Completed
+## Implemented Foundation
 
-| # | Feature | Solution | Files |
-|---|---|---|---|
-| 1 | **Concurrency Guard** | `SemaphoreSlim` serializes processing, concurrent events skipped | `Worker.cs` |
-| 2 | **Retry with Backoff** | Configurable exponential backoff, per-notification retry tracking | `Worker.cs`, `SmsServiceOptions.cs` |
-| 3 | **Config Validation** | Typed `IOptions<SmsServiceOptions>`, fails fast at startup | `Program.cs`, `Worker.cs`, `SmsServiceOptions.cs` |
-| 4 | **Listener Resilience** | `RegisterQueryWithRetry` retries 5 times on failure | `Worker.cs` |
-| 5 | **Graceful Shutdown** | `Interlocked` counter, waits up to 30s for in-flight sends | `Worker.cs` |
-| 6 | **Startup DB Check** | Validates database connectivity before service starts | `DatabaseConnectionCheck.cs` |
-| 7 | **Startup Catch-up** | Processes existing PENDING notifications on restart | `Worker.cs` |
-| 8 | **Retry Tracking** | `retry_count`, `max_retries`, `retry_after` columns with CANCELLED status | `Worker.cs`, `SmsNotification.cs`, `NotificationStatus.cs` |
-| 9 | **School Integration Worker** | Embedded, MQTT-first agent for student and fee snapshots, payment write-back, heartbeats, and resumable uploads | `src/SchoolIntegration/`, `docs/school-integration.md` |
+- Separate SMS, Agent, Tray, Console, and Shared projects
+- SQL Server Service Broker listener and retry poller
+- Serialized SMS processing with retryable/non-retryable outcomes
+- Exponential retry scheduling with jitter
+- Startup configuration and database validation
+- Standalone MQTT/HTTP school integration Agent
+- Resumable student and fee snapshots
+- Approved payment write-back
+- Tray-based configuration, enrollment, diagnostics, and service management
+- Scheduled and manual Fee Processor deployment support
+- Self-contained and framework-dependent installers
 
----
+## Reliability Priorities
 
-## Proposed Features
+### 1. Cross-Process SMS Claims
 
-### 1. Rate Limiting
+Add a database-backed claim/lease or `IN_PROGRESS` transition so two service
+instances cannot send the same notification.
 
-**Why:** Bulk inserts flood the API with concurrent requests.
+### 2. Rate Limiting
 
-**How:** Use `SemaphoreSlim` with a count > 1 (e.g., 5) or a token bucket to cap concurrent SMS sends per second.
+Add a configured request-rate policy before introducing parallel SMS sending.
+Current batches are sequential, so bulk load affects latency rather than causing
+concurrent API floods.
 
-**Priority:** High
+### 3. Circuit Breaker
 
----
+Pause SMS calls after repeated transient provider failures and probe recovery
+after a cooldown.
 
-### 2. Circuit Breaker
+### 4. MQTT-Independent Agent Operation
 
-**Why:** If the API is down, retries keep hammering it. Let it recover.
+Either reject `MqttEnabled=false` explicitly or implement a supported bounded
+HTTP polling mode. Keep MQTT outages from delaying heartbeats if practical.
 
-**How:** Track consecutive failures. After N failures, open the circuit and stop calling the API for a cooldown period. Auto-reset after cooldown.
+### 5. Credential Protection
 
-**Priority:** High
+Protect SQL, SMS, Agent, local API, MQTT, and updater secrets at rest and apply
+explicit NTFS permissions during installation.
 
----
+## Product Improvements
 
-### 3. Metrics Logging
+- Validate and normalize phone numbers before sending
+- Add throughput, failure, retry, heartbeat, and upload metrics with an exporter
+- Add semantic-version-aware update links/downloads
+- Add notification history and richer diagnostics
+- Validate all tray fields before saving
+- Complete manual notification Amount handling
+- Add configurable message templates only if message construction moves locally
+- Add provider fallback only after retry/circuit-breaker behavior is defined
 
-**Why:** No visibility into throughput or failure rates.
+## Engineering Priorities
 
-**How:** Atomic counters for sent/failed/skipped. Log a summary every N minutes (e.g., "Last 5min: 42 sent, 3 failed, 0 skipped").
-
-**Priority:** Medium
-
----
-
-### 4. Phone Number Validation
-
-**Why:** Invalid numbers waste API calls and create noise.
-
-**How:** Validate format before sending (e.g., must start with country code, minimum length). Mark as `CANCELLED` instead of retrying.
-
-**Priority:** Medium
-
----
-
-### 5. Configurable Message Template
-
-**Why:** Hardcoded message format requires code changes to modify.
-
-**How:** Add a `MessageTemplate` field to `SmsServiceOptions`. Use `string.Format` or named placeholders.
-
-**Priority:** Low
-
----
-
-### 6. Multiple API Fallback
-
-**Why:** Single point of failure if the primary SMS provider goes down.
-
-**How:** Add a `FallbackSmsApiUrl` to config. If primary fails all retries, try fallback. Log which provider was used.
-
-**Priority:** Low
-
----
-
-## Priority Order
-
-1. Rate Limiting — prevents API flooding
-2. Circuit Breaker — protects against API downtime
-3. Metrics Logging — operational visibility
-4. Phone Number Validation — reduces wasted calls
-5. Configurable Message Template — flexibility
-6. Multiple API Fallback — redundancy
+- Fix installer upgrade detection and console-option behavior
+- Verify both .NET and Windows Desktop runtimes in framework installation
+- Align CI pull-request triggers with auto-review requirements
+- Reconcile student contract JSON schema and serializer output
+- Add SQL Server integration tests
+- Add Agent worker/gateway orchestration tests
+- Add installer and tray workflow tests

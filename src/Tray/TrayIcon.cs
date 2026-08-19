@@ -152,6 +152,14 @@ internal sealed class TrayIcon : IDisposable
 
     private void CheckForUpdates() => _ = _updater.CheckAsync();
 
+    private void ShowAbout()
+    {
+        var dialog = new AboutWindow();
+        if (_controlPanel?.IsVisible == true)
+            dialog.Owner = _controlPanel;
+        dialog.ShowDialog();
+    }
+
     private ContextMenu BuildContextMenu()
     {
         var menu = new ContextMenu();
@@ -169,6 +177,7 @@ internal sealed class TrayIcon : IDisposable
         menu.Items.Add(new MenuItem { Header = "Restart Service", Command = new DelegateCommand(_ => _monitor.RestartService()) });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Check for Updates", Command = new DelegateCommand(_ => CheckForUpdates()) });
+        menu.Items.Add(new MenuItem { Header = "About FeeSyncer", Command = new DelegateCommand(_ => ShowAbout()) });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Exit", Command = new DelegateCommand(_ => Exit()) });
 

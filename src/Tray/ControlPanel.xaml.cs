@@ -242,6 +242,11 @@ public partial class ControlPanel : Window
         WorkspaceTabs.SelectedItem = logsTab;
     }
 
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        new AboutWindow { Owner = this }.ShowDialog();
+    }
+
     private void Minimize_Click(object sender, RoutedEventArgs e) => Hide();
 
     protected override void OnClosing(CancelEventArgs e)
