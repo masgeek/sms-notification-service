@@ -29,11 +29,23 @@ public static class ConfigReader
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer) &&
                 feeSyncer.TryGetProperty("BaseUrl", out var baseUrl))
-                return (baseUrl.GetString() ?? string.Empty).TrimEnd('/') + "/api/v1/notifications";
+            {
+                var endpoint = Constants.DefaultSmsNotificationsEndpoint;
+                if (feeSyncer.TryGetProperty("ApiEndpoints", out var endpoints) &&
+                    endpoints.TryGetProperty("SmsNotifications", out var configuredEndpoint) &&
+                    configuredEndpoint.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(configuredEndpoint.GetString()))
+                    endpoint = configuredEndpoint.GetString()!;
+
+                return CombineUrl(baseUrl.GetString(), endpoint);
+            }
         }
         catch { /* ignore */ }
         return string.Empty;
     }
+
+    public static string CombineUrl(string? baseUrl, string endpoint) =>
+        (baseUrl ?? string.Empty).TrimEnd('/') + "/" + endpoint.TrimStart('/');
 
     public static string LoadAuthorizationToken(string configPath)
     {

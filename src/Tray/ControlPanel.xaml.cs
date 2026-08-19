@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
 using System.Text.Json;
@@ -68,9 +69,11 @@ public partial class ControlPanel : Window
     }
 
     private async void StartSms_Click(object sender, RoutedEventArgs e) => await StartAfterValidationAsync(Constants.ServiceName);
+    private void RunSmsConsole_Click(object sender, RoutedEventArgs e) => RunConsole(Constants.SmsExecutableName, "SMS");
     private void StopSms_Click(object sender, RoutedEventArgs e) => monitor.StopNamedService(Constants.ServiceName);
     private void RestartSms_Click(object sender, RoutedEventArgs e) => monitor.RestartNamedService(Constants.ServiceName);
     private async void StartAgent_Click(object sender, RoutedEventArgs e) => await StartAfterValidationAsync(Constants.AgentServiceName);
+    private void RunAgentConsole_Click(object sender, RoutedEventArgs e) => RunConsole(Constants.AgentExecutableName, "Agent");
     private void StopAgent_Click(object sender, RoutedEventArgs e) => monitor.StopNamedService(Constants.AgentServiceName);
     private void RestartAgent_Click(object sender, RoutedEventArgs e) => monitor.RestartNamedService(Constants.AgentServiceName);
 
@@ -78,6 +81,23 @@ public partial class ControlPanel : Window
     private void InstallAgent_Click(object sender, RoutedEventArgs e) => Install(Constants.AgentServiceName, "FeeSyncer Agent", Constants.AgentExecutableName);
     private void UninstallSms_Click(object sender, RoutedEventArgs e) => Uninstall(Constants.ServiceName);
     private void UninstallAgent_Click(object sender, RoutedEventArgs e) => Uninstall(Constants.AgentServiceName);
+
+    private void RunConsole(string executableName, string displayName)
+    {
+        var path = ExecutablePathResolver.FindServiceExecutable(executableName);
+        if (path is null)
+        {
+            MessageBox.Show($"{displayName} console executable was not found. Publish or install the {displayName} executable first.", "Console Application", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = path,
+            WorkingDirectory = Path.GetDirectoryName(path),
+            UseShellExecute = true,
+        });
+    }
 
     private async Task StartAfterValidationAsync(string serviceName)
     {
@@ -112,6 +132,7 @@ public partial class ControlPanel : Window
         try
         {
             var baseUrl = Constants.DefaultBaseUrl;
+            var workEndpoint = Constants.DefaultAgentWorkEndpoint;
             var rootPath = ConfigPathResolver.FindConfigFile();
             if (File.Exists(rootPath))
             {
@@ -119,6 +140,13 @@ public partial class ControlPanel : Window
                 if (root.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer)
                     && feeSyncer.TryGetProperty("BaseUrl", out var configuredBaseUrl))
                     baseUrl = configuredBaseUrl.GetString() ?? baseUrl;
+
+                if (root.RootElement.TryGetProperty("FeeSyncer", out feeSyncer) &&
+                    feeSyncer.TryGetProperty("ApiEndpoints", out var endpoints) &&
+                    endpoints.TryGetProperty("AgentWork", out var configuredWorkEndpoint) &&
+                    configuredWorkEndpoint.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(configuredWorkEndpoint.GetString()))
+                    workEndpoint = configuredWorkEndpoint.GetString()!;
             }
 
             var agentPath = ConfigPathResolver.FindAgentConfigFile();
@@ -134,7 +162,7 @@ public partial class ControlPanel : Window
                 ? localValue.GetString()
                 : "http://127.0.0.1:8001/api/";
             var gatewayTask = ConnectionValidator.ValidateHttpAsync(
-                baseUrl.TrimEnd('/') + "/api/agent/work?wait=0", token);
+                ConfigReader.CombineUrl(baseUrl, workEndpoint) + "?wait=0", token);
             var localTask = ConnectionValidator.ValidateHttpAsync(localApi?.TrimEnd('/') + "/", null);
             var results = await Task.WhenAll(gatewayTask, localTask);
             var summary = $"Agent gateway: {(results[0].Passed ? "OK" : "FAIL")} {results[0].Details}\n" +
@@ -180,6 +208,24 @@ public partial class ControlPanel : Window
     private void Logs_Click(object sender, RoutedEventArgs e)
         => OpenLogs();
 
+    private void LaunchConsole_Click(object sender, RoutedEventArgs e)
+    {
+        var consolePath = Path.Combine(AppContext.BaseDirectory, "..", "Console", Constants.ConsoleExecutableName);
+        consolePath = Path.GetFullPath(consolePath);
+        if (!File.Exists(consolePath))
+        {
+            MessageBox.Show($"Console monitor was not found at:\n{consolePath}", "Console Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = consolePath,
+            WorkingDirectory = Path.GetDirectoryName(consolePath),
+            UseShellExecute = true,
+        });
+    }
+
     public void OpenLogs()
     {
         if (logsTab is null)
@@ -194,6 +240,11 @@ public partial class ControlPanel : Window
             WorkspaceTabs.Items.Add(logsTab);
         }
         WorkspaceTabs.SelectedItem = logsTab;
+    }
+
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        new AboutWindow { Owner = this }.ShowDialog();
     }
 
     private void Minimize_Click(object sender, RoutedEventArgs e) => Hide();

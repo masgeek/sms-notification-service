@@ -43,8 +43,8 @@ internal sealed class MqttAgentConnection(
             {
                 try
                 {
-                    logger.LogInformation("MQTT connection attempt. Broker={BrokerHost}:{BrokerPort}",
-                        options.Value.MqttBrokerHost, options.Value.MqttBrokerPort);
+                    logger.LogInformation("MQTT connection attempt. Broker={BrokerHost}:{BrokerPort}{BrokerPath}",
+                        options.Value.MqttBrokerHost, options.Value.MqttBrokerPort, options.Value.MqttBrokerPath);
                     AgentMetrics.MqttAttempt();
                     await ConnectAndSubscribeAsync(client, stoppingToken);
                     state.SetConnected(true);
@@ -91,18 +91,13 @@ internal sealed class MqttAgentConnection(
         var agentOptions = options.Value;
         var clientOptions = new MqttClientOptionsBuilder()
             .WithClientId("sms-agent-" + TopicKey(agentOptions.AgentToken)[..16])
-            .WithTcpServer(agentOptions.MqttBrokerHost, agentOptions.MqttBrokerPort)
+            .WithWebSocketServer(webSocket => webSocket.WithUri(BuildBrokerUri(agentOptions)))
             .WithCredentials(
                 string.IsNullOrWhiteSpace(agentOptions.MqttUsername) ? agentOptions.AgentToken : agentOptions.MqttUsername,
                 agentOptions.MqttPassword)
             .WithCleanSession(false)
             .WithKeepAlivePeriod(TimeSpan.FromSeconds(agentOptions.MqttKeepAliveSeconds))
             .WithTimeout(TimeSpan.FromSeconds(agentOptions.RequestTimeoutSeconds));
-
-        if (agentOptions.MqttUseTls)
-        {
-            clientOptions.WithTlsOptions(tls => tls.UseTls());
-        }
 
         await client.ConnectAsync(clientOptions.Build(), cancellationToken);
         var topic = BuildTopic(agentOptions);
@@ -172,4 +167,17 @@ internal sealed class MqttAgentConnection(
 
     internal static string BuildTopic(AgentOptions options) =>
         $"{options.MqttTopicPrefix.Trim('/')}/key/{TopicKey(options.AgentToken)}/work";
+
+    internal static string BuildBrokerUri(AgentOptions options)
+    {
+        if (Uri.TryCreate(options.MqttBrokerHost, UriKind.Absolute, out var configuredUri)
+            && (configuredUri.Scheme == Uri.UriSchemeWs || configuredUri.Scheme == Uri.UriSchemeWss))
+        {
+            return configuredUri.ToString();
+        }
+
+        var scheme = options.MqttUseTls ? "wss" : "ws";
+        var path = string.IsNullOrWhiteSpace(options.MqttBrokerPath) ? "/mqtt" : "/" + options.MqttBrokerPath.Trim('/');
+        return $"{scheme}://{options.MqttBrokerHost.TrimEnd('/')}:{options.MqttBrokerPort}{path}";
+    }
 }

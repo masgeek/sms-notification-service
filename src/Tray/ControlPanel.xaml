@@ -22,6 +22,7 @@
                     <TextBlock x:Name="SmsDetailsText" Foreground="Gray" Margin="0,4,0,16" TextWrapping="Wrap"/>
                     <WrapPanel>
                         <Button x:Name="StartSmsButton" Content="Start" Click="StartSms_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button Content="Run Console" Click="RunSmsConsole_Click" Padding="12,5" Margin="0,0,6,6"/>
                         <Button x:Name="StopSmsButton" Content="Stop" Click="StopSms_Click" Padding="12,5" Margin="0,0,6,6"/>
                         <Button x:Name="RestartSmsButton" Content="Restart" Click="RestartSms_Click" Padding="12,5" Margin="0,0,6,6"/>
                         <Button x:Name="InstallSmsButton" Content="Install" Click="InstallSms_Click" Padding="12,5" Margin="0,0,6,6"/>
@@ -37,6 +38,7 @@
                     <TextBlock x:Name="AgentDetailsText" Foreground="Gray" Margin="0,4,0,16" TextWrapping="Wrap"/>
                     <WrapPanel>
                         <Button x:Name="StartAgentButton" Content="Start" Click="StartAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
+                        <Button Content="Run Console" Click="RunAgentConsole_Click" Padding="12,5" Margin="0,0,6,6"/>
                         <Button x:Name="StopAgentButton" Content="Stop" Click="StopAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
                         <Button x:Name="RestartAgentButton" Content="Restart" Click="RestartAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
                         <Button x:Name="InstallAgentButton" Content="Install" Click="InstallAgent_Click" Padding="12,5" Margin="0,0,6,6"/>
@@ -46,7 +48,9 @@
             </Border>
         </Grid>
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Launch Console Monitor" Click="LaunchConsole_Click" Padding="14,6" Margin="0,0,8,0"/>
             <Button Content="View Logs" Click="Logs_Click" Padding="14,6" Margin="0,0,8,0"/>
+            <Button Content="About" Click="About_Click" Padding="14,6" Margin="0,0,8,0"/>
             <Button Content="Minimize to Tray" Click="Minimize_Click" Padding="14,6"/>
         </StackPanel>
     </Grid>

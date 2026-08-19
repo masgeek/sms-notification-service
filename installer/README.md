@@ -1,115 +1,93 @@
 # FeeSyncer Installer
 
-Inno Setup installer for FeeSyncer. Two variants available:
+The Inno Setup definitions package four applications and install two Windows
+services.
 
-- **Self-contained** (`installer.iss`) — bundles .NET runtime, no dependencies needed
-- **Framework-dependent** (`installer-framework.iss`) — requires .NET 10 runtime on target machine
+## Variants
 
-The installer installs separate Windows services for SMS notification processing
-and school integration. Both services are installed stopped with manual startup;
-the SMS tray monitor opens the maximized Control Panel and application settings
-after installation. The agent is enabled by default. The SMS service reads
-the root `appsettings.Production.json`; the agent reads
-`Agent\appsettings.Production.json`. Enrollment and agent configuration are
-managed after installation from the FeeSyncer tray app; the installer does not
-handle enrollment codes or bearer tokens.
+| Script | Output | Runtime requirement |
+|---|---|---|
+| `installer.iss` | `FeeSyncer-Setup-<version>.exe` | None; application runtimes are bundled |
+| `installer-framework.iss` | `FeeSyncer-Framework-Setup-<version>.exe` | .NET 10 Runtime and Desktop Runtime |
+
+## Installed Layout
+
+```text
+C:\Program Files\FeeSyncer\
+|-- FeeSyncer.Sms.exe
+|-- Agent\FeeSyncer.Agent.exe
+|-- Tray\FeeSyncer.Tray.exe
+`-- Console\FeeSyncer.Console.exe
+```
+
+Both `FeeSyncer.Sms` and `FeeSyncer.Agent` are installed under `LocalSystem` as
+manual (`demand`) services and are left stopped. Service recovery restarts after
+5 minutes, then after 5 seconds for the next two failures.
+
+Configuration is application-managed, not installer-managed:
+
+```text
+C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json
+C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
+C:\ProgramData\Munywele\FeeSyncer\logs\
+```
+
+The installer never accepts enrollment codes or API credentials. When selected,
+it launches `Tray\FeeSyncer.Tray.exe --setup` so the operator can configure and
+enroll the services.
+
+## Wizard Choices
+
+- Install tray shortcuts and all-users Startup entry, selected by default
+- Select the Console Monitor option, currently informational because binaries are always copied
+- Launch the tray setup screen after installation, selected by default
+
+Tray startup uses the all-users Startup folder. The old `HKCU\...\Run` approach
+is not used by current installers.
 
 ## Structure
 
-```
+```text
 installer/
-├── installer.iss              # Self-contained installer
-├── installer-framework.iss    # Framework-dependent installer
-├── code/
-│   ├── globals.iss            # Global variables and InitializeSetup
-│   ├── utils.iss              # RunCmd, BoolToStr, JsonEscape
-│   ├── services.iss           # Windows Service management
-│   ├── eventlog.iss           # Event Log helpers
-│   ├── wizard.iss             # Wizard pages and validation
-│   ├── install.iss            # Fresh install, upgrade logic
-│   └── uninstall.iss          # Uninstall logic
-├── favicon.ico                # Installer icon
-└── output/                    # Built installers
+|-- installer.iss
+|-- installer-framework.iss
+|-- code/
+|   |-- globals.iss
+|   |-- utils.iss
+|   |-- services.iss
+|   |-- eventlog.iss
+|   |-- wizard.iss
+|   |-- install.iss
+|   `-- uninstall.iss
+`-- output/
 ```
+
+Included Pascal files share one `[Code]` scope. Define dependencies before
+dependents and do not place semicolon comment headers at the top of include
+files; Inno Setup can report `BEGIN expected`.
 
 ## Build
 
-```bash
-# 1. Publish the .NET app
-
-# Self-contained (bundles .NET runtime)
+```powershell
 ./publish.ps1
-
-# Framework-dependent (requires .NET 10 runtime on target)
 ./publish-framework.ps1
 
-# 2. Compile installer (requires Inno Setup 6.4+)
-
-# Self-contained installer
-iscc installer.iss /DMyAppVersion=1.2.3
-
-# Framework-dependent installer
-iscc installer-framework.iss /DMyAppVersion=1.2.3 /DFrameworkInstall
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 installer\installer.iss
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 installer\installer-framework.iss
 ```
 
-## Adding New Code
+Expected publish inputs:
 
-### 1. Create or edit a module in `code/`
+| Variant | Folders |
+|---|---|
+| Self-contained | `build/service`, `build/agent`, `build/tray`, `build/console` |
+| Framework-dependent | `build/service-framework`, `build/agent-framework`, `build/tray-framework`, `build/console-framework` |
 
-Each file must contain only Pascal Script — no comment headers (`;` comments) at the top.
+## Uninstall
 
-```pascal
-// code/utils.iss
+Uninstall stops and removes both services, terminates tray and console processes,
+and removes the Event Log source. It asks whether ProgramData configuration and
+logs should be preserved. Read that prompt carefully because removing the data
+deletes credentials and operational logs.
 
-function MyNewFunction(const Input: String): String;
-begin
-  Result := Input;
-end;
-```
-
-### 2. Include in `installer.iss` and `installer-framework.iss`
-
-Add `#include` in the `[Code]` section (order matters for dependencies):
-
-```pascal
-[Code]
-#include "code\utils.iss"        # Functions used by other modules
-#include "code\services.iss"     # Depends on utils
-#include "code\eventlog.iss"
-#include "code\globals.iss"      # Variables used by wizard
-#include "code\wizard.iss"       # Depends on globals, config
-#include "code\install.iss"      # Depends on all above
-#include "code\uninstall.iss"
-```
-
-### 3. File placement guidelines
-
-| File | Purpose | Dependencies |
-|------|---------|--------------|
-| `utils.iss` | Utility functions | None |
-| `services.iss` | Service management | `utils.iss` (RunCmd) |
-| `eventlog.iss` | Event Log | None |
-| `globals.iss` | Variables, InitSetup | `services.iss` |
-| `wizard.iss` | UI pages and install choices | `globals.iss` |
-| `install.iss` | Install logic | All above |
-| `uninstall.iss` | Uninstall logic | `services.iss`, `eventlog.iss` |
-
-## Rules
-
-1. **No comment headers** in `#include` files — causes "BEGIN expected" error
-2. **Order matters** — include dependencies before dependents
-3. **Functions are global** — all `#include` files share the same `[Code]` scope
-4. **Both installers share the same code modules** — changes to `code/` affect both installers
-
-After installation, open the FeeSyncer tray app's **Settings** screen. Enter
-the central enrollment code and local fee-processor credentials, then click
-**Enroll / Re-enroll**. The tray app exchanges the single-use `enroll_...` code,
-writes the returned `fsk_...` token to the agent configuration, and can restart
-the agent service. The enrollment code expires after 15 minutes and is not
-used for runtime requests. See
-[`docs/school-integration.md`](../docs/school-integration.md).
-
-Configure MQTT-first work discovery with `Agent:MqttEnabled`, broker
-host and port, TLS, and broker credentials. Keep `Agent:MqttPassword` and the
-agent token out of installer arguments and source control. HTTP polling remains
-work discovery channel. Work discovery pauses if MQTT is unavailable.
+See [Deployment Guide](../docs/deployment.md) for operator instructions.

@@ -1,93 +1,59 @@
-# Fix Checklist — Codebase Audit
+# Audit Follow-Up Checklist
 
-Based on the audit findings, here are the fixes to apply in priority order. Commit after each fix.
+This replaces the historical checklist whose completed states no longer matched
+the current implementation.
 
----
+## Security
 
-## CRITICAL
+- [ ] Remove and rotate any real credentials from development configuration
+- [ ] Protect ProgramData configuration files with explicit NTFS ACLs
+- [ ] Encrypt or externally store persisted secrets
+- [ ] Require HTTPS for production SMS API URLs
+- [ ] Require an `fsk_...` runtime Agent token, not length alone
+- [ ] Avoid logging raw phone numbers and full provider error bodies where sensitive
 
-- [x] **Fix `description_json` column mismatch**
-  - File: `src/Sms/Data/DapperMapper.cs`
-  - Add mapping for `description_json` → `Description`
-  - Verify SQL in `NotificationRepository.cs` uses correct column name
+## SMS
 
-- [x] **Honor `Retryable` flag in NotificationProcessor**
-  - File: `src/Sms/Workers/NotificationProcessor.cs`
-  - Check `result.Retryable` before scheduling retry
-  - Non-retryable failures should go straight to `CANCELLED`
+- [x] Map `description_json` to `SmsNotification.Description`
+- [x] Cancel non-retryable failures immediately
+- [x] Validate required settings and positive numeric values
+- [x] Use a named `HttpClient`
+- [x] Use asynchronous listener retry delays
+- [x] Bound a repository read to 100 rows
+- [ ] Make batch size configurable and add deterministic ordering
+- [ ] Add a database-backed claim to prevent duplicate multi-instance sends
+- [ ] Pass cancellation tokens through repository and HTTP operations
+- [ ] Treat HTTP 429 according to provider retry semantics
+- [ ] Detach listener handlers and dispose all listener resources deterministically
 
----
+## Agent
 
-## HIGH
+- [ ] Support or explicitly reject MQTT-disabled operation
+- [ ] Decouple heartbeats from long jobs and broker waits
+- [ ] Validate MQTT host/scheme consistently
+- [ ] Validate reconnect minimum does not exceed maximum
+- [ ] Observe lease-renewal failures before completing jobs
+- [ ] Reconcile the student JSON schema with serialized records
+- [ ] Add worker, gateway, heartbeat, and updater tests
 
-- [x] **Move config validation before `builder.Build()`**
-  - File: `Program.cs`
-  - Call `ValidateSmsServiceOptions` before line 44
+## Tray
 
-- [x] **Add numeric config bounds validation**
-  - File: `src/Sms/Configuration/ConfigurationExtensions.cs`
-  - Validate: `RetryBackoffSeconds > 0`, `RetryPollIntervalSeconds > 0`, `LogRetentionDays > 0`, `MaxLogFileSizeMb > 0`
+- [x] Provide combined SMS and Agent management
+- [x] Perform tray-based enrollment
+- [x] Add About access from the Control Panel and tray menu
+- [ ] Validate all settings before save
+- [ ] Persist central Agent endpoint edits to Agent configuration
+- [ ] Insert the manual Amount field
+- [ ] Prevent repeated stopped-service notifications
+- [ ] Surface service command exit codes
+- [ ] Add tests for enrollment, config round-trips, logs, and About
 
-- [x] **Escape installer connection string and JSON values**
-  - File: `installer/installer.iss`
-  - Apply `JsonEscape` to all user inputs before writing config
+## Installer and CI
 
-- [x] **Restrict config file permissions**
-  - File: `installer/installer.iss`
-  - Change from `everyone-readexec` to `admins-full system-full` only
-
-- [x] **Replace `Thread.Sleep` with `await Task.Delay`**
-  - File: `src/Sms/Data/SqlDependencyListener.cs`
-  - Make `RegisterQueryWithRetry` async
-  - Use `await Task.Delay(delay, stoppingToken)` instead of `Thread.Sleep`
-
-- [x] **Fix `.GetAwaiter().GetResult()` blocking**
-  - File: `src/Sms/Workers/TableChangeListener.cs`
-  - Make the `onChanges` callback async or use `Task.Run`
-
-- [x] **Add `TOP 100` to pending query**
-  - File: `src/Sms/Data/NotificationRepository.cs`
-  - Add `TOP (@Limit)` with a configurable batch size
-
----
-
-## MEDIUM
-
-- [x] **Use named HttpClient instead of creating per-request**
-  - File: `src/Sms/Services/SmsApiService.cs`
-  - Register a named client in `ServiceCollectionExtensions.cs`
-  - Use `IHttpClientFactory.CreateClient("SmsApi")` instead of `CreateClient()`
-
-- [x] **Make `SqlDependencyListener` implement `IDisposable`**
-  - File: `src/Sms/Data/SqlDependencyListener.cs`
-  - Clean up event handlers and connections on dispose
-
-- [x] **Remove unused `Retryable` property or use it**
-  - File: `src/Sms/Services/ISmsSender.cs`
-  - Either remove or document that it's used by `NotificationProcessor`
-  - **Done**: `Retryable` property is now used by `NotificationProcessor` to cancel non-retryable errors
-
-- [x] **Add DB connectivity check in installer**
-  - File: `installer/installer.iss`
-  - Test connection before creating the service
-
-- [ ] **Validate SMS API URL uses HTTPS**
-  - File: `src/Sms/Configuration/ConfigurationExtensions.cs`
-  - Reject `http://` URLs in validation
-
-- [x] **Seal remaining classes without inheritance**
-  - Files: `src/Sms/Data/NotificationRepository.cs`, `src/Sms/Data/SqlDependencyListener.cs`
-  - Add `sealed` keyword
-
----
-
-## LOW
-
-- [x] **Reduce log rotation filesystem calls**
-  - File: `src/Sms/Logging/FileLoggerProvider.cs`
-  - Cache file size checks with a timer instead of checking every log line
-  - **Done**: Check every 100 lines, track `_currentFileSize` to avoid redundant FileInfo calls
-
-- [x] **Add `Encrypt=True` check for connection string**
-  - File: `src/Sms/Configuration/ConfigurationExtensions.cs`
-  - Warn if not present in production
+- [ ] Preserve detected upgrade mode during wizard initialization
+- [ ] Make the console selection meaningful or remove it
+- [ ] Check `Microsoft.WindowsDesktop.App 10` in the framework installer
+- [ ] Harden ProgramData and log directory permissions
+- [ ] Make Agent service cleanup as robust as SMS cleanup
+- [ ] Run the main Tests workflow on pull requests or adjust auto-review
+- [ ] Replace shell-specific cache sentinel commands with PowerShell-native code

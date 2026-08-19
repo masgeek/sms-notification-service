@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -7,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
+using MQTTnet;
 using FeeSyncer.Shared;
 
 namespace FeeSyncer.Tray;
@@ -22,7 +24,8 @@ public partial class ConfigEditor : UserControl
 
         Loaded += async (_, _) =>
         {
-            ConfigPathText.Text = ConfigPathResolver.GetMachineConfigFile();
+            ConfigPathText.Text = $"SMS settings: {ConfigPathResolver.GetActiveConfigFile()}{Environment.NewLine}" +
+                                  $"Agent settings: {ConfigPathResolver.GetActiveAgentConfigFile()}";
             LoadConfig();
             await UpdateFeeToolDetectionTextAsync();
         };
@@ -48,6 +51,9 @@ public partial class ConfigEditor : UserControl
                 && feeSyncer.TryGetProperty("BaseUrl", out var baseUrl)
                 && !string.IsNullOrWhiteSpace(baseUrl.GetString()))
                 ApiUrlBox.Text = baseUrl.GetString()!;
+
+            if (doc.RootElement.TryGetProperty("FeeSyncer", out feeSyncer))
+                LoadApiEndpoints(feeSyncer);
 
             if (doc.RootElement.TryGetProperty("SmsService", out var sms))
             {
@@ -104,7 +110,7 @@ public partial class ConfigEditor : UserControl
             return;
 
         AgentEnabledBox.IsChecked = BoolValue(agent, "Enabled", true);
-        AgentTokenBox.Text = StringValue(agent, "AgentToken");
+        SetAgentToken(StringValue(agent, "AgentToken"));
         RequestTimeoutBox.Text = NumberValue(agent, "RequestTimeoutSeconds", 30);
         IdleDelayBox.Text = NumberValue(agent, "IdleDelaySeconds", 5);
         HeartbeatBox.Text = NumberValue(agent, "HeartbeatSeconds", 60);
@@ -113,9 +119,11 @@ public partial class ConfigEditor : UserControl
         LocalApiUsernameBox.Text = StringValue(agent, "LocalApiUsername");
         LocalApiPasswordBox.Password = StringValue(agent, "LocalApiPassword");
         MqttEnabledBox.IsChecked = BoolValue(agent, "MqttEnabled", true);
-        MqttHostBox.Text = StringValue(agent, "MqttBrokerHost", "mqtt.munywele.co.ke");
-        MqttPortBox.Text = NumberValue(agent, "MqttBrokerPort", 8883);
+        MqttHostBox.Text = StringValue(agent, "MqttBrokerHost", "wss://mqtt.munywele.co.ke/mqtt");
+        MqttPortBox.Text = NumberValue(agent, "MqttBrokerPort", 443);
+        MqttPathBox.Text = StringValue(agent, "MqttBrokerPath", "/mqtt");
         MqttTlsBox.IsChecked = BoolValue(agent, "MqttUseTls", true);
+        SetMqttEnvironmentFromUrl();
         MqttUsernameBox.Text = StringValue(agent, "MqttUsername");
         MqttPasswordBox.Password = StringValue(agent, "MqttPassword");
         MqttTopicBox.Text = StringValue(agent, "MqttTopicPrefix", "fee-syncer/agent");
@@ -136,7 +144,7 @@ public partial class ConfigEditor : UserControl
         FeeProcessorSshUsernameBox.Text = StringValue(agent, "FeeProcessorSshUsername", "git");
         FeeProcessorSshKeyPathBox.Text = StringValue(agent, "FeeProcessorSshKeyPath", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "id_ed25519"));
         FeeProcessorSshPassphraseBox.Password = StringValue(agent, "FeeProcessorSshPassphrase");
-        AgentStatusText.Text = AgentTokenBox.Text.StartsWith("fsk_", StringComparison.Ordinal)
+        AgentStatusText.Text = AgentTokenBox.Password.StartsWith("fsk_", StringComparison.Ordinal)
             ? "Enrolled"
             : "Not enrolled";
         AgentStatusSummaryText.Text = AgentStatusText.Text;
@@ -149,6 +157,15 @@ public partial class ConfigEditor : UserControl
         DbUserIdBox.Text = "sa";
         DbPasswordBox.Password = string.Empty;
         ApiUrlBox.Text = Constants.DefaultBaseUrl;
+        SmsNotificationsEndpointBox.Text = Constants.DefaultSmsNotificationsEndpoint;
+        AgentEnrollEndpointBox.Text = Constants.DefaultAgentEnrollEndpoint;
+        AgentWorkEndpointBox.Text = Constants.DefaultAgentWorkEndpoint;
+        AgentHeartbeatEndpointBox.Text = Constants.DefaultAgentHeartbeatEndpoint;
+        AgentRenewEndpointBox.Text = Constants.DefaultAgentRenewEndpoint;
+        AgentPageEndpointBox.Text = Constants.DefaultAgentPageEndpoint;
+        AgentCompleteEndpointBox.Text = Constants.DefaultAgentCompleteEndpoint;
+        AgentPaymentCompleteEndpointBox.Text = Constants.DefaultAgentPaymentCompleteEndpoint;
+        AgentFailEndpointBox.Text = Constants.DefaultAgentFailEndpoint;
         TokenBox.Password = string.Empty;
         BackoffBox.Text = "30";
         PollIntervalBox.Text = "30";
@@ -156,12 +173,97 @@ public partial class ConfigEditor : UserControl
         MaxSizeBox.Text = "10";
     }
 
+    private void LoadApiEndpoints(JsonElement feeSyncer)
+    {
+        if (!feeSyncer.TryGetProperty("ApiEndpoints", out var endpoints))
+            return;
+
+        SmsNotificationsEndpointBox.Text = StringValue(endpoints, "SmsNotifications", Constants.DefaultSmsNotificationsEndpoint);
+        AgentEnrollEndpointBox.Text = StringValue(endpoints, "AgentEnroll", Constants.DefaultAgentEnrollEndpoint);
+        AgentWorkEndpointBox.Text = StringValue(endpoints, "AgentWork", Constants.DefaultAgentWorkEndpoint);
+        AgentHeartbeatEndpointBox.Text = StringValue(endpoints, "AgentHeartbeat", Constants.DefaultAgentHeartbeatEndpoint);
+        AgentRenewEndpointBox.Text = StringValue(endpoints, "AgentRenew", Constants.DefaultAgentRenewEndpoint);
+        AgentPageEndpointBox.Text = StringValue(endpoints, "AgentPage", Constants.DefaultAgentPageEndpoint);
+        AgentCompleteEndpointBox.Text = StringValue(endpoints, "AgentComplete", Constants.DefaultAgentCompleteEndpoint);
+        AgentPaymentCompleteEndpointBox.Text = StringValue(endpoints, "AgentPaymentComplete", Constants.DefaultAgentPaymentCompleteEndpoint);
+        AgentFailEndpointBox.Text = StringValue(endpoints, "AgentFail", Constants.DefaultAgentFailEndpoint);
+    }
+
     private void LoadTrayDefaults() => TrayStartMinimizedBox.IsChecked = false;
+
+    private void SetAgentToken(string token)
+    {
+        AgentTokenBox.Password = token;
+        AgentTokenVisibleBox.Text = token;
+    }
+
+    private void TokenBox_PasswordChanged(object sender, RoutedEventArgs e) => TokenVisibleBox.Text = TokenBox.Password;
+
+    private void TokenVisibleBox_TextChanged(object sender, TextChangedEventArgs e) => TokenBox.Password = TokenVisibleBox.Text;
+
+    private void AgentTokenBox_PasswordChanged(object sender, RoutedEventArgs e) => AgentTokenVisibleBox.Text = AgentTokenBox.Password;
+
+    private void AgentTokenVisibleBox_TextChanged(object sender, TextChangedEventArgs e) => AgentTokenBox.Password = AgentTokenVisibleBox.Text;
+
+    private void TokenVisibilityButton_Click(object sender, RoutedEventArgs e) => ToggleTokenVisibility(TokenBox, TokenVisibleBox, TokenVisibilityButton);
+
+    private void AgentTokenVisibilityButton_Click(object sender, RoutedEventArgs e) => ToggleTokenVisibility(AgentTokenBox, AgentTokenVisibleBox, AgentTokenVisibilityButton);
+
+    private static void ToggleTokenVisibility(PasswordBox passwordBox, TextBox visibleBox, Button visibilityButton)
+    {
+        var show = passwordBox.Visibility == Visibility.Visible;
+        visibleBox.Text = passwordBox.Password;
+        passwordBox.Visibility = show ? Visibility.Collapsed : Visibility.Visible;
+        visibleBox.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        visibilityButton.Content = show ? "Hide" : "Show";
+    }
+
+    private void MqttEnvironmentBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (MqttHostBox is not null && sender is ComboBox combo && combo.SelectedValue is string environment)
+            ApplyMqttEnvironment(environment);
+    }
+
+    private void SetMqttEnvironmentFromUrl()
+    {
+        if (MqttHostBox is null || MqttEnvironmentBox is null)
+            return;
+
+        var url = MqttHostBox.Text.Trim();
+        MqttEnvironmentBox.SelectedValue = url.StartsWith("ws://127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("ws://localhost", StringComparison.OrdinalIgnoreCase)
+            ? "Development"
+            : url.StartsWith("wss://", StringComparison.OrdinalIgnoreCase)
+                ? "Production"
+                : "Custom";
+    }
+
+    private void ApplyMqttEnvironment(string environment)
+    {
+        if (MqttHostBox is null || MqttPortBox is null || MqttPathBox is null || MqttTlsBox is null)
+            return;
+
+        switch (environment)
+        {
+            case "Development":
+                MqttHostBox.Text = "ws://127.0.0.1:8083/mqtt";
+                MqttPortBox.Text = "8083";
+                MqttPathBox.Text = "/mqtt";
+                MqttTlsBox.IsChecked = false;
+                break;
+            case "Production":
+                MqttHostBox.Text = "wss://mqtt.munywele.co.ke/mqtt";
+                MqttPortBox.Text = "443";
+                MqttPathBox.Text = "/mqtt";
+                MqttTlsBox.IsChecked = true;
+                break;
+        }
+    }
 
     private void LoadAgentDefaults()
     {
         AgentEnabledBox.IsChecked = true;
-        AgentTokenBox.Text = string.Empty;
+        SetAgentToken(string.Empty);
         AgentNameBox.Text = Environment.MachineName;
         RequestTimeoutBox.Text = "30";
         IdleDelayBox.Text = "5";
@@ -171,9 +273,11 @@ public partial class ConfigEditor : UserControl
         LocalApiUsernameBox.Text = string.Empty;
         LocalApiPasswordBox.Password = string.Empty;
         MqttEnabledBox.IsChecked = true;
-        MqttHostBox.Text = "mqtt.munywele.co.ke";
-        MqttPortBox.Text = "8883";
+        MqttHostBox.Text = "wss://mqtt.munywele.co.ke/mqtt";
+        MqttPortBox.Text = "443";
+        MqttPathBox.Text = "/mqtt";
         MqttTlsBox.IsChecked = true;
+        MqttEnvironmentBox.SelectedValue = "Production";
         MqttUsernameBox.Text = string.Empty;
         MqttPasswordBox.Password = string.Empty;
         MqttTopicBox.Text = "fee-syncer/agent";
@@ -225,7 +329,7 @@ public partial class ConfigEditor : UserControl
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
             var response = await http.PostAsJsonAsync(
-                ApiUrlBox.Text.TrimEnd('/') + "/api/agent/enroll",
+                ConfigReader.CombineUrl(ApiUrlBox.Text, AgentEnrollEndpointBox.Text),
                 new { enrollment_code = code, agent_name = name });
             if (!response.IsSuccessStatusCode)
             {
@@ -240,6 +344,7 @@ public partial class ConfigEditor : UserControl
             if (payload?.Data?.Token is not { } token || !token.StartsWith("fsk_", StringComparison.Ordinal))
                 throw new InvalidOperationException("FeeSyncer returned an invalid agent token.");
 
+            SetAgentToken(token);
             await SaveAgentConfigAsync(token);
             EnrollmentCodeBox.Clear();
             AgentStatusText.Text = "Enrolled";
@@ -266,7 +371,7 @@ public partial class ConfigEditor : UserControl
             : new JsonObject();
         var agent = root["Agent"] as JsonObject ?? new JsonObject();
         agent["Enabled"] = AgentEnabledBox.IsChecked == true;
-        agent["AgentToken"] = string.IsNullOrWhiteSpace(token) ? AgentTokenBox.Text.Trim() : token;
+        agent["AgentToken"] = string.IsNullOrWhiteSpace(token) ? AgentTokenBox.Password.Trim() : token;
         agent["RequestTimeoutSeconds"] = ParsedInt(RequestTimeoutBox.Text, 30);
         agent["IdleDelaySeconds"] = ParsedInt(IdleDelayBox.Text, 5);
         agent["HeartbeatSeconds"] = ParsedInt(HeartbeatBox.Text, 60);
@@ -276,7 +381,8 @@ public partial class ConfigEditor : UserControl
         agent["LocalApiPassword"] = LocalApiPasswordBox.Password;
         agent["MqttEnabled"] = MqttEnabledBox.IsChecked == true;
         agent["MqttBrokerHost"] = MqttHostBox.Text.Trim();
-        agent["MqttBrokerPort"] = ParsedInt(MqttPortBox.Text, 8883);
+        agent["MqttBrokerPort"] = ParsedInt(MqttPortBox.Text, 443);
+        agent["MqttBrokerPath"] = NormalizeMqttPath(MqttPathBox.Text);
         agent["MqttUseTls"] = MqttTlsBox.IsChecked == true;
         agent["MqttUsername"] = MqttUsernameBox.Text.Trim();
         agent["MqttPassword"] = MqttPasswordBox.Password;
@@ -309,6 +415,9 @@ public partial class ConfigEditor : UserControl
 
     private static int ParsedInt(string value, int fallback) =>
         int.TryParse(value, out var number) ? number : fallback;
+
+    private static string NormalizeEndpoint(string value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().TrimStart('/');
 
     private void ParseConnectionString(string connectionString)
     {
@@ -376,30 +485,113 @@ public partial class ConfigEditor : UserControl
         }
     }
 
-    private async void TestAgentButton_Click(object sender, RoutedEventArgs e)
+    private async void TestAgentApiButton_Click(object sender, RoutedEventArgs e)
     {
-        TestAgentButton.IsEnabled = false;
-        TestAgentButton.Content = "Testing...";
+        await RunConnectionTestAsync(
+            TestAgentApiButton,
+            "Agent API Test",
+            () => ConnectionValidator.ValidateHttpAsync(
+                ConfigReader.CombineUrl(ApiUrlBox.Text, AgentWorkEndpointBox.Text) + "?wait=0", AgentTokenBox.Password.Trim()));
+    }
+
+    private async void TestMqttButton_Click(object sender, RoutedEventArgs e) =>
+        await RunConnectionTestAsync(TestMqttButton, "MQTT Test", ValidateMqttAsync);
+
+    private async void TestLocalAgentButton_Click(object sender, RoutedEventArgs e) =>
+        await RunConnectionTestAsync(
+            TestLocalAgentButton,
+            "Local Agent Test",
+            () => ConnectionValidator.ValidateHttpAsync(LocalApiUrlBox.Text.TrimEnd('/') + "/"));
+
+    private async Task RunConnectionTestAsync(Button button, string title, Func<Task<CheckResult>> check)
+    {
+        button.IsEnabled = false;
+        var originalContent = button.Content;
+        button.Content = "Testing...";
+        AgentTestOutputGroup.Visibility = Visibility.Visible;
+        AgentTestOutputBox.Clear();
+        AppendAgentTestOutput($"{DateTime.Now:HH:mm:ss} {title}: testing...");
         try
         {
-            var gateway = await ConnectionValidator.ValidateHttpAsync(
-                ApiUrlBox.Text.TrimEnd('/') + "/api/agent/work?wait=0", AgentTokenBox.Text.Trim());
-            var local = await ConnectionValidator.ValidateHttpAsync(LocalApiUrlBox.Text.TrimEnd('/') + "/");
-            var message = $"Central gateway: {(gateway.Passed ? "OK" : "FAIL")} {gateway.Details}\n" +
-                          $"Local fee processor: {(local.Passed ? "OK" : "FAIL")} {local.Details}";
-            MessageBox.Show(message, "Agent Connection Test", MessageBoxButton.OK,
-                gateway.Passed && local.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            var result = await check();
+            var logMessage = $"{(result.Passed ? "OK" : "FAIL")} {result.Details}";
+            AppLogger.Info(title.Replace(" ", string.Empty), logMessage);
+            AppendAgentTestOutput($"{DateTime.Now:HH:mm:ss} {title}: {logMessage}");
+            MessageBox.Show(
+                logMessage,
+                title,
+                MessageBoxButton.OK,
+                result.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Agent test failed: {ex.Message}", "Agent Connection Test", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppLogger.Error(title.Replace(" ", string.Empty), "Connection test failed.", ex);
+            AppendAgentTestOutput($"{DateTime.Now:HH:mm:ss} {title}: FAILED {ex.Message}");
+            MessageBox.Show($"{title} failed: {ex.Message}", title, MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
-            TestAgentButton.IsEnabled = true;
-            TestAgentButton.Content = "Test Agent Connections";
+            button.IsEnabled = true;
+            button.Content = originalContent;
         }
     }
+
+    private void AppendAgentTestOutput(string message)
+    {
+        AgentTestOutputBox.AppendText(message + Environment.NewLine);
+        AgentTestOutputBox.ScrollToEnd();
+    }
+
+    private async Task<CheckResult> ValidateMqttAsync()
+    {
+        if (MqttEnabledBox.IsChecked != true)
+            return new CheckResult { Details = "MQTT is disabled" };
+        if (string.IsNullOrWhiteSpace(MqttHostBox.Text))
+            return new CheckResult { Details = "No MQTT broker host configured" };
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var factory = new MqttClientFactory();
+            using var client = factory.CreateMqttClient();
+            var builder = new MqttClientOptionsBuilder()
+                .WithClientId($"feesyncer-tray-test-{Guid.NewGuid():N}")
+                .WithWebSocketServer(webSocket => webSocket.WithUri(BuildMqttUri()))
+                .WithCredentials(
+                    string.IsNullOrWhiteSpace(MqttUsernameBox.Text) ? AgentTokenBox.Password : MqttUsernameBox.Text.Trim(),
+                    MqttPasswordBox.Password)
+                .WithTimeout(TimeSpan.FromSeconds(ParsedInt(RequestTimeoutBox.Text, 30)));
+
+            await client.ConnectAsync(builder.Build());
+            await client.DisconnectAsync();
+            stopwatch.Stop();
+            return new CheckResult
+            {
+                Passed = true,
+                ResponseTime = stopwatch.ElapsedMilliseconds,
+                Details = $"Connected to {BuildMqttUri()} ({stopwatch.ElapsedMilliseconds}ms)"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new CheckResult { Details = ex.Message };
+        }
+    }
+
+    private string BuildMqttUri()
+    {
+        if (Uri.TryCreate(MqttHostBox.Text.Trim(), UriKind.Absolute, out var configuredUri)
+            && (configuredUri.Scheme == Uri.UriSchemeWs || configuredUri.Scheme == Uri.UriSchemeWss))
+        {
+            return configuredUri.ToString();
+        }
+
+        var scheme = MqttTlsBox.IsChecked == true ? "wss" : "ws";
+        return $"{scheme}://{MqttHostBox.Text.Trim().TrimEnd('/')}:{ParsedInt(MqttPortBox.Text, 443)}{NormalizeMqttPath(MqttPathBox.Text)}";
+    }
+
+    private static string NormalizeMqttPath(string path) =>
+        string.IsNullOrWhiteSpace(path) ? "/mqtt" : "/" + path.Trim().Trim('/');
 
     private async void PullFeeUpdateButton_Click(object sender, RoutedEventArgs e)
     {
@@ -627,7 +819,19 @@ public partial class ConfigEditor : UserControl
 
             mutable["FeeSyncer"] = new Dictionary<string, object?>
             {
-                ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/"
+                ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/",
+                ["ApiEndpoints"] = new Dictionary<string, object?>
+                {
+                    ["SmsNotifications"] = NormalizeEndpoint(SmsNotificationsEndpointBox.Text, Constants.DefaultSmsNotificationsEndpoint),
+                    ["AgentEnroll"] = NormalizeEndpoint(AgentEnrollEndpointBox.Text, Constants.DefaultAgentEnrollEndpoint),
+                    ["AgentWork"] = NormalizeEndpoint(AgentWorkEndpointBox.Text, Constants.DefaultAgentWorkEndpoint),
+                    ["AgentHeartbeat"] = NormalizeEndpoint(AgentHeartbeatEndpointBox.Text, Constants.DefaultAgentHeartbeatEndpoint),
+                    ["AgentRenew"] = NormalizeEndpoint(AgentRenewEndpointBox.Text, Constants.DefaultAgentRenewEndpoint),
+                    ["AgentPage"] = NormalizeEndpoint(AgentPageEndpointBox.Text, Constants.DefaultAgentPageEndpoint),
+                    ["AgentComplete"] = NormalizeEndpoint(AgentCompleteEndpointBox.Text, Constants.DefaultAgentCompleteEndpoint),
+                    ["AgentPaymentComplete"] = NormalizeEndpoint(AgentPaymentCompleteEndpointBox.Text, Constants.DefaultAgentPaymentCompleteEndpoint),
+                    ["AgentFail"] = NormalizeEndpoint(AgentFailEndpointBox.Text, Constants.DefaultAgentFailEndpoint),
+                }
             };
 
             var output = JsonSerializer.Serialize(mutable, new JsonSerializerOptions { WriteIndented = true });

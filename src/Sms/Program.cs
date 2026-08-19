@@ -20,19 +20,20 @@ builder.Configuration
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
     .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: false)
-    .AddJsonFile(ConfigPathResolver.GetMachineConfigFile(), optional: true, reloadOnChange: false)
     .AddEnvironmentVariables()
     .AddCommandLine(args);
 
-if (string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase))
-    builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: false);
+if (!ConfigPathResolver.IsDevelopment())
+    builder.Configuration.AddJsonFile(ConfigPathResolver.GetMachineConfigFile(), optional: true, reloadOnChange: false);
 
 var baseUrl = builder.Configuration["FeeSyncer:BaseUrl"];
 if (!string.IsNullOrWhiteSpace(baseUrl))
 {
     builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     {
-        ["SmsService:SmsApiUrl"] = baseUrl.TrimEnd('/') + "/api/v1/notifications"
+        ["SmsService:SmsApiUrl"] = ConfigReader.CombineUrl(
+            baseUrl,
+            builder.Configuration["FeeSyncer:ApiEndpoints:SmsNotifications"] ?? Constants.DefaultSmsNotificationsEndpoint)
     });
 }
 

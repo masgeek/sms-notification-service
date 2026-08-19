@@ -16,6 +16,34 @@ public sealed class MqttNotificationTests
     }
 
     [Fact]
+    public void Broker_uri_uses_secure_websockets_by_default()
+    {
+        var options = new AgentOptions
+        {
+            MqttBrokerHost = "mqtt.example.test",
+            MqttBrokerPort = 443,
+            MqttBrokerPath = "/mqtt",
+            MqttUseTls = true
+        };
+
+        Assert.Equal("wss://mqtt.example.test:443/mqtt", MqttAgentConnection.BuildBrokerUri(options));
+    }
+
+    [Fact]
+    public void Broker_uri_supports_plain_websockets_for_development()
+    {
+        var options = new AgentOptions
+        {
+            MqttBrokerHost = "127.0.0.1",
+            MqttBrokerPort = 8083,
+            MqttBrokerPath = "mqtt",
+            MqttUseTls = false
+        };
+
+        Assert.Equal("ws://127.0.0.1:8083/mqtt", MqttAgentConnection.BuildBrokerUri(options));
+    }
+
+    [Fact]
     public void Gate_ignores_duplicates_and_stale_notifications()
     {
         var now = DateTimeOffset.UtcNow;

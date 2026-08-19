@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Options;
+using FeeSyncer.Shared;
 
 namespace FeeSyncer.Agent;
 
@@ -18,6 +19,14 @@ public static class SchoolIntegrationServiceCollectionExtensions
                 var baseUrl = configuration["FeeSyncer:BaseUrl"];
                 if (!string.IsNullOrWhiteSpace(baseUrl))
                     options.ServerUrl = baseUrl.TrimEnd('/') + "/";
+
+                options.AgentWorkEndpoint = Endpoint(configuration, "AgentWork", Constants.DefaultAgentWorkEndpoint);
+                options.AgentHeartbeatEndpoint = Endpoint(configuration, "AgentHeartbeat", Constants.DefaultAgentHeartbeatEndpoint);
+                options.AgentRenewEndpoint = Endpoint(configuration, "AgentRenew", Constants.DefaultAgentRenewEndpoint);
+                options.AgentPageEndpoint = Endpoint(configuration, "AgentPage", Constants.DefaultAgentPageEndpoint);
+                options.AgentCompleteEndpoint = Endpoint(configuration, "AgentComplete", Constants.DefaultAgentCompleteEndpoint);
+                options.AgentPaymentCompleteEndpoint = Endpoint(configuration, "AgentPaymentComplete", Constants.DefaultAgentPaymentCompleteEndpoint);
+                options.AgentFailEndpoint = Endpoint(configuration, "AgentFail", Constants.DefaultAgentFailEndpoint);
             })
             .Validate(ValidateOptions, "School integration options are invalid.")
             .Validate(options => IsSecureOrLoopback(options.ServerUrl), "Agent:ServerUrl must use HTTPS unless it targets loopback.")
@@ -59,6 +68,9 @@ public static class SchoolIntegrationServiceCollectionExtensions
 
         return services;
     }
+
+    private static string Endpoint(IConfiguration configuration, string name, string fallback) =>
+        configuration[$"FeeSyncer:ApiEndpoints:{name}"] ?? fallback;
 
     private static bool ValidateOptions(FeeSyncer.Agent.SchoolIntegration.AgentOptions options)
     {

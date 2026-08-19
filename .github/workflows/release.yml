@@ -187,10 +187,10 @@ jobs:
           retention-days: 1
 
   release:
-    name: Publish GitHub Release
+    name: Publish Release
     needs: [tag, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v8
@@ -219,3 +219,69 @@ jobs:
             artifacts/FeeSyncer-console-win-x64.zip
             artifacts/FeeSyncer-Setup-*.exe
             artifacts/FeeSyncer-Framework-Setup-*.exe
+
+      - name: Publish public S3 update channel
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+          S3_ENDPOINT: https://s3.munywele.co.ke
+          S3_BUCKET: fee-syncer
+          S3_PUBLIC_BASE_URL: https://s3.munywele.co.ke/fee-syncer
+          RELEASE_VERSION: ${{ needs.tag.outputs.version }}
+          RELEASE_TAG: ${{ needs.tag.outputs.new_tag }}
+        run: |
+          set -euo pipefail
+
+          VERSION="${RELEASE_VERSION:-${RELEASE_TAG:-}}"
+          VERSION="${VERSION#v}"
+          if [ -z "$VERSION" ]; then
+            echo "Release version is empty"
+            exit 1
+          fi
+
+          aws configure set default.s3.addressing_style path
+
+          SELF_CONTAINED=$(find artifacts -maxdepth 1 -name "FeeSyncer-Setup-${VERSION}.exe" -print -quit)
+          FRAMEWORK=$(find artifacts -maxdepth 1 -name "FeeSyncer-Framework-Setup-${VERSION}.exe" -print -quit)
+          if [ -z "$SELF_CONTAINED" ] || [ -z "$FRAMEWORK" ]; then
+            echo "Expected installer artifacts were not found"
+            exit 1
+          fi
+
+          for artifact in artifacts/*; do
+            aws s3 cp "$artifact" "s3://${S3_BUCKET}/${VERSION}/$(basename "$artifact")" \
+              --endpoint-url "$S3_ENDPOINT" \
+              --cache-control "public,max-age=31536000,immutable"
+          done
+
+          SELF_NAME=$(basename "$SELF_CONTAINED")
+          FRAMEWORK_NAME=$(basename "$FRAMEWORK")
+          SELF_SHA256=$(sha256sum "$SELF_CONTAINED" | cut -d' ' -f1)
+          FRAMEWORK_SHA256=$(sha256sum "$FRAMEWORK" | cut -d' ' -f1)
+          SELF_SIZE=$(stat -c%s "$SELF_CONTAINED")
+          FRAMEWORK_SIZE=$(stat -c%s "$FRAMEWORK")
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg publishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg selfUrl "${S3_PUBLIC_BASE_URL}/${VERSION}/${SELF_NAME}" \
+            --arg selfSha256 "$SELF_SHA256" \
+            --argjson selfSize "$SELF_SIZE" \
+            --arg frameworkUrl "${S3_PUBLIC_BASE_URL}/${VERSION}/${FRAMEWORK_NAME}" \
+            --arg frameworkSha256 "$FRAMEWORK_SHA256" \
+            --argjson frameworkSize "$FRAMEWORK_SIZE" \
+            '{
+              version: $version,
+              publishedAt: $publishedAt,
+              installers: {
+                selfContained: { url: $selfUrl, sha256: $selfSha256, size: $selfSize },
+                framework: { url: $frameworkUrl, sha256: $frameworkSha256, size: $frameworkSize }
+              }
+            }' > latest.json
+
+          aws s3 cp latest.json "s3://${S3_BUCKET}/latest.json" \
+            --endpoint-url "$S3_ENDPOINT" \
+            --content-type "application/json" \
+            --cache-control "no-cache, no-store, must-revalidate"

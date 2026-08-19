@@ -1,594 +1,267 @@
-# Project Summary — FeeSyncer
+# FeeSyncer Project Reference
 
-> **Purpose:** Comprehensive reference for any AI agent or developer resuming work on this project. Covers architecture, design decisions, file layout, conventions, known issues, and deployment pipeline.
+This document describes the implementation as of August 2026. Use source code
+as the authority when behavior changes.
 
----
+## Solution
 
-## 1. What This Project Is
-
-A **.NET 10 background worker service** that:
-
-1. Listens to a SQL Server table (`sms_notifications`) for new `PENDING` rows using `SqlDependency` (Service Broker)
-2. Sends SMS via an external HTTP API on notification insert
-3. Retries failed sends with exponential backoff (±20% jitter)
-4. Retired notifications are marked `CANCELLED` after exhausting `max_retries`
-5. Ships with a **WPF system tray app** for monitoring and management
-6. Deploys via **Inno Setup** installer (self-contained or framework-dependent variants)
-7. Ships a separate **school integration agent service** for student and fee snapshots and approved payment write-back
-
----
-
-## 2. Solution Structure
-
-```
-FeeSyncer.slnx
-├── src/Sms/                                    # Main worker service (net10.0)
-├── src/Agent/                                  # Standalone school agent service
-├── src/Shared/                                 # Shared class library (net10.0)
-├── src/Tray/                                   # WPF tray app (net10.0-windows)
-├── src/Console/                                # Console monitor app (net10.0)
-├── tests/Sms/                                  # SMS xUnit tests
-├── tests/Agent/                                # Agent xUnit tests
-├── installer/                                 # Inno Setup (two variants)
-├── .github/workflows/                         # CI/CD pipelines
-├── docs/                                      # Documentation
-├── publish.ps1                                # Self-contained publish script
-├── publish-framework.ps1                      # Framework-dependent publish script
-└── Directory.Build.props                      # Centralized version (auto-updated by CI)
-```
-
-### Key Relationships
-
-| Project | References | Notes |
-|---------|-----------|-------|
-| `FeeSyncer.Sms` | `FeeSyncer.Shared` | SMS notification processing only |
-| `FeeSyncer.Agent` | `FeeSyncer.Shared` | Standalone HTTP/MQTT school synchronization worker |
-| `FeeSyncer.Tray` | `FeeSyncer.Shared` | WPF, `net10.0-windows`, `UseWPF`, `WinExe` |
-| `FeeSyncer.Console` | `FeeSyncer.Shared` | `net10.0`, `OutputType: Exe`, references Shared only |
-| `FeeSyncer.Shared` | Dapper, SqlClient, ServiceController | Shared support library |
-| `FeeSyncer.Sms.Tests` | `FeeSyncer.Sms` | SMS xUnit tests |
-| `FeeSyncer.Agent.Tests` | `FeeSyncer.Agent` | Agent xUnit tests |
-
----
-
-## 3. Architecture
-
-### Worker Service Components (src/)
-
-```
-Program.cs
-  └─ Host.CreateApplicationBuilder(args)
-       ├─ AddProductionConfig(environment)         # Loads config: ProgramData (Prod only) → app dir
-       ├─ FileLoggerProvider                        # ProgramData\...\logs\, daily rotation, size rotation
-       ├─ DapperMapper.Register()                   # snake_case ↔ PascalCase mapping
-        ├─ AddSmsServices(config)                    # DI registration (ServiceCollectionExtensions.cs)
-       │    ├─ INotificationRepository → NotificationRepository (Singleton)
-       │    ├─ SqlDependencyListener (Singleton)
-       │    ├─ ISmsSender → SmsApiService (Singleton, named HttpClient "SmsApi")
-       │    ├─ NotificationProcessor (Singleton)
-       │    ├─ TableChangeListener (HostedService)
-       │    └─ RetryPoller (HostedService)
-       ├─ ValidateSmsServiceOptions()               # Startup validation
-        └─ DatabaseConnectionCheck.RunAsync()        # 10s timeout
-```
-
-The standalone agent registers the following when `Agent:Enabled` is true:
+`FeeSyncer.slnx` contains five product projects and three test projects:
 
 ```text
-AddSchoolIntegrationServices(config)
-  ├─ AgentOptions                          # validates central and local URLs
-  ├─ GatewayClient                          # heartbeats, leases, uploads, completion
-  ├─ SchoolApiClient                        # loopback school API authentication
-  ├─ IStudentAdapter → SchoolApiStudentAdapter
-  └─ SchoolIntegrationWorker                # isolated MQTT-first work loop
+src/
+|-- Sms/       SQL Server notification worker
+|-- Agent/     School integration worker
+|-- Shared/    Shared support library
+|-- Tray/      WPF management application
+`-- Console/   Console monitor
+tests/
+|-- Sms/
+|-- Agent/
+`-- Tray/
 ```
 
-The agent is enabled by default. Its central gateway uses a school-scoped
-bearer token, while local school API credentials remain on the school machine.
-See [`docs/school-integration.md`](school-integration.md) for enrollment and
-operational behavior.
+All product projects target .NET 10. Tray targets `net10.0-windows` and uses
+WPF. The current repository version is defined in `Directory.Build.props`.
 
-The agent can optionally subscribe to MQTT wake-up notifications. MQTT is not
-the lease or payload protocol: the worker wakes on `work_available`, then uses
-the existing HTTP gateway and falls back to HTTP polling during outages.
+## SMS Service
 
-### Data Flow
+Startup in `src/Sms/Program.cs`:
 
+1. Handle `--version` and `-v`.
+2. Rebuild configuration providers.
+3. Derive `SmsService:SmsApiUrl` from `FeeSyncer:BaseUrl` and its endpoint.
+4. Register file logging, Dapper mapping, services, and validation.
+5. Open the database with a 10-second startup timeout.
+6. Run as `FeeSyncer.Sms` under Windows Service Control Manager when applicable.
+
+Runtime registrations:
+
+```text
+INotificationRepository -> NotificationRepository
+ISmsSender               -> SmsApiService
+SqlDependencyListener
+NotificationProcessor
+TableChangeListener      -> hosted service
+RetryPoller              -> hosted service
 ```
-SQL Server table change → SqlDependency → TableChangeListener → NotificationProcessor.ProcessPendingAsync()
-                                                                    ↓
-                                                              INotificationRepository.GetPendingAsync()
-                                                                    ↓
-                                                              ISmsSender.SendAsync(notification)
-                                                                    ↓
-                                                           On success: status → PROCESSED
-                                                           On failure: retry_count++, retry_after set
-                                                           Max retries exceeded: status → CANCELLED
-                                                           Non-retryable error: status → CANCELLED immediately
+
+`TableChangeListener` performs startup catch-up and listens to
+`dbo.sms_notifications`. `RetryPoller` waits for its first timer tick and then
+checks retry eligibility. Both call a processor guarded by a zero-wait
+`SemaphoreSlim`; overlapping in-process triggers are skipped.
+
+The repository selects an unordered `TOP 100` eligible rows. Rows are processed
+sequentially. There is no database claim state, so running multiple SMS service
+instances can duplicate sends.
+
+### HTTP and retries
+
+`SmsApiService.SendAsync` performs one HTTP request. Success is any 2xx response.
+HTTP 408 and 5xx responses and transport exceptions are retryable. Other
+non-success responses, including 429, are cancelled immediately.
+
+Retry delay is:
+
+```text
+RetryBackoffSeconds * 2^(retryCount - 1), with +/-20% jitter
 ```
 
-### NotificationProcessor Thread Safety
+`retry_count` represents scheduled retries, not every attempted request. API
+error bodies are stored in `description_json`.
 
-`SemaphoreSlim(1, 1)` ensures only one batch runs at a time. If the lock is already held, `ProcessPendingAsync` returns immediately (fire-and-forget from SqlDependency callback).
-
-### RetryPoller
-
-Uses `PeriodicTimer` — waits for the first tick BEFORE processing. No pending notifications are processed during the initial wait interval. The `TableChangeListener` handles startup catch-up.
-
-### SqlDependency Listener
-
-- Uses schema-qualified table name: `dbo.sms_notifications` (required by SqlDependency)
-- Re-registers after each change event (one-shot subscription pattern)
-- Retries registration up to 5 times with exponential backoff
-
----
-
-## 4. Configuration
-
-### Config File Location
-
-Config lives in the **app directory** (`{app}\appsettings.Production.json`), NOT in ProgramData. Logs remain in `ProgramData\Munywele\FeeSyncer\logs\`.
-
-### Config Loading Order (Program.cs → ConfigurationExtensions.AddProductionConfig)
-
-1. `ProgramData\Munywele\FeeSyncer\appsettings.Production.json` — ONLY if `environment == "Production"`
-2. `{appDir}\appsettings.Development.json` — always checked
-3. `{appDir}\appsettings.Production.json` — always checked
-
-**Last writer wins** (app dir settings override ProgramData).
-
-### SmsService Section (SmsServiceOptions)
+### SMS payload
 
 ```json
 {
-  "SmsService": {
-    "ConnectionString": "Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True;",
-    "SmsApiUrl": "https://fees.munywele.co.ke/api/v1/notifications",
-    "AuthorizationToken": "your-bearer-token",
-    "RetryBackoffSeconds": 30,
-    "RetryPollIntervalSeconds": 30,
-    "LogRetentionDays": 7,
-    "MaxLogFileSizeMb": 10
-  }
+  "id": 4,
+  "phone_number": "07130000000",
+  "mpesa_code": "KA470213XK",
+  "admission_no": "5551",
+  "student_name": "Student Name",
+  "amount": 2979.75,
+  "receipt_no": "RCPT-1",
+  "dated": "2026-07-02T18:54:26"
 }
 ```
 
-| Key | Default | Notes |
-|-----|---------|-------|
-| `ConnectionString` | — | Required. `TrustServerCertificate=True` must be present (no Encrypt dropdown in installer) |
-| `SmsApiUrl` | — | Required. Valid absolute URI |
-| `AuthorizationToken` | — | Required. Sent as `Authorization: Bearer <token>` header |
-| `RetryBackoffSeconds` | `30` | Must be > 0 |
-| `RetryPollIntervalSeconds` | `30` | Must be > 0 |
-| `LogRetentionDays` | `7` | Must be > 0 |
-| `MaxLogFileSizeMb` | `10` | Must be > 0 |
+## Agent Service
 
-### Environment Variables (Fallback)
+`src/Agent/Program.cs` registers Windows Service lifetime as `FeeSyncer.Agent`.
+When the Agent section binds with `Enabled=true`, registrations include:
 
-`SmsService__ConnectionString`, `SmsService__SmsApiUrl`, etc. (use `__` separator).
-Agent settings use the same convention, for example
-`Agent__Enabled`, `Agent__ServerUrl`, and `Agent__AgentToken`.
-
-`Agent__AgentToken` must contain the permanent school-scoped `fsk_...` token
-returned by `POST /api/agent/enroll`. To obtain it, an operator generates a
-single-use `enroll_...` code for the school in the central fee-syncer admin
-interface, exchanges the code once, and stores the returned token in protected
-configuration. The enrollment code expires after 15 minutes and is never used
-for runtime agent requests.
-
----
-
-## 5. Database Schema
-
-```sql
-CREATE TABLE sms_notifications (
-    id              BIGINT IDENTITY(1,1) PRIMARY KEY,
-    phone_number    NVARCHAR(50)    NOT NULL,
-    mpesa_code      NVARCHAR(100)   NOT NULL,
-    adm_no          NVARCHAR(50)    NOT NULL,
-    stud_names      NVARCHAR(200)   NULL,
-    amount          DECIMAL(18,2)   NULL,
-    receipt_no      NVARCHAR(100)   NULL,
-    dated           DATETIME        NULL,
-    description     NVARCHAR(MAX)   NULL,
-    status          NVARCHAR(20)    NOT NULL DEFAULT 'PENDING',
-    max_retries     INT             NOT NULL DEFAULT 5,
-    retry_count     INT             NOT NULL DEFAULT 0,
-    retry_after     DATETIME        NULL,
-    created_at      DATETIMEOFFSET  NULL,
-    updated_at      DATETIMEOFFSET  NULL
-);
+```text
+GatewayClient
+SchoolApiClient
+IStudentAdapter -> SchoolApiStudentAdapter
+SchoolIntegrationWorker
+FeeProcessorUpdateWorker
+MqttAgentConnection (when MqttEnabled is true)
 ```
 
-- `retry_after` column is `DATETIME` (SQL Server local time, no timezone info)
-- `created_at`/`updated_at` are `DATETIMEOFFSET`
-- External apps reset notifications (status, retry_count, retry_after) directly via SQL
-- Service Broker must be enabled: `ALTER DATABASE school SET ENABLE_BROKER;`
+The work loop heartbeats, waits for MQTT connection, requests an HTTP lease,
+executes a supported operation, and renews the lease in parallel. MQTT signals
+provide immediate wake-up; a connected idle timeout also checks HTTP. A broker
+outage pauses discovery.
 
-### Status Enum (NotificationStatus.cs)
+Supported operations:
 
-| Value | Description |
-|-------|-------------|
-| `PENDING` | Initial state |
-| `PROCESSED` | SMS sent successfully |
-| `FAILED` | Reserved (not currently used) |
-| `CANCELLED` | Exceeded max_retries or non-retryable error |
+- `students.snapshot.v1`
+- `fees.snapshot.v1`
+- `payments.record.v1`
 
----
+Snapshot uploads are paged, SHA-256 hashed, and resumable against confirmed page
+hashes. Payment completion uses a payment-specific completion route.
 
-## 6. Key Design Decisions & Gotchas
+The separate Fee Processor updater is locally scheduled. It is not a gateway
+work operation and is not advertised as an Agent capability.
 
-### Dapper Mapping (src/Sms/Data/DapperMapper.cs)
+See [School Integration Agent](school-integration.md) for endpoints and options.
 
-- `CustomPropertyTypeMap` maps `snake_case` DB columns to `PascalCase` C# properties
-- `admission_no` → `AdmNo` (explicit mapping)
-- Call `DapperMapper.Register()` once at startup before any Dapper queries
+## Configuration
 
-### SqlDependency Requires Schema-Qualified Names
+Production files:
 
-- `dbo.sms_notifications` — always use `dbo.` prefix
-- Non-qualified names cause SqlDependency registration failures
-
-### SendResult Pattern
-
-```csharp
-public sealed class SendResult
-{
-    public bool Success { get; private init; }
-    public string? ErrorMessage { get; private init; }
-    public bool Retryable { get; private init; }
-
-    public static SendResult Ok() => new() { Success = true };
-    public static SendResult Fail(string? errorMessage, bool retryable = false) =>
-        new() { Success = false, ErrorMessage = errorMessage, Retryable = retryable };
-}
+```text
+C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json
+C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
 ```
 
-- `ISmsSender.SendAsync()` is **single-attempt** — retry/backoff is the caller's responsibility
-- `CalculateRetryAfter(int retryCount)` helper on `ISmsSender` for callers
-- Non-retryable errors (e.g., 400 Bad Request) → status set to `CANCELLED` immediately
-- Transient errors (5xx, 408) → `retryable: true`
+Logs:
 
-### Error Logging
+```text
+C:\ProgramData\Munywele\FeeSyncer\logs\
+```
 
-API error responses are saved to `description_json` column as JSON for debugging.
+Both service entry points clear the host defaults and add packaged JSON,
+environment-specific JSON, environment variables, command-line values, and a
+final Debug/Release-specific file. Release builds add ProgramData last, so its
+values override environment and command-line values. Debug builds add
+development JSON instead. This distinction is compile-time.
 
-### Connection String
+When `FeeSyncer:BaseUrl` is present, it overrides direct SMS/Agent URL values
+through post-configuration. Endpoint paths also come from `FeeSyncer` settings.
 
-- Built manually in `ConfigReader.BuildConnectionString(server, database, userId, password)` — NOT via `SqlConnectionStringBuilder`
-- Sets `TrustServerCertificate=True` without spaces (avoids SSL issues)
-- No `Encrypt` dropdown in installer — was removed because `Mandatory` default broke SSL with untrusted certs
+Machine JSON currently stores secrets in plaintext. There is no DPAPI or
+Credential Manager integration.
 
-### API Connection Validation
+## Tray Application
 
-`ConnectionValidator.ValidateApiAsync()` sends `Authorization: Bearer <token>` header.
+`FeeSyncer.Tray` has no `Program.cs`; WPF generates its entry point from
+`App.xaml`. Closing the Control Panel hides it. The tray **Exit** command shuts
+down the process.
 
----
-
-## 7. Shared Project (FeeSyncer.Shared)
-
-Class library referenced by both main worker and tray app.
+Key UI:
 
 | File | Purpose |
-|------|---------|
-| `Constants.cs` | `ServiceName`, `TableName`, `SubDir`, `ConfigFileName` |
-| `ConfigPathResolver.cs` | `GetProgramDataDir()`, `GetAppDir()`, `FindConfigFile()` (prioritizes app dir), `GetLogDir()` (ProgramData) |
-| `VersionHelper.cs` | `GetCurrentVersion()` from assembly |
-| `ConfigReader.cs` | `LoadConnectionString()` (reads `SmsService.ConnectionString`), `LoadApiUrl()`, `LoadAuthorizationToken()`, `ParseConnectionString()`, `BuildConnectionString(server, database, userId, password)` |
-| `StatusHelper.cs` | `FormatStatus()`, `FormatUptime()`, `FormatDetection()` |
+|---|---|
+| `TrayIcon.cs` | Icon, context menu, SMS background monitor, update notifications |
+| `ControlPanel.xaml` | SMS and Agent service cards, Settings and Logs tabs |
+| `ConfigEditor.xaml` | SMS, Agent, enrollment, MQTT, and Fee Processor settings |
+| `StatusWindow.xaml` | Detailed SMS monitor status |
+| `LogViewer.xaml` | Shared ProgramData log display and filtering |
+| `SendNotificationDialog.xaml` | Direct SMS table insertion |
+| `AboutWindow.xaml` | Version, components, and project links |
 
----
+The Control Panel can install both services with delayed-auto startup. This is
+different from the Inno installer, which creates manual services.
 
-## 8. Tray App (FeeSyncer.Tray)
+The tray enrollment client validates `enroll_...`, posts to the central endpoint,
+requires an `fsk_...` response token, saves it, and restarts the Agent.
 
-WPF application (`net10.0-windows`) with system tray icon.
+The update checker polls GitHub Releases at startup and every four hours. It
+notifies only; it does not download or install releases.
 
-### Entry Point
+## Shared Library
 
-- `App.xaml` — `ShutdownMode="OnExplicitShutdown"` (stays in tray when windows close)
-- `Application.Current.Shutdown()` called from tray Exit menu item
-- **No `Program.cs`** — entry point is auto-generated from `App.xaml` (WPF convention)
+`FeeSyncer.Shared` is referenced by SMS, Agent, Tray, and Console. It contains:
 
-### Components
+- Constants, paths, configuration readers, and URL composition
+- Version and executable-path helpers
+- Service monitoring and service-control commands
+- Database/API/Service Broker validation
+- GitHub release checks
+- Fee Processor interval parsing, Git updates, deployment, backup, and logging
+- Shared status models
 
-| File | Purpose |
-|------|---------|
-| `TrayIcon.cs` | TaskbarIcon, ContextMenu, GDI+ anti-aliased circle icons (green=running, red=stopped, yellow=unknown) |
-| `ServiceMonitor.cs` | 3-tier detection: ServiceController (SCM) → Process.GetProcessesByName → NotRunning. Kills non-service instances on stop. |
-| `UpdateChecker.cs` | Polls GitHub Releases API every 4 hours. Compares `tag_name` (v-prefix stripped) to assembly version. |
-| `ConnectionValidator.cs` | Parallel DB/API/Broker checks. API uses Bearer token. |
-| `StatusWindow.xaml/.cs` | Shows "Detected via" row indicating detection method |
-| `LogViewer.xaml/.cs` | Log tailing with `FileShare.ReadWrite` (non-exclusive) |
-| `ConfigEditor.xaml/.cs` | Reads/writes all `SmsService` settings. Individual fields (server, db, user, password). Token uses `TextBox` (not `PasswordBox`) for reliable Show/Hide toggle. |
-| `SendNotificationDialog.xaml/.cs` | Manual SMS insert with `adm_no = "MANUAL"` sentinel |
+## Installer
 
-### Key Libraries
+Both installers copy four publish trees. Installed paths are:
 
-- `H.NotifyIcon.Wpf` 2.2.0 — use `TaskbarIcon.ForceCreate()` for programmatic creation
-- `TaskbarIcon.ShowNotification(title, message, NotificationIcon.xxx)` — NOT `ShowBalloonTip`
-- `NotificationIcon` enum in `H.NotifyIcon.Core`: `None`, `Info`, `Warning`, `Error`
-- `ContextMenu` from `System.Windows.Controls` (fully qualified in TrayIcon.cs)
-
-### Known Gotchas
-
-- **ImplicitUsings not working** with `net10.0-windows` TFM — all files use explicit `using` directives
-- **Windows XAML warnings** — `WINDOWSXAML_ENABLE` may be missing from environment
-- **WPF XAML elements** — null in constructors; defer XAML-dependent init to `Loaded` event
-- **`SqlConnectionEncryptOption`** in SqlClient 7.x is a struct with `Mandatory`, `Optional`, `Strict` — cannot use in switch expressions
-
----
-
-## 9. Installer
-
-### Two Variants
-
-| Installer | Output | AppId | Bundles From | Runtime Check |
-|-----------|--------|-------|-------------|---------------|
-| `installer.iss` | `FeeSyncer-Setup-{ver}.exe` | `{B8E3F2A1-...}` | `build/service/` + `build/agent/` + `build/tray/` + `build/console/` | None (self-contained) |
-| `installer-framework.iss` | `FeeSyncer-Framework-Setup-{ver}.exe` | `{A1F2E3B4-...}` | `build/service-framework/` + `build/agent-framework/` + `build/tray-framework/` + `build/console-framework/` | `CheckDotNetRuntime` (checks `dotnet --list-runtimes` for `Microsoft.NETCore.App 10`) |
-
-### Modular Code Structure (installer/code/)
-
-| File | Purpose | Dependencies |
-|------|---------|--------------|
-| `globals.iss` | Global variables, `InitializeSetup`, `ShouldInstallTrayApp`, `ShouldInstallConsoleApp` | — |
-| `utils.iss` | `RunCmd`, `BoolToStr`, `JsonEscape` | — |
-| `services.iss` | `ServiceExists`, `StopService`, `StartService`, `WaitForServiceState`, `DeleteService`, `ConfigureServiceDescription`, `ConfigureRecovery`, `ConfigureDelayedAutoStart`, `CheckDotNetRuntime` | `utils.iss` |
-| `eventlog.iss` | `RegisterEventLog`, `RemoveEventLog` | — |
-| `config.iss` | `WriteConfigurationFile` (writes to `{app}` dir, NOT ProgramData) | `utils.iss` |
-| `wizard.iss` | `InitializeWizard`, `ShouldSkipPage`, `NextButtonClick` (config prompt, DB inputs, API inputs, tray app checkbox, console app checkbox, start-after-install checkbox) | `globals.iss`, `config.iss` |
-| `install.iss` | `DoFreshInstall`, `DoUpgrade`, `DoPostUpgrade`, `CurStepChanged`, `MaybeStartTrayApp`, `MaybeStartConsoleApp`. `#ifdef FrameworkInstall` gates .NET runtime check. | All above |
-| `uninstall.iss` | `DoUninstall`, `CurUninstallStepChanged`. Kills tray app and console app via `taskkill` before uninstall. | `services.iss`, `eventlog.iss` |
-
-### Key Installer Details
-
-- `PrivilegesRequired=admin` + `PrivilegesRequiredOverridesAllowed=dialog` → UAC elevation prompt
-- `CloseApplications=force` — kills running instances during install
-- Tray app and console app are **optional** — wizard pages with checkboxes; `[Files]` always copies binaries; `[Icons]` and `[Registry]` use `Check: ShouldInstallTrayApp`; console app launched via `MaybeStartConsoleApp` if selected
-- `appsettings.Development.json` excluded from installer bundles (`Excludes` flag)
-- Config file written to `{app}\appsettings.Production.json` (NOT ProgramData)
-- **Inno Setup `#include` files must NOT have `;` comment headers** — causes "BEGIN expected" compilation error
-
-### Build Commands
-
-```bash
-# Self-contained
-./publish.ps1
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 installer\installer.iss
-
-# Framework-dependent
-./publish-framework.ps1
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 installer\installer-framework.iss
+```text
+{app}\FeeSyncer.Sms.exe
+{app}\Agent\FeeSyncer.Agent.exe
+{app}\Tray\FeeSyncer.Tray.exe
+{app}\Console\FeeSyncer.Console.exe
 ```
 
----
+The installer creates both services as `LocalSystem`, manual, and stopped. It
+does not write configuration. Tray selection controls Start Menu and all-users
+Startup shortcuts. Console selection currently has no behavioral effect beyond
+the binaries that are always copied.
 
-## 10. CI/CD Pipeline
+Known installer limitations:
 
-### workflows/tests.yml (all branches)
+- Wizard initialization resets the previously detected upgrade flag.
+- Framework runtime detection checks `Microsoft.NETCore.App 10` but not the WPF Desktop Runtime.
+- Agent service registry cleanup is less defensive than SMS cleanup.
+- The ProgramData/log directory permissions are not hardened by the installer.
 
-```
-.NET Tests (build, format check, unit tests, vulnerability scan)
-     ↓
-Build Tray App (publish, verify binary exists) + Build Console App (publish, verify binary exists)
-     ↓
-Validate Self-Contained Installer + Validate Framework-Dependent Installer (parallel)
-     ↓
-All Checks Passed (summary gate)
-```
+## Build and Release
 
-- Test results cached by SHA (`.test-passed` sentinel file)
-- `actions/checkout@v7`, `actions/setup-dotnet@v6`, `actions/cache/restore@v6`, `actions/upload-artifact@v7`
-- Both installer validation jobs create dummy `build/` folders and compile ISS scripts
-- `Minionguyjpro/Inno-Setup-Action@v1.2.9` for CI validation
-
-### workflows/release.yml (after tests pass on main)
-
-```
-Generate Version Tag (masgeek/github-tag-action@release, tag_prefix: "")
-     ↓
-Build and Package
-  ├─ Update Directory.Build.props with version
-  ├─ dotnet restore → build → publish.ps1 → publish-framework.ps1
-  ├─ Zip build/ directory (service + tray + console)
-  ├─ Build both installers via ISCC.exe
-  ├─ Verify version matches (build\service\FeeSyncer.Sms.exe --version)
-  └─ Upload artifact
-     ↓
-Publish GitHub Release (ncipollo/release-action@v1.21.0)
-  ├─ Uploads: zips (service, tray, console), self-contained installer, framework-dependent installer
-  └─ allowUpdates: true (idempotent)
+```powershell
+./publish.ps1             # self-contained, four outputs
+./publish-framework.ps1   # framework-dependent, four outputs
+dotnet test -c Release
 ```
 
-### Other Workflows
+Release output:
 
-| File | Purpose |
-|------|---------|
-| `create-release-pr.yml` | Triggers on `workflow_run` (Tests success on `develop`). Auto-creates PR `develop` → `main`. |
-| `auto-review.yml` | Auto-approves PRs after tests pass |
+- Four self-contained ZIPs: SMS, Agent, Tray, Console
+- Self-contained installer
+- Framework-dependent installer
+- Public S3 manifest and versioned artifacts under `https://s3.munywele.co.ke/fee-syncer/`
 
----
+`tests.yml` runs on non-documentation pushes and manual dispatch, not ordinary
+pull-request events. `agent-tests.yml` runs on pull requests. The release flow
+uses conventional commits to generate a no-prefix tag. Public clients read the
+S3 `latest.json` manifest rather than the private GitHub Releases API.
 
-## 11. Testing
+## Packages
 
-```bash
-dotnet test
-```
+Important direct product dependencies:
 
-**26 unit tests** in four files:
+| Package | Version |
+|---|---:|
+| Dapper | 2.1.79 |
+| Microsoft.Data.SqlClient | 7.0.2 |
+| Microsoft.Extensions.Hosting | 10.0.10 |
+| Microsoft.Extensions.Hosting.WindowsServices | 10.0.10 |
+| H.NotifyIcon.Wpf | 2.4.1 |
+| MQTTnet | 5.2.0.1603 |
+| System.ServiceProcess.ServiceController | 10.0.10 |
+| CliWrap | 3.10.0 |
+| LibGit2Sharp | 0.27.2 |
 
-| File | Tests |
-|------|-------|
-| `WorkerTests.cs` | NotificationProcessor: pending processing, success/failure flows, retry scheduling, concurrency (SemaphoreSlim) |
-| `SmsApiServiceTests.cs` | SmsApiService: HTTP retry logic, success/failure, `CalculateRetryAfter` backoff with ±20% jitter |
-| `SchoolApiStudentAdapterTests.cs` | Student and fee pagination, local API field mapping, and adapter behavior |
-| `StudentSyncContractTests.cs` | Versioned student contract serialization and deterministic record hashing |
+## Tests
 
-Test tolerance must account for jitter: e.g., 30s base → tolerance ≥15s.
+There are 37 xUnit facts in nine source files:
 
----
+| Project | Facts | Main coverage |
+|---|---:|---|
+| SMS | 18 | Sender results/backoff, processor flows, tray compatibility source checks |
+| Agent | 15 | Contracts/hashing, school API mapping, MQTT gate/topic, wake signal |
+| Tray | 4 | Tray icon construction and disposal |
 
-## 12. Build & Publish
+There are no live database, broker, installer, or end-to-end integration tests.
+Operational UI and Agent orchestration coverage remains limited.
 
-### publish.ps1 (Self-Contained)
+## Known Implementation Risks
 
-```
-./publish.ps1          # Publishes to build/service/, build/tray/, build/console/
-./publish.ps1 -Clean   # Removes bin/obj/build first
-```
-
-### publish-framework.ps1 (Framework-Dependent)
-
-```
-./publish-framework.ps1   # Publishes to build/service-framework/, build/tray-framework/, build/console-framework/
-```
-
-### Version Support
-
-```bash
-publish\FeeSyncer.Sms.exe --version   # Prints version from Directory.Build.props
-```
-
-`--version` / `-v` flag handled in Program.cs using `Shared.VersionHelper.GetCurrentVersion()`.
-
----
-
-## 13. Package Versions
-
-| Package | Version | Used In |
-|---------|---------|---------|
-| `Dapper` | 2.1.79 | Main, Shared, Tray |
-| `Microsoft.Data.SqlClient` | 7.0.2 | Main, Shared, Tray |
-| `Microsoft.Extensions.Hosting` | 10.0.10 | Main |
-| `Microsoft.Extensions.Hosting.WindowsServices` | 10.0.10 | Main |
-| `Microsoft.Extensions.Http` | 10.0.10 | Main |
-| `H.NotifyIcon.Wpf` | 2.2.0 | Tray |
-| `System.ServiceProcess.ServiceController` | 10.0.10 | Shared, Tray |
-| `Microsoft.Extensions.Configuration.Json` | 10.0.10 | Tray |
-
-All projects have `<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>` with committed `packages.lock.json` files.
-
----
-
-## 14. Git & Branching
-
-- **Default branch:** `develop`
-- **Main branch:** `main` (triggers release)
-- PRs required (branch protection rules enforced)
-- "All Checks Passed" status check required before merge
-- Auto-tagging: `masgeek/github-tag-action@release` with `tag_prefix: ""` (no `v` prefix)
-- Conventional commits drive version bumps
-
----
-
-## 15. Known Issues / TODOs
-
-All known issues have been resolved.
-
-### Resolved
-
-- ~~Config in ProgramData~~ → moved to app directory
-- ~~PasswordBox toggle unreliable~~ → replaced with TextBox (read-only)
-- ~~DB connection testing in installer~~ → removed (unreliable in Inno Setup)
-- ~~Encrypt dropdown~~ → removed (Mandatory default broke SSL with untrusted certs)
-- ~~Missing framework-dependent installer~~ → added `installer-framework.iss` + `publish-framework.ps1`
-- ~~Shared project causing duplicate assembly attributes~~ → `DefaultItemExcludes` in main csproj
-- ~~File sharing violations~~ → `FileShare.ReadWrite` on FileLogger and LogViewer
-- ~~Startup pending notifications not processing~~ → resolved
-
----
-
-## 16. File Index
-
-### Main Worker Service
-
-| File | Purpose |
-|------|---------|
-| `src/Sms/Program.cs` | Slim entry point, DI, config loading, DapperMapper.Register() |
-| `src/Sms/Configuration/SmsServiceOptions.cs` | Typed config class |
-| `src/Sms/Configuration/ConfigurationExtensions.cs` | AddProductionConfig(), ValidateSmsServiceOptions() |
-| `src/Sms/ServiceCollectionExtensions.cs` | DI registration, named HttpClient "SmsApi" |
-| `src/Sms/Data/DapperMapper.cs` | snake_case ↔ PascalCase mapping |
-| `src/Sms/Data/INotificationRepository.cs` | Data access interface |
-| `src/Sms/Data/NotificationRepository.cs` | Sealed, DB ops |
-| `src/Sms/Data/SqlDependencyListener.cs` | Sealed, IDisposable, Service Broker listener |
-| `src/Sms/Workers/NotificationProcessor.cs` | Shared logic, SemaphoreSlim, honors Retryable flag |
-| `src/Sms/Workers/TableChangeListener.cs` | SqlDependency listener, startup catch-up |
-| `src/Sms/Workers/RetryPoller.cs` | PeriodicTimer-based polling |
-| `src/Sms/Services/ISmsSender.cs` | Sealed SendResult, SendAsync, CalculateRetryAfter |
-| `src/Sms/Services/SmsApiService.cs` | Sealed, single-attempt, named HttpClient "SmsApi" |
-| `src/Sms/Models/SmsNotification.cs` | Entity (PascalCase, Dapper-mapped) |
-| `src/Sms/Models/NotificationStatus.cs` | Enum: PENDING, PROCESSED, FAILED, CANCELLED |
-| `src/Sms/Checks/DatabaseConnectionCheck.cs` | Startup DB check (10s timeout) |
-| `src/Sms/Logging/FileLoggerProvider.cs` | File logging, rotation, FileShare.ReadWrite |
-
-### School Integration
-
-| File | Purpose |
-|------|---------|
-| `src/Agent/SchoolIntegration/AgentOptions.cs` | Central gateway, local API, timeout, polling, and credential settings |
-| `src/Agent/SchoolIntegration/GatewayClient.cs` | Heartbeats, bounded work leasing, page uploads, completion, and failure reporting |
-| `src/Agent/SchoolIntegration/SchoolApiClient.cs` | Local loopback API login, token refresh, student, fee, and payment operations |
-| `src/Agent/SchoolIntegration/SchoolApiStudentAdapter.cs` | Maps local student pages to the approved student contract |
-| `src/Agent/SchoolIntegration/SchoolIntegrationWorker.cs` | Isolated orchestration loop for snapshots and payment jobs |
-| `src/Agent/SchoolIntegration/Contracts.cs` | Versioned sync work, student, fee, payment, and response contracts |
-| `docs/school-integration.md` | Enrollment, configuration, and deployment behavior |
-
-### Shared Project
-
-| File | Purpose |
-|------|---------|
-| `src/Shared/Constants.cs` | ServiceName, TableName, SubDir, ConfigFileName |
-| `src/Shared/ConfigPathResolver.cs` | FindConfigFile (app dir first), GetProgramDataDir, GetAppDir, GetLogDir |
-| `src/Shared/VersionHelper.cs` | GetCurrentVersion from assembly |
-| `src/Shared/ConfigReader.cs` | LoadConnectionString (SmsService.ConnectionString), LoadApiUrl, LoadAuthorizationToken, ParseConnectionString, BuildConnectionString |
-| `src/Shared/StatusHelper.cs` | FormatStatus, FormatUptime, FormatDetection |
-
-### Tray App
-
-| File | Purpose |
-|------|---------|
-| `src/Tray/App.xaml` + `App.xaml.cs` | WPF entry, ShutdownMode OnExplicitShutdown |
-| `src/Tray/TrayIcon.cs` | TaskbarIcon, ContextMenu, GDI+ icons |
-| `src/Shared/ServiceMonitor.cs` | 3-tier detection, KillProcesses on stop |
-| `src/Shared/UpdateChecker.cs` | GitHub Releases polling, uses Shared.VersionHelper |
-| `src/Shared/ConnectionValidator.cs` | Parallel DB/API/Broker checks |
-| `src/Tray/StatusWindow.xaml` + `.cs` | Status display |
-| `src/Tray/LogViewer.xaml` + `.cs` | Log tailing |
-| `src/Tray/ConfigEditor.xaml` + `.cs` | Edit SmsService and Agent settings |
-| `src/Tray/SendNotificationDialog.xaml` + `.cs` | Manual SMS insert |
-
-### Installer
-
-| File | Purpose |
-|------|---------|
-| `installer/installer.iss` | Self-contained installer main file |
-| `installer/installer-framework.iss` | Framework-dependent installer main file |
-| `installer/code/globals.iss` | Global variables, StartTrayPage, StartTrayAfter |
-| `installer/code/utils.iss` | RunCmd, BoolToStr, JsonEscape |
-| `installer/code/services.iss` | Windows Service management + CheckDotNetRuntime |
-| `installer/code/eventlog.iss` | Event Log helpers |
-| `installer/code/config.iss` | WriteConfigurationFile (writes to {app}) |
-| `installer/code/wizard.iss` | Wizard pages: config prompt, DB inputs, API inputs, tray checkbox, start-after-install |
-| `installer/code/install.iss` | Install/upgrade logic, MaybeStartTrayApp, #ifdef FrameworkInstall |
-| `installer/code/uninstall.iss` | Kills tray app via taskkill, cleans logs in ProgramData |
-
-### CI/CD
-
-| File | Purpose |
-|------|---------|
-| `.github/workflows/tests.yml` | Tests + build tray app + validate both installers |
-| `.github/workflows/release.yml` | Auto-tag, build both installers, GitHub Release |
-| `.github/workflows/create-release-pr.yml` | Auto PR develop→main |
-| `.github/workflows/auto-review.yml` | Auto-approve after checks pass |
-
-### Documentation
-
-| File | Purpose |
-|------|---------|
-| `README.md` | Full documentation (architecture, setup, features) |
-| `docs/deployment.md` | Deployment guide (both installers, troubleshooting) |
-| `docs/PROJECT_SUMMARY.md` | This file |
-| `docs/fix-checklist.md` | Historical audit checklist (all items completed) |
-| `docs/database-migration.md` | Multi-database migration guide |
-| `installer/README.md` | Installer modular structure docs |
+- Secrets are plain JSON and development settings must never contain production credentials.
+- SMS processing has no cross-process database lease.
+- Agent work discovery cannot operate as HTTP-only when MQTT is disabled.
+- Heartbeats can be delayed by jobs and MQTT outages.
+- The student JSON schema fixture must be reconciled with the current serializer fields.
+- The tray service monitor can repeatedly notify while SMS remains stopped.
+- The manual notification Amount input is currently not inserted.
+- Main CI and auto-review expect different pull-request checks.

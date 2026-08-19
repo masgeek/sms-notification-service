@@ -1,4 +1,6 @@
 using System.Drawing;
+using System.Diagnostics;
+using System.IO;
 using System.ServiceProcess;
 using System.Windows;
 using System.Windows.Controls;
@@ -148,7 +150,21 @@ internal sealed class TrayIcon : IDisposable
         _icon.ShowNotification("Connection Validation", result.Summary, level);
     }
 
-    private void CheckForUpdates() => _ = _updater.CheckAsync();
+    private void CheckForUpdates()
+    {
+        var dialog = new UpdateCheckWindow(_updater);
+        if (_controlPanel?.IsVisible == true)
+            dialog.Owner = _controlPanel;
+        dialog.ShowDialog();
+    }
+
+    private void ShowAbout()
+    {
+        var dialog = new AboutWindow();
+        if (_controlPanel?.IsVisible == true)
+            dialog.Owner = _controlPanel;
+        dialog.ShowDialog();
+    }
 
     private ContextMenu BuildContextMenu()
     {
@@ -157,6 +173,7 @@ internal sealed class TrayIcon : IDisposable
         menu.Items.Add(new MenuItem { Header = "Open Control Panel", Command = new DelegateCommand(_ => ShowControlPanel()) });
         menu.Items.Add(new MenuItem { Header = "Status Details", Command = new DelegateCommand(_ => ShowStatusWindow()) });
         menu.Items.Add(new MenuItem { Header = "View Logs", Command = new DelegateCommand(_ => ShowLogViewer()) });
+        menu.Items.Add(new MenuItem { Header = "Launch Console Monitor", Command = new DelegateCommand(_ => LaunchConsoleMonitor()) });
         menu.Items.Add(new MenuItem { Header = "Send Notification", Command = new DelegateCommand(_ => ShowSendDialog()) });
         menu.Items.Add(new MenuItem { Header = "Validate Connections", Command = new DelegateCommand(_ => ShowConnectionValidator()) });
         menu.Items.Add(new MenuItem { Header = "Settings", Command = new DelegateCommand(_ => ShowConfigEditor()) });
@@ -166,6 +183,7 @@ internal sealed class TrayIcon : IDisposable
         menu.Items.Add(new MenuItem { Header = "Restart Service", Command = new DelegateCommand(_ => _monitor.RestartService()) });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Check for Updates", Command = new DelegateCommand(_ => CheckForUpdates()) });
+        menu.Items.Add(new MenuItem { Header = "About FeeSyncer", Command = new DelegateCommand(_ => ShowAbout()) });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Exit", Command = new DelegateCommand(_ => Exit()) });
 
@@ -173,6 +191,28 @@ internal sealed class TrayIcon : IDisposable
     }
 
     private void Exit() => Application.Current.Shutdown();
+
+    private void LaunchConsoleMonitor()
+    {
+        var consolePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "Console", Constants.ConsoleExecutableName));
+        if (!File.Exists(consolePath))
+        {
+            consolePath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Console", "bin", "Debug", "net10.0", Constants.ConsoleExecutableName));
+        }
+
+        if (!File.Exists(consolePath))
+        {
+            _icon.ShowNotification("Console Monitor", "Console monitor executable was not found. Publish or install it first.", NotificationIcon.Warning);
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = consolePath,
+            WorkingDirectory = Path.GetDirectoryName(consolePath),
+            UseShellExecute = true,
+        });
+    }
 
     private static Icon CreateIcon(ServiceControllerStatus status)
     {

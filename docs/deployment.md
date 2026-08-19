@@ -1,489 +1,235 @@
 # Deployment Guide
 
-## Quick Start
+## Installer Options
 
-Download the latest installer from [GitHub Releases](../../releases). Two variants are available:
+Download one of these assets from GitHub Releases:
 
-- `FeeSyncer-Setup-<version>.exe` — self-contained (no .NET runtime needed)
-- `FeeSyncer-Framework-Setup-<version>.exe` — framework-dependent (requires .NET 10 runtime on target machine)
+| Installer | Use when |
+|---|---|
+| `FeeSyncer-Setup-<version>.exe` | The target should not require a preinstalled .NET runtime |
+| `FeeSyncer-Framework-Setup-<version>.exe` | .NET 10 Runtime and Desktop Runtime are already installed |
 
-Run the installer as Administrator.
+Run the installer as Administrator. Unsigned builds can trigger Windows
+SmartScreen; select **More info > Run anyway** only after verifying the source
+and checksum of the installer.
 
-The installer deploys:
-- **FeeSyncer.Sms** — SMS notification service (Windows Service)
-- **FeeSyncer.Agent** — school synchronization service (Windows Service)
-- **FeeSyncer.Tray** — system tray management app (optional, auto-starts on login if selected)
+## Installed Layout
 
-## Windows SmartScreen Warning
+```text
+C:\Program Files\FeeSyncer\
+|-- FeeSyncer.Sms.exe
+|-- Agent\FeeSyncer.Agent.exe
+|-- Tray\FeeSyncer.Tray.exe
+`-- Console\FeeSyncer.Console.exe
+```
 
-When you first run the installer, Windows SmartScreen may show a warning: **"Windows protected your PC"**. This is expected for new software without an established download reputation.
+Machine data is stored separately:
 
-### How to Bypass
+```text
+C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json
+C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
+C:\ProgramData\Munywele\FeeSyncer\logs\
+```
 
-1. Click **"More info"**
-2. Click **"Run anyway"**
+The installer copies all four applications and creates `FeeSyncer.Sms` and
+`FeeSyncer.Agent` under `LocalSystem`. Both services use manual startup and are
+left stopped so they can be configured first. The installer does not prompt for
+or write database passwords, API tokens, or enrollment codes.
 
-![SmartScreen Bypass](https://learn.microsoft.com/en-us/windows/win32/secauthn/images/smartscreen-more-info.png)
+If selected, the tray receives Start Menu and all-users Startup-folder shortcuts
+and opens with `--setup` after installation.
 
-### Why This Happens
+## First-Time Setup
 
-- The application is not signed with a code signing certificate
-- Windows SmartScreen builds reputation based on download counts
-- New applications trigger warnings until they establish reputation
+1. Open `C:\Program Files\FeeSyncer\Tray\FeeSyncer.Tray.exe --setup`.
+2. Configure the SMS database, gateway URL, token, retry values, and logging.
+3. Validate the SMS database, API, and Service Broker connections.
+4. Configure local Agent API and MQTT values.
+5. Generate an `enroll_...` code centrally and select **Enroll / Re-enroll**.
+6. Start each service from the Control Panel after its validation succeeds.
 
-### To Avoid This Warning Permanently
+Configuration files currently contain credentials as plain JSON. Apply suitable
+NTFS access controls to the ProgramData directory and avoid sharing diagnostic
+archives without reviewing them for secrets.
 
-Purchase a code signing certificate:
+## Build From Source
 
-| Provider | Cost | Notes |
-|----------|------|-------|
-| SSL.com | ~$70/year | Cheapest legitimate option |
-| Certum | ~€20/year | Polish CA, good prices |
-| DigiCert | ~$200+/year | Industry standard |
+Requirements:
 
-> Even with a certificate, new signings trigger SmartScreen temporarily until reputation builds.
+- .NET 10 SDK
+- Inno Setup 6
+- Windows x64 build host for installer validation
 
-## Build from Source
+Publish self-contained applications:
 
-### Prerequisites
-
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Inno Setup 6+](https://jrsoftware.org/isinfo.php) (for installer only)
-
-### Publish Both Projects
-
-```bash
-# Single command — publishes all three projects
+```powershell
 ./publish.ps1
-
-# With clean (removes bin/obj/build first)
 ./publish.ps1 -Clean
 ```
 
-Output:
-- `build\service\` — SMS service binaries (FeeSyncer.Sms.exe + dependencies)
-- `build\agent\` — agent service binaries (FeeSyncer.Agent.exe + dependencies)
-- `build\tray\` — tray app binaries (FeeSyncer.Tray.exe + dependencies)
-- `build\console\` — console monitor binaries (FeeSyncer.Console.exe + dependencies)
+Outputs:
 
-All are self-contained — no .NET runtime needed on the target machine.
+```text
+build\service\
+build\agent\
+build\tray\
+build\console\
+```
 
-Or publish as framework-dependent:
+Publish framework-dependent applications:
 
-```bash
+```powershell
 ./publish-framework.ps1
 ```
 
-Output:
-- `build\service-framework\` — service binaries (requires .NET 10 runtime)
-- `build\tray-framework\` — tray app binaries (requires .NET 10 runtime)
-- `build\console-framework\` — console monitor binaries (requires .NET 10 runtime)
+Outputs:
 
-Or publish individually:
-
-```bash
-dotnet publish src/Sms/FeeSyncer.Sms.csproj -c Release -r win-x64 --self-contained -o build\service
-dotnet publish src/Agent/FeeSyncer.Agent.csproj -c Release -r win-x64 --self-contained -o build\agent
-dotnet publish src/Tray/FeeSyncer.Tray.csproj -c Release -r win-x64 --self-contained -o build\tray
-dotnet publish src/Console/FeeSyncer.Console.csproj -c Release -r win-x64 --self-contained -o build\console
+```text
+build\service-framework\
+build\agent-framework\
+build\tray-framework\
+build\console-framework\
 ```
 
-### Build Installer
-
-```bash
-# Self-contained installer (bundles .NET runtime)
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 installer\installer.iss
-
-# Framework-dependent installer (requires .NET 10 runtime on target)
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 /DFrameworkInstall installer\installer-framework.iss
-```
-
-**Requirements:** 
-- Self-contained: `build\service\`, `build\tray\`, and `build\console\` directories must exist
-- Framework-dependent: `build\service-framework\`, `build\tray-framework\`, and `build\console-framework\` directories must exist
-
-Output:
-- `installer/output/FeeSyncer-Setup-<version>.exe` (self-contained)
-- `installer/output/FeeSyncer-Framework-Setup-<version>.exe` (framework-dependent)
-
-The installer version is set dynamically via `/DMyAppVersion=<version>`. If omitted, defaults to `1.0.0`.
-
-### Run Tests
-
-```bash
-# Run all unit tests
-dotnet test -c Release
-
-# Run with verbose output
-dotnet test -c Release --verbosity normal
-
-# Run specific test class
-dotnet test -c Release --filter "FullyQualifiedName~NotificationProcessorTests"
-dotnet test -c Release --filter "FullyQualifiedName~SmsApiServiceTests"
-```
-
-### Validate Installer Scripts (without building)
-
-Create dummy build folders and compile both ISS scripts:
-
-```bash
-# Self-contained installer
-mkdir build\service && echo placeholder > build\service\FeeSyncer.Sms.exe
-mkdir build\agent && echo placeholder > build\agent\FeeSyncer.Agent.exe
-mkdir build\tray && echo placeholder > build\tray\FeeSyncer.Tray.exe
-mkdir build\console && echo placeholder > build\console\FeeSyncer.Console.exe
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer.iss
-
-# Framework-dependent installer
-mkdir build\service-framework && echo placeholder > build\service-framework\FeeSyncer.Sms.exe
-mkdir build\agent-framework && echo placeholder > build\agent-framework\FeeSyncer.Agent.exe
-mkdir build\tray-framework && echo placeholder > build\tray-framework\FeeSyncer.Tray.exe
-mkdir build\console-framework && echo placeholder > build\console-framework\FeeSyncer.Console.exe
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\installer-framework.iss
-```
-
-## What the Installer Does
-
-1. Detects fresh install vs upgrade (checks for existing service)
-2. Prompts to keep or update existing configuration
-3. Writes SMS config to `C:\Program Files\FeeSyncer\` and agent config to `C:\Program Files\FeeSyncer\Agent\`
-4. Copies the SMS, agent, tray, and console binaries to `C:\Program Files\FeeSyncer\`
-5. Creates Windows Service (`delayed-auto`, `LocalSystem`)
-6. Configures service recovery (restart on failure: 5min, 5s, 5s)
-7. Registers Event Log source
-8. Creates Start Menu shortcuts (service + uninstall; tray app if selected)
-9. Adds tray app to Windows auto-start if selected (`HKCU\...\Run`)
-10. Optionally starts the service and tray app
-
-> The tray app is optional — the installer includes a "System Tray App" page where you can toggle it on/off. The binaries are always copied but the shortcut and auto-start are only created if selected.
-
-## Configuration
-
-SMS configuration is stored in `C:\Program Files\FeeSyncer\appsettings.Production.json`.
-Agent configuration is stored in `C:\Program Files\FeeSyncer\Agent\appsettings.Production.json`.
-
-```json
-{
-  "SmsService": {
-    "ConnectionString": "Server=127.0.0.1;Database=school;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;",
-    "SmsApiUrl": "https://fees.munywele.co.ke/api/v1/notifications",
-    "AuthorizationToken": "your-bearer-token",
-    "RetryBackoffSeconds": 30,
-    "RetryPollIntervalSeconds": 30,
-    "LogRetentionDays": 7,
-    "MaxLogFileSizeMb": 10
-  },
-  "Agent": {
-    "Enabled": true,
-    "ServerUrl": "https://fees.munywele.co.ke/",
-    "AgentToken": "replace-with-a-provisioned-agent-token",
-    "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",
-    "LocalApiUsername": "",
-    "LocalApiPassword": "",
-    "RequestTimeoutSeconds": 30,
-    "IdleDelaySeconds": 5,
-    "HeartbeatSeconds": 60,
-    "MqttEnabled": true,
-    "MqttBrokerHost": "mqtt.munywele.co.ke",
-    "MqttBrokerPort": 8883,
-    "MqttUseTls": true,
-    "MqttUsername": "",
-    "MqttPassword": "",
-    "MqttTopicPrefix": "fee-syncer/agent",
-    "MqttKeepAliveSeconds": 30,
-    "MqttReconnectMinSeconds": 1,
-    "MqttReconnectMaxSeconds": 60
-  }
-}
-```
-
-Edit the file directly, use the tray app's Config Editor, or reinstall with "Enter new configuration" selected.
-
-The school integration worker is enabled by default. Before starting the
-service, generate a single-use `enroll_...` code from the target school in the
-central fee-syncer admin interface, exchange it once at
-`POST https://fees.munywele.co.ke/api/agent/enroll`, and replace the
-provisioning placeholder with the returned `fsk_...` token in `Agent:AgentToken`.
-The code expires after 15 minutes and is not a runtime credential. See
-[School integration deployment](school-integration.md) for the enrollment flow,
-local API requirements, and security rules. After installation, use the tray
-app's Settings screen to perform the exchange and write the returned token and
-local API credentials to the agent configuration. The installer does not handle
-enrollment credentials.
-
-### Environment Variables (Fallback)
-
-If the config file is missing, environment variables are used as a fallback:
+Build installers:
 
 ```powershell
-# Set (run as Administrator — persists across reboots)
-[Environment]::SetEnvironmentVariable("SmsService__ConnectionString", "Server=127.0.0.1;Database=school;User Id=sa;Password=YourPassword123;TrustServerCertificate=True;", "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__SmsApiUrl", "https://fees.munywele.co.ke/api/v1/notifications", "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__AuthorizationToken", "your-bearer-token-here", "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__RetryBackoffSeconds", "30", "Machine")
-
-# Verify
-[Environment]::GetEnvironmentVariable("SmsService__ConnectionString", "Machine")
-
-# Remove
-[Environment]::SetEnvironmentVariable("SmsService__ConnectionString", $null, "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__SmsApiUrl", $null, "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__AuthorizationToken", $null, "Machine")
-[Environment]::SetEnvironmentVariable("SmsService__RetryBackoffSeconds", $null, "Machine")
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 installer\installer.iss
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=1.2.3 installer\installer-framework.iss
 ```
 
-| Config Key | Env Variable | Default | Description |
-|---|---|---|---|
-| `SmsService:ConnectionString` | `SmsService__ConnectionString` | — | SQL Server connection string |
-| `SmsService:SmsApiUrl` | `SmsService__SmsApiUrl` | — | SMS API endpoint URL |
-| `SmsService:AuthorizationToken` | `SmsService__AuthorizationToken` | — | Bearer token for API auth |
-| `SmsService:RetryBackoffSeconds` | `SmsService__RetryBackoffSeconds` | `30` | Base retry backoff in seconds |
-| `Agent:Enabled` | `Agent__Enabled` | `true` | Enables the standalone school agent service |
-| `Agent:ServerUrl` | `Agent__ServerUrl` | `https://fees.munywele.co.ke/` | Central agent gateway URL |
-| `Agent:AgentToken` | `Agent__AgentToken` | — | Permanent `fsk_...` school-scoped bearer token returned by enrollment; never the one-time `enroll_...` code |
-| `Agent:LocalApiBaseUrl` | `Agent__LocalApiBaseUrl` | `http://127.0.0.1:8001/api/` | Loopback school API URL |
-| `Agent:LocalApiUsername` | `Agent__LocalApiUsername` | — | Local school API username |
-| `Agent:LocalApiPassword` | `Agent__LocalApiPassword` | — | Local school API password |
-| `Agent:MqttEnabled` | `Agent__MqttEnabled` | `true` | Enables MQTT-first work discovery |
-| `Agent:MqttBrokerHost` | `Agent__MqttBrokerHost` | `mqtt.munywele.co.ke` | MQTT broker host |
-| `Agent:MqttBrokerPort` | `Agent__MqttBrokerPort` | `8883` | TLS MQTT broker port |
-| `Agent:MqttUseTls` | `Agent__MqttUseTls` | `true` | Enables MQTT TLS |
-| `Agent:MqttUsername` | `Agent__MqttUsername` | — | MQTT username |
-| `Agent:MqttPassword` | `Agent__MqttPassword` | — | MQTT password |
-| `Agent:MqttTopicPrefix` | `Agent__MqttTopicPrefix` | `fee-syncer/agent` | MQTT topic prefix |
-| `Agent:MqttKeepAliveSeconds` | `Agent__MqttKeepAliveSeconds` | `30` | MQTT keep-alive interval |
-| `Agent:MqttReconnectMinSeconds` | `Agent__MqttReconnectMinSeconds` | `1` | Minimum reconnect delay |
-| `Agent:MqttReconnectMaxSeconds` | `Agent__MqttReconnectMaxSeconds` | `60` | Maximum reconnect delay |
-
-> **Priority:** Config file (`appsettings.Production.json`) > Environment variables > Defaults
-
-## Manual Install
+Run validation:
 
 ```powershell
-# Copy published folders, including the Agent subfolder
-C:\Services\FeeSyncer\
-
-# Create SMS service
-sc create FeeSyncer.Sms binPath="C:\Services\FeeSyncer\FeeSyncer.Sms.exe" start=delayed-auto
-sc description FeeSyncer.Sms "Listens to SQL Server for SMS notifications and sends them via HTTP API"
-sc failure FeeSyncer.Sms reset= 86400 actions= restart/300000/restart/5000/restart/5000
-
-# Create school agent service
-sc create FeeSyncer.Agent binPath="C:\Services\FeeSyncer\Agent\FeeSyncer.Agent.exe" start=delayed-auto
-sc description FeeSyncer.Agent "Synchronizes school data and processes agent work from the central gateway"
-sc failure FeeSyncer.Agent reset= 86400 actions= restart/300000/restart/5000/restart/5000
-
-# Start both services
-sc start FeeSyncer.Sms
-sc start FeeSyncer.Agent
+dotnet restore
+dotnet build -c Release
+dotnet format --verify-no-changes
+dotnet test -c Release --no-build
 ```
+
+## Manual Service Installation
+
+```powershell
+sc.exe create FeeSyncer.Sms binPath= "C:\Program Files\FeeSyncer\FeeSyncer.Sms.exe" start= demand
+sc.exe create FeeSyncer.Agent binPath= "C:\Program Files\FeeSyncer\Agent\FeeSyncer.Agent.exe" start= demand
+
+sc.exe description FeeSyncer.Sms "Listens for SMS notifications and sends them to the central API"
+sc.exe description FeeSyncer.Agent "Synchronizes school data with the central gateway"
+
+sc.exe failure FeeSyncer.Sms reset= 86400 actions= restart/300000/restart/5000/restart/5000
+sc.exe failure FeeSyncer.Agent reset= 86400 actions= restart/300000/restart/5000/restart/5000
+```
+
+The tray Control Panel can also install services; that path creates delayed-auto
+services, unlike the current Inno installer.
 
 ## Service Management
 
 ```powershell
-# Check status
-sc query FeeSyncer.Sms
-sc query FeeSyncer.Agent
+sc.exe query FeeSyncer.Sms
+sc.exe query FeeSyncer.Agent
 
-# Stop
-sc stop FeeSyncer.Sms
-sc stop FeeSyncer.Agent
+sc.exe start FeeSyncer.Sms
+sc.exe start FeeSyncer.Agent
 
-# Restart
-sc stop FeeSyncer.Sms
-sc start FeeSyncer.Sms
-sc stop FeeSyncer.Agent
-sc start FeeSyncer.Agent
-
-# Remove
-sc stop FeeSyncer.Sms
-sc delete FeeSyncer.Sms
-sc stop FeeSyncer.Agent
-sc delete FeeSyncer.Agent
+sc.exe stop FeeSyncer.Sms
+sc.exe stop FeeSyncer.Agent
 ```
 
-If `sc delete` fails, the installer also cleans up the registry key:
-`HKLM\SYSTEM\CurrentControlSet\Services\FeeSyncer.Sms`
+## Logging
 
-## Tray App
+Application logs are written to:
 
-The tray app (`FeeSyncer.Tray.exe`) provides:
-
-- **Status monitoring** — real-time service status, uptime, version
-- **Service control** — start, stop, restart from the tray menu
-- **Log viewer** — view and filter service log files
-- **Send notification** — insert test notifications directly into the database
-- **Config editor** — edit all settings with individual DB fields (server, database, user, password, encrypt)
-- **Connection validator** — test DB, API, and Service Broker connectivity
-- **Update checker** — polls GitHub Releases every 4 hours for new versions
-
-The tray app auto-starts on login via `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
-
-### Running the Tray App Manually
-
-```powershell
-# From published folder
-.\FeeSyncer.Tray.exe
-
-# Or from installed location
-& "C:\Program Files\FeeSyncer\FeeSyncer.Tray.exe"
-```
-
-## Logs
-
-**File logs** (primary):
-
-```
+```text
 C:\ProgramData\Munywele\FeeSyncer\logs\
 ```
 
-Daily rotation, 7-day retention (configurable). Old files are cleaned up on startup.
+SMS logs rotate by category and day, with approximate size rotation and startup
+retention cleanup. The installer registers a `FeeSyncer.Sms` source in the
+standard Windows **Application** Event Log.
 
-**Windows Event Log:**
+## Upgrades
 
-```
-Applications and Services Logs > FeeSyncer.Sms
-```
+Back up both ProgramData JSON files before upgrading. Run the new installer to
+replace binaries, then confirm the services remain configured and start them
+from the Control Panel. Current installer behavior leaves services stopped.
 
-```powershell
-Get-EventLog -LogName Application -Source "FeeSyncer.Sms" -Newest 20
-```
+The installer contains upgrade branches, but operators should not rely on
+automatic upgrade detection or restart behavior; verify both services after
+every upgrade.
 
-## Upgrading
+## Uninstall
 
-Run the new installer. It will:
+The uninstaller stops and removes both services and asks whether ProgramData
+configuration and logs should be retained. Preserve that directory if the
+machine will be reinstalled or if credentials and diagnostics are still needed.
 
-1. Detect the existing installation
-2. Stop the service
-3. Prompt to keep or update configuration
-4. Replace binaries (service + tray app)
-5. Restart the service
+## CI/CD
 
-Or manually:
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| `tests.yml` | Non-documentation pushes, manual | Build, format, all tests, publish checks, both installer checks |
+| `agent-tests.yml` | `main`/`develop` pushes and pull requests | Agent test project |
+| `create-release-pr.yml` | Successful Tests on `develop`, manual | Create/update `develop` to `main` release PR |
+| `release.yml` | Successful Tests on `main`, manual | Tag, publish four ZIPs, build two installers, create release |
+| `auto-review.yml` | Pull-request workflow events | Automated guarded review/approval |
 
-```powershell
-sc stop FeeSyncer.Sms
-./publish.ps1
-# Copy new files
-sc start FeeSyncer.Sms
-```
+Release assets are four self-contained ZIPs for SMS, Agent, Tray, and Console,
+plus self-contained and framework-dependent installers. The release workflow
+also mirrors them to the public `fee-syncer` S3 bucket and publishes
+`https://s3.munywele.co.ke/fee-syncer/latest.json` after all versioned objects.
 
-## CI/CD Pipeline
+Configure these private repository secrets before running a release:
 
-Fully automated. No manual tagging required.
-
-```
-Push to any branch
-    │
-    v
-Tests ──> .NET Tests
-    │     (build solution, format check, unit tests, vulnerability scan)
-    │
-    ├──> Build Tray App
-    │     (publish tray app, verify binary exists)
-    │
-    ├──> Build Console App
-    │     (publish console app, verify binary exists)
-    │
-    ├──> Validate Self-Contained Installer
-    │     (compile ISS with dummy build folders)
-    │
-    ├──> Validate Framework-Dependent Installer
-    │     (compile framework ISS with dummy build folders)
-    │
-    └──> All Checks Passed (summary)
-              │
-              v
-Release (main branch only, after tests pass)
-    ├── Generate version tag from conventional commits
-    ├── Build win-x64 publish (both self-contained and framework-dependent)
-    ├── Build both Inno Setup installers
-    ├── Create separate zip archives (service, tray, console)
-    └── Create/update GitHub Release with all artifacts
+```text
+S3_ACCESS_KEY_ID
+S3_SECRET_ACCESS_KEY
 ```
 
-### Workflow Files
-
-| File | Purpose | Trigger |
-|------|---------|---------|
-| `tests.yml` | Build validation, unit tests, both installer script checks | Push, PR, manual |
-| `release.yml` | Version tag, build both installers, publish release | After tests pass on `main` |
-| `create-release-pr.yml` | Auto-create PR from `develop` to `main` | After tests pass on `develop` |
-| `auto-review.yml` | Auto-approve PRs after checks pass | After tests pass |
-
-### Release Artifacts
-
-Each release produces:
-
-| Artifact | Description |
-|----------|-------------|
-| `FeeSyncer-Setup-<version>.exe` | Self-contained installer (bundles .NET runtime) |
-| `FeeSyncer-Framework-Setup-<version>.exe` | Framework-dependent installer (requires .NET 10 runtime) |
-| `FeeSyncer-sms-win-x64.zip` | SMS service binaries (self-contained) |
-| `FeeSyncer-agent-win-x64.zip` | Agent service binaries (self-contained) |
-| `FeeSyncer-tray-win-x64.zip` | Tray app binaries (self-contained) |
-| `FeeSyncer-console-win-x64.zip` | Console monitor binaries (self-contained) |
+The S3 account needs write access to `s3://fee-syncer`, while anonymous users
+need read-only access through `https://s3.munywele.co.ke/fee-syncer/`. The
+administrative console at `https://s3-console.munywele.co.ke` is not used by the
+application.
 
 ## Troubleshooting
 
-### Service won't start
+### SMS service does not start
 
-1. Check config file exists:
-   ```powershell
-   Test-Path "C:\Program Files\FeeSyncer\appsettings.Production.json"
-   ```
-2. Check Service Broker is enabled:
-   ```sql
-   SELECT name, is_broker_enabled FROM sys.databases WHERE name = 'school';
-   ```
-3. Check Event Log for startup errors:
-   ```powershell
-    Get-EventLog -LogName Application -Source "FeeSyncer.Sms" -EntryType Error -Newest 10
-   ```
+1. Verify `C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json`.
+2. Confirm the connection string and bearer token are populated.
+3. Confirm Service Broker is enabled.
+4. Review ProgramData logs and the Windows Application log.
 
-### Tray app not starting
+```sql
+SELECT name, is_broker_enabled
+FROM sys.databases
+WHERE name = 'school';
+```
 
-1. Check the executable exists:
-   ```powershell
-    Test-Path "C:\Program Files\FeeSyncer\FeeSyncer.Tray.exe"
-   ```
-2. Check auto-start registry entry:
-   ```powershell
-    Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "FeeSyncer.Tray" -ErrorAction SilentlyContinue
-   ```
-3. Run manually from command line to see errors:
-   ```powershell
-    & "C:\Program Files\FeeSyncer\FeeSyncer.Tray.exe"
-   ```
+### Notifications do not process
 
-### Notifications not triggering
+1. Confirm the table is `dbo.sms_notifications` with the documented columns.
+2. Check for `[Listener]` registration messages.
+3. Check `[Poll]`, `[Queue]`, and `[SMS]` messages.
+4. Inspect `status`, `retry_count`, `retry_after`, and `description_json`.
 
-1. Verify the listener started (check logs for `[Listener] Query registered successfully`)
-2. Ensure `dbo.sms_notifications` table has a PRIMARY KEY
-3. Check the retry poller is running (check logs for `[RetryPoller]` entries)
+### Agent does not discover work
 
-### SMS sends failing
+1. Verify `agentsettings.json` and a valid `fsk_...` token.
+2. Verify the gateway and loopback local API from the tray diagnostics.
+3. Test the MQTT WebSocket endpoint and credentials.
+4. Remember that discovery pauses while MQTT is disconnected.
+5. Review `[Agent]` and MQTT-related logs.
 
-1. Check API URL and token in config
-2. Check network connectivity to the API endpoint
-3. Look for `[SMS]` logs with HTTP status codes
+### Enrollment fails
 
-### School integration not running
+1. Generate a fresh code; codes expire after 15 minutes and are single-use.
+2. Verify the central base URL and enrollment endpoint.
+3. Ensure the response returns an `fsk_...` token.
+4. Confirm the Agent service can be restarted by the current user.
 
-1. Confirm `Agent:Enabled` is `true` and replace the provisioning placeholder with a token of at least 32 characters
-2. Confirm the central `Agent:ServerUrl` uses HTTPS and is reachable
-3. Confirm the local API is listening on the configured loopback URL
-4. Check logs for `[Agent]` errors; student payloads and bearer tokens are not logged
+### Tray does not start automatically
 
-### School integration enrollment failing
-
-1. Generate a fresh single-use `enroll_...` code from the target school in the central fee-syncer admin interface
-2. Exchange it once at `POST https://fees.munywele.co.ke/api/agent/enroll`, sending `enrollment_code` and `agent_name`
-3. Store the returned `fsk_...` token as protected `Agent:AgentToken` configuration; do not store the `enroll_...` code
-4. Restart the Windows service after changing configuration
-
-### File logs not appearing
-
-1. Check `ProgramData\Munywele\FeeSyncer\logs\` exists
-2. Ensure the service account (LocalSystem) has write access
-3. Check `LogRetentionDays` — logs older than this are auto-deleted on startup
+1. Verify `C:\Program Files\FeeSyncer\Tray\FeeSyncer.Tray.exe` exists.
+2. Inspect the all-users Startup folder for the FeeSyncer shortcut.
+3. Run the executable manually and inspect ProgramData logs.
