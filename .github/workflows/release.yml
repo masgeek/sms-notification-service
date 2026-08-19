@@ -250,7 +250,7 @@ jobs:
             exit 1
           fi
 
-          for artifact in artifacts/*; do
+          for artifact in "$SELF_CONTAINED" "$FRAMEWORK"; do
             aws s3 cp "$artifact" "s3://${S3_BUCKET}/${VERSION}/$(basename "$artifact")" \
               --endpoint-url "$S3_ENDPOINT" \
               --cache-control "public,max-age=31536000,immutable"
