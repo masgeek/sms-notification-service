@@ -24,7 +24,8 @@ public partial class ConfigEditor : UserControl
 
         Loaded += async (_, _) =>
         {
-            ConfigPathText.Text = ConfigPathResolver.GetMachineConfigFile();
+            ConfigPathText.Text = $"SMS settings: {ConfigPathResolver.GetActiveConfigFile()}{Environment.NewLine}" +
+                                  $"Agent settings: {ConfigPathResolver.GetActiveAgentConfigFile()}";
             LoadConfig();
             await UpdateFeeToolDetectionTextAsync();
         };
@@ -50,6 +51,9 @@ public partial class ConfigEditor : UserControl
                 && feeSyncer.TryGetProperty("BaseUrl", out var baseUrl)
                 && !string.IsNullOrWhiteSpace(baseUrl.GetString()))
                 ApiUrlBox.Text = baseUrl.GetString()!;
+
+            if (doc.RootElement.TryGetProperty("FeeSyncer", out feeSyncer))
+                LoadApiEndpoints(feeSyncer);
 
             if (doc.RootElement.TryGetProperty("SmsService", out var sms))
             {
@@ -153,11 +157,36 @@ public partial class ConfigEditor : UserControl
         DbUserIdBox.Text = "sa";
         DbPasswordBox.Password = string.Empty;
         ApiUrlBox.Text = Constants.DefaultBaseUrl;
+        SmsNotificationsEndpointBox.Text = Constants.DefaultSmsNotificationsEndpoint;
+        AgentEnrollEndpointBox.Text = Constants.DefaultAgentEnrollEndpoint;
+        AgentWorkEndpointBox.Text = Constants.DefaultAgentWorkEndpoint;
+        AgentHeartbeatEndpointBox.Text = Constants.DefaultAgentHeartbeatEndpoint;
+        AgentRenewEndpointBox.Text = Constants.DefaultAgentRenewEndpoint;
+        AgentPageEndpointBox.Text = Constants.DefaultAgentPageEndpoint;
+        AgentCompleteEndpointBox.Text = Constants.DefaultAgentCompleteEndpoint;
+        AgentPaymentCompleteEndpointBox.Text = Constants.DefaultAgentPaymentCompleteEndpoint;
+        AgentFailEndpointBox.Text = Constants.DefaultAgentFailEndpoint;
         TokenBox.Password = string.Empty;
         BackoffBox.Text = "30";
         PollIntervalBox.Text = "30";
         RetentionBox.Text = "7";
         MaxSizeBox.Text = "10";
+    }
+
+    private void LoadApiEndpoints(JsonElement feeSyncer)
+    {
+        if (!feeSyncer.TryGetProperty("ApiEndpoints", out var endpoints))
+            return;
+
+        SmsNotificationsEndpointBox.Text = StringValue(endpoints, "SmsNotifications", Constants.DefaultSmsNotificationsEndpoint);
+        AgentEnrollEndpointBox.Text = StringValue(endpoints, "AgentEnroll", Constants.DefaultAgentEnrollEndpoint);
+        AgentWorkEndpointBox.Text = StringValue(endpoints, "AgentWork", Constants.DefaultAgentWorkEndpoint);
+        AgentHeartbeatEndpointBox.Text = StringValue(endpoints, "AgentHeartbeat", Constants.DefaultAgentHeartbeatEndpoint);
+        AgentRenewEndpointBox.Text = StringValue(endpoints, "AgentRenew", Constants.DefaultAgentRenewEndpoint);
+        AgentPageEndpointBox.Text = StringValue(endpoints, "AgentPage", Constants.DefaultAgentPageEndpoint);
+        AgentCompleteEndpointBox.Text = StringValue(endpoints, "AgentComplete", Constants.DefaultAgentCompleteEndpoint);
+        AgentPaymentCompleteEndpointBox.Text = StringValue(endpoints, "AgentPaymentComplete", Constants.DefaultAgentPaymentCompleteEndpoint);
+        AgentFailEndpointBox.Text = StringValue(endpoints, "AgentFail", Constants.DefaultAgentFailEndpoint);
     }
 
     private void LoadTrayDefaults() => TrayStartMinimizedBox.IsChecked = false;
@@ -300,7 +329,7 @@ public partial class ConfigEditor : UserControl
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
             var response = await http.PostAsJsonAsync(
-                ApiUrlBox.Text.TrimEnd('/') + "/api/agent/enroll",
+                ConfigReader.CombineUrl(ApiUrlBox.Text, AgentEnrollEndpointBox.Text),
                 new { enrollment_code = code, agent_name = name });
             if (!response.IsSuccessStatusCode)
             {
@@ -387,6 +416,9 @@ public partial class ConfigEditor : UserControl
     private static int ParsedInt(string value, int fallback) =>
         int.TryParse(value, out var number) ? number : fallback;
 
+    private static string NormalizeEndpoint(string value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().TrimStart('/');
+
     private void ParseConnectionString(string connectionString)
     {
         try
@@ -459,7 +491,7 @@ public partial class ConfigEditor : UserControl
             TestAgentApiButton,
             "Agent API Test",
             () => ConnectionValidator.ValidateHttpAsync(
-                ApiUrlBox.Text.TrimEnd('/') + "/api/agent/work?wait=0", AgentTokenBox.Password.Trim()));
+                ConfigReader.CombineUrl(ApiUrlBox.Text, AgentWorkEndpointBox.Text) + "?wait=0", AgentTokenBox.Password.Trim()));
     }
 
     private async void TestMqttButton_Click(object sender, RoutedEventArgs e) =>
@@ -787,7 +819,19 @@ public partial class ConfigEditor : UserControl
 
             mutable["FeeSyncer"] = new Dictionary<string, object?>
             {
-                ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/"
+                ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/",
+                ["ApiEndpoints"] = new Dictionary<string, object?>
+                {
+                    ["SmsNotifications"] = NormalizeEndpoint(SmsNotificationsEndpointBox.Text, Constants.DefaultSmsNotificationsEndpoint),
+                    ["AgentEnroll"] = NormalizeEndpoint(AgentEnrollEndpointBox.Text, Constants.DefaultAgentEnrollEndpoint),
+                    ["AgentWork"] = NormalizeEndpoint(AgentWorkEndpointBox.Text, Constants.DefaultAgentWorkEndpoint),
+                    ["AgentHeartbeat"] = NormalizeEndpoint(AgentHeartbeatEndpointBox.Text, Constants.DefaultAgentHeartbeatEndpoint),
+                    ["AgentRenew"] = NormalizeEndpoint(AgentRenewEndpointBox.Text, Constants.DefaultAgentRenewEndpoint),
+                    ["AgentPage"] = NormalizeEndpoint(AgentPageEndpointBox.Text, Constants.DefaultAgentPageEndpoint),
+                    ["AgentComplete"] = NormalizeEndpoint(AgentCompleteEndpointBox.Text, Constants.DefaultAgentCompleteEndpoint),
+                    ["AgentPaymentComplete"] = NormalizeEndpoint(AgentPaymentCompleteEndpointBox.Text, Constants.DefaultAgentPaymentCompleteEndpoint),
+                    ["AgentFail"] = NormalizeEndpoint(AgentFailEndpointBox.Text, Constants.DefaultAgentFailEndpoint),
+                }
             };
 
             var output = JsonSerializer.Serialize(mutable, new JsonSerializerOptions { WriteIndented = true });

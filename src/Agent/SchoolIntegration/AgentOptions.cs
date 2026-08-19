@@ -12,6 +12,14 @@ internal sealed class AgentOptions
     [Required, Url]
     public string ServerUrl { get; set; } = Constants.DefaultBaseUrl;
 
+    public string AgentWorkEndpoint { get; set; } = Constants.DefaultAgentWorkEndpoint;
+    public string AgentHeartbeatEndpoint { get; set; } = Constants.DefaultAgentHeartbeatEndpoint;
+    public string AgentRenewEndpoint { get; set; } = Constants.DefaultAgentRenewEndpoint;
+    public string AgentPageEndpoint { get; set; } = Constants.DefaultAgentPageEndpoint;
+    public string AgentCompleteEndpoint { get; set; } = Constants.DefaultAgentCompleteEndpoint;
+    public string AgentPaymentCompleteEndpoint { get; set; } = Constants.DefaultAgentPaymentCompleteEndpoint;
+    public string AgentFailEndpoint { get; set; } = Constants.DefaultAgentFailEndpoint;
+
     public string AgentToken { get; init; } = string.Empty;
 
     [Range(1, 300)]

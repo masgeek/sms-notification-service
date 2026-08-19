@@ -132,6 +132,7 @@ public partial class ControlPanel : Window
         try
         {
             var baseUrl = Constants.DefaultBaseUrl;
+            var workEndpoint = Constants.DefaultAgentWorkEndpoint;
             var rootPath = ConfigPathResolver.FindConfigFile();
             if (File.Exists(rootPath))
             {
@@ -139,6 +140,13 @@ public partial class ControlPanel : Window
                 if (root.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer)
                     && feeSyncer.TryGetProperty("BaseUrl", out var configuredBaseUrl))
                     baseUrl = configuredBaseUrl.GetString() ?? baseUrl;
+
+                if (root.RootElement.TryGetProperty("FeeSyncer", out feeSyncer) &&
+                    feeSyncer.TryGetProperty("ApiEndpoints", out var endpoints) &&
+                    endpoints.TryGetProperty("AgentWork", out var configuredWorkEndpoint) &&
+                    configuredWorkEndpoint.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(configuredWorkEndpoint.GetString()))
+                    workEndpoint = configuredWorkEndpoint.GetString()!;
             }
 
             var agentPath = ConfigPathResolver.FindAgentConfigFile();
@@ -154,7 +162,7 @@ public partial class ControlPanel : Window
                 ? localValue.GetString()
                 : "http://127.0.0.1:8001/api/";
             var gatewayTask = ConnectionValidator.ValidateHttpAsync(
-                baseUrl.TrimEnd('/') + "/api/agent/work?wait=0", token);
+                ConfigReader.CombineUrl(baseUrl, workEndpoint) + "?wait=0", token);
             var localTask = ConnectionValidator.ValidateHttpAsync(localApi?.TrimEnd('/') + "/", null);
             var results = await Task.WhenAll(gatewayTask, localTask);
             var summary = $"Agent gateway: {(results[0].Passed ? "OK" : "FAIL")} {results[0].Details}\n" +

@@ -31,7 +31,9 @@ if (!string.IsNullOrWhiteSpace(baseUrl))
 {
     builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     {
-        ["SmsService:SmsApiUrl"] = baseUrl.TrimEnd('/') + "/api/v1/notifications"
+        ["SmsService:SmsApiUrl"] = ConfigReader.CombineUrl(
+            baseUrl,
+            builder.Configuration["FeeSyncer:ApiEndpoints:SmsNotifications"] ?? Constants.DefaultSmsNotificationsEndpoint)
     });
 }
 
