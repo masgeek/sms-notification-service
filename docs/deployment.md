@@ -176,7 +176,8 @@ machine will be reinstalled or if credentials and diagnostics are still needed.
 
 Release assets are four self-contained ZIPs for SMS, Agent, Tray, and Console,
 plus self-contained and framework-dependent installers. The release workflow
-also mirrors them to the public `fee-syncer` S3 bucket and publishes
+also publishes only the two installer `.exe` files to the public `fee-syncer`
+S3 bucket and publishes
 `https://s3.munywele.co.ke/fee-syncer/latest.json` after all versioned objects.
 
 Configure these private repository secrets before running a release:

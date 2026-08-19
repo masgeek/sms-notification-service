@@ -168,8 +168,9 @@ different from the Inno installer, which creates manual services.
 The tray enrollment client validates `enroll_...`, posts to the central endpoint,
 requires an `fsk_...` response token, saves it, and restarts the Agent.
 
-The update checker polls GitHub Releases at startup and every four hours. It
-notifies only; it does not download or install releases.
+The update checker polls the public S3 manifest at startup and every four hours.
+Manual checks are available from both the Control Panel and tray menu and can
+open the published installer URL.
 
 ## Shared Library
 
@@ -219,7 +220,7 @@ Release output:
 - Four self-contained ZIPs: SMS, Agent, Tray, Console
 - Self-contained installer
 - Framework-dependent installer
-- Public S3 manifest and versioned artifacts under `https://s3.munywele.co.ke/fee-syncer/`
+- Public S3 manifest and two versioned installer executables under `https://s3.munywele.co.ke/fee-syncer/`
 
 `tests.yml` runs on non-documentation pushes and manual dispatch, not ordinary
 pull-request events. `agent-tests.yml` runs on pull requests. The release flow
