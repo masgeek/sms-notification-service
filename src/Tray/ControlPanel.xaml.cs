@@ -193,12 +193,17 @@ public partial class ControlPanel : Window
             var localPassword = agent.TryGetProperty("LocalApiPassword", out var passwordValue)
                 ? passwordValue.GetString()
                 : string.Empty;
+            var requestTimeout = agent.TryGetProperty("RequestTimeoutSeconds", out var timeoutValue)
+                && timeoutValue.TryGetInt32(out var configuredTimeout)
+                ? configuredTimeout
+                : 30;
             var gatewayTask = ConnectionValidator.ValidateHttpAsync(
                 ConfigReader.CombineUrl(baseUrl, workEndpoint) + "?wait=0", token);
             var localTask = ConnectionValidator.ValidateSchoolApiAsync(
                 localApi ?? string.Empty,
                 localUsername ?? string.Empty,
-                localPassword ?? string.Empty);
+                localPassword ?? string.Empty,
+                requestTimeout);
             var results = await Task.WhenAll(gatewayTask, localTask);
             var summary = $"Agent gateway: {(results[0].Passed ? "OK" : "FAIL")} {results[0].Details}\n" +
                           $"Local API: {(results[1].Passed ? "OK" : "FAIL")} {results[1].Details}";

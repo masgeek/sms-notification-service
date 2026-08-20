@@ -47,18 +47,20 @@ public sealed class ConnectionValidator
     public static async Task<CheckResult> ValidateSchoolApiAsync(
         string baseUrl,
         string username,
-        string password)
+        string password,
+        int timeoutSeconds = 30)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
             return new CheckResult { Passed = false, Details = "No local API URL configured" };
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             return new CheckResult { Passed = false, Details = "Local API username and password are required" };
 
+        var loginUrl = baseUrl.TrimEnd('/') + "/v1/users/login";
+        var boundedTimeoutSeconds = Math.Clamp(timeoutSeconds, 1, 300);
         try
         {
             var sw = Stopwatch.StartNew();
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            var loginUrl = baseUrl.TrimEnd('/') + "/v1/users/login";
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(boundedTimeoutSeconds) };
             using var response = await http.PostAsJsonAsync(loginUrl, new { username, password });
             sw.Stop();
 
@@ -67,6 +69,14 @@ public sealed class ConnectionValidator
                 Passed = response.IsSuccessStatusCode,
                 ResponseTime = sw.ElapsedMilliseconds,
                 Details = $"{(int)response.StatusCode} {response.ReasonPhrase} ({sw.ElapsedMilliseconds}ms)"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new CheckResult
+            {
+                Passed = false,
+                Details = $"POST {loginUrl} timed out after {boundedTimeoutSeconds} seconds"
             };
         }
         catch (Exception ex)
