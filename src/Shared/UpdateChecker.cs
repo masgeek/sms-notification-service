@@ -3,9 +3,16 @@ using System.Net.Http.Json;
 
 namespace FeeSyncer.Shared;
 
+public enum UpdateInstallerFlavor
+{
+    SelfContained,
+    Framework,
+}
+
 public sealed record UpdateCheckResult(
     string CurrentVersion,
     string? LatestVersion,
+    UpdateInstallerFlavor InstallerFlavor,
     string? DownloadUrl,
     string? Sha256,
     long? Size,
@@ -14,7 +21,10 @@ public sealed record UpdateCheckResult(
     bool NotificationRaised)
 {
     public bool Succeeded => ErrorMessage is null;
-    public bool IsUpdateAvailable => LatestVersion is not null && LatestVersion != CurrentVersion;
+    public bool IsUpdateAvailable =>
+        Version.TryParse(CurrentVersion, out var current) &&
+        Version.TryParse(LatestVersion, out var latest) &&
+        latest > current;
 }
 
 public sealed class UpdateChecker : IDisposable
@@ -42,10 +52,14 @@ public sealed class UpdateChecker : IDisposable
 
     public Task<UpdateCheckResult> CheckAsync(
         CancellationToken ct = default,
-        bool notifyAvailable = true) =>
-        CheckInternalAsync(ct, notifyAvailable);
+        bool notifyAvailable = true,
+        UpdateInstallerFlavor installerFlavor = UpdateInstallerFlavor.SelfContained) =>
+        CheckInternalAsync(ct, notifyAvailable, installerFlavor);
 
-    private async Task<UpdateCheckResult> CheckInternalAsync(CancellationToken ct, bool notifyAvailable)
+    private async Task<UpdateCheckResult> CheckInternalAsync(
+        CancellationToken ct,
+        bool notifyAvailable,
+        UpdateInstallerFlavor installerFlavor = UpdateInstallerFlavor.SelfContained)
     {
         var current = VersionHelper.GetCurrentVersion();
         var lockTaken = false;
@@ -56,14 +70,16 @@ public sealed class UpdateChecker : IDisposable
             AppLogger.Info("Updater", $"Checking for updates (current: {current})");
             var manifest = await GetLatestRelease(ct);
             var latest = manifest.Version?.TrimStart('v');
-            if (string.IsNullOrWhiteSpace(latest))
+            if (!Version.TryParse(latest, out _))
                 throw new InvalidOperationException("The latest release did not include a version tag.");
-            var installer = manifest.Installers?.SelfContained;
-            if (string.IsNullOrWhiteSpace(installer?.Url))
-                throw new InvalidOperationException("The latest release did not include a self-contained installer URL.");
+            var installer = installerFlavor == UpdateInstallerFlavor.Framework
+                ? manifest.Installers?.Framework
+                : manifest.Installers?.SelfContained;
+            ValidateInstaller(installer, latest);
             var notificationRaised = false;
+            var isUpdateAvailable = IsNewerVersion(latest, current);
 
-            if (latest is not null && latest != current && latest != _lastNotifiedVersion)
+            if (isUpdateAvailable && latest != _lastNotifiedVersion)
             {
                 _lastNotifiedVersion = latest;
                 AppLogger.Info("Updater", $"Update available: {current} → {latest}");
@@ -81,7 +97,8 @@ public sealed class UpdateChecker : IDisposable
             return new UpdateCheckResult(
                 current,
                 latest,
-                installer.Url,
+                installerFlavor,
+                installer!.Url,
                 installer.Sha256,
                 installer.Size,
                 manifest.PublishedAt,
@@ -91,12 +108,42 @@ public sealed class UpdateChecker : IDisposable
         catch (Exception ex)
         {
             AppLogger.Warn("Updater", $"Update check failed: {ex.Message}");
-            return new UpdateCheckResult(current, null, null, null, null, null, ex.Message, false);
+            return new UpdateCheckResult(current, null, installerFlavor, null, null, null, null, ex.Message, false);
         }
         finally
         {
             if (lockTaken)
                 _checkLock.Release();
+        }
+    }
+
+    private static bool IsNewerVersion(string latest, string current) =>
+        Version.TryParse(latest, out var latestVersion) &&
+        Version.TryParse(current, out var currentVersion) &&
+        latestVersion > currentVersion;
+
+    private static void ValidateInstaller(UpdateArtifact? installer, string version)
+    {
+        if (!Uri.TryCreate(installer?.Url, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps ||
+            !string.Equals(uri.Host, "s3.munywele.co.ke", StringComparison.OrdinalIgnoreCase) ||
+            !uri.AbsolutePath.StartsWith($"/fee-syncer/{version}/", StringComparison.Ordinal) ||
+            !uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The latest release included an invalid installer URL.");
+        }
+
+        if (installer.Size is null or <= 0)
+            throw new InvalidOperationException("The latest release did not include a valid installer size.");
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(installer.Sha256) || Convert.FromHexString(installer.Sha256).Length != 32)
+                throw new FormatException();
+        }
+        catch (FormatException)
+        {
+            throw new InvalidOperationException("The latest release did not include a valid SHA-256 checksum.");
         }
     }
 

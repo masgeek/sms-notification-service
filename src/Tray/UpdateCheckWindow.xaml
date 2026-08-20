@@ -54,11 +54,20 @@
                 <TextBlock x:Name="StatusDetailsText"
                            Text="Contacting the public S3 update channel and reading the latest release information. This can take a few moments."
                            Foreground="#5F6B7A" TextWrapping="Wrap" LineHeight="20"/>
+                <TextBlock x:Name="ProgressDetailsText" Margin="0,10,0,0"
+                           Foreground="#5F6B7A" TextWrapping="Wrap"/>
+                <Border x:Name="UnsignedWarning" Margin="0,16,0,0" Padding="12" CornerRadius="6"
+                        Background="#FFF7E6" BorderBrush="#E6A700" BorderThickness="1" Visibility="Collapsed">
+                    <TextBlock Text="This installer is not code-signed. Windows will show an Unknown publisher warning. FeeSyncer will verify the exact file size and SHA-256 checksum before launching it."
+                               Foreground="#704D00" TextWrapping="Wrap" LineHeight="19"/>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-            <Button x:Name="DownloadButton" Content="Download Installer" Click="Download_Click"
+            <Button x:Name="DownloadOnlyButton" Content="Download Only" Click="DownloadOnly_Click"
+                    Visibility="Collapsed" Padding="14,6" Margin="0,0,8,0"/>
+            <Button x:Name="DownloadButton" Content="Download and Install" Click="Download_Click"
                     Visibility="Collapsed" Padding="14,6" Margin="0,0,8,0"/>
             <Button x:Name="CloseButton" Content="Cancel" Click="Close_Click"
                     Padding="18,6" MinWidth="88" IsCancel="True"/>

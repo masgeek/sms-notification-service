@@ -104,6 +104,22 @@ internal sealed class TrayIcon : IDisposable
         _controlPanel?.OpenSettings();
     }
 
+    public void ShowUpdateCompleted()
+    {
+        _icon.ShowNotification(
+            "FeeSyncer Updated",
+            $"Version {VersionHelper.GetCurrentVersion()} was installed successfully.",
+            NotificationIcon.Info);
+    }
+
+    public void ShowUpdateFailed()
+    {
+        _icon.ShowNotification(
+            "FeeSyncer Update Failed",
+            "The update did not complete. Review the installer and FeeSyncer logs before trying again.",
+            NotificationIcon.Error);
+    }
+
     public void ShowConfiguredStartupWindow()
     {
         try

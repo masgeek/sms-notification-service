@@ -23,7 +23,13 @@ public partial class App : Application
             if (e.Args.Any(arg => string.Equals(arg, "--setup", StringComparison.OrdinalIgnoreCase)))
                 _trayIcon.ShowSetup();
             else
+            {
                 _trayIcon.ShowConfiguredStartupWindow();
+                if (e.Args.Any(arg => string.Equals(arg, "--updated", StringComparison.OrdinalIgnoreCase)))
+                    _trayIcon.ShowUpdateCompleted();
+                else if (e.Args.Any(arg => string.Equals(arg, "--update-failed", StringComparison.OrdinalIgnoreCase)))
+                    _trayIcon.ShowUpdateFailed();
+            }
 
             AppLogger.Info("App", "Tray app initialized successfully");
         }
