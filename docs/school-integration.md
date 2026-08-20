@@ -162,9 +162,11 @@ kept synchronized whenever that contract changes.
 
 When enabled, `FeeProcessorUpdateWorker` runs independently of gateway jobs. It
 can back up `.env` and the previous Git commit, stop the queue service and IIS
-site, update a configured Git branch or tag, run Composer and Laravel migration/
-cache commands, and restart local services. Configure and test this feature from
-the tray before enabling its schedule.
+site, update a configured Git branch or tag, run `pnpm install`, `pnpm build`,
+Composer, and Laravel migration/cache commands, and restart local services.
+Missing pnpm or a failed pnpm install/build is logged but does not stop the
+remaining deployment steps. Configure and test this feature from the tray before
+enabling its schedule.
 
 ## Diagnostics
 

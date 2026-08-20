@@ -46,6 +46,7 @@ public sealed class FeeProcessorDeploymentRunner
             if (!string.IsNullOrWhiteSpace(appCmd))
                 await RunAsync(appCmd, ["stop", "site", $"/{request.IisSiteName}"], request.AppPath, message => Report(progress, message), cancellationToken, false);
             gitUpdater.Update(new FeeProcessorGitRequest(request.AppPath, request.Repository, request.Branch, request.Tag, request.SshUsername, request.SshKeyPath, request.SshPassphrase, request.GitExecutablePath), message => Report(progress, message));
+            await InstallNodeDependenciesAsync(request.AppPath, progress, cancellationToken);
             // await RunAsync(composer, ["install", "--no-dev", "--optimize-autoloader", "--no-interaction", "-vvv"], request.AppPath, message => Report(progress, message), cancellationToken);
             await RunAsync(composer, ["install", "--optimize-autoloader", "--no-interaction", "-vvv"], request.AppPath, message => Report(progress, message), cancellationToken);
             await RunAsync(php, ["artisan", "migrate", "--force"], request.AppPath, message => Report(progress, message), cancellationToken);
@@ -62,6 +63,51 @@ public sealed class FeeProcessorDeploymentRunner
         }
 
         progress?.Invoke($"Backup created at {backup}.");
+    }
+
+    private static async Task InstallNodeDependenciesAsync(
+        string appPath,
+        Action<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var pnpm = FeeProcessorToolResolver.Resolve(string.Empty, "pnpm", message => Report(progress, message));
+        if (string.IsNullOrWhiteSpace(pnpm))
+        {
+            Report(progress, "pnpm was not found; skipping Node dependency installation and build, then continuing the update.");
+            return;
+        }
+
+        await RunOptionalPnpmCommandAsync(pnpm, "install", appPath, progress, cancellationToken);
+        await RunOptionalPnpmCommandAsync(pnpm, "build", appPath, progress, cancellationToken);
+    }
+
+    private static async Task RunOptionalPnpmCommandAsync(
+        string pnpm,
+        string command,
+        string appPath,
+        Action<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var exitCode = await RunAsync(
+                pnpm,
+                [command],
+                appPath,
+                message => Report(progress, message),
+                cancellationToken,
+                failOnError: false);
+            if (exitCode != 0)
+                Report(progress, $"pnpm {command} exited with code {exitCode}; continuing the update.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            Report(progress, $"pnpm {command} could not complete: {exception.Message} Continuing the update.");
+        }
     }
 
     private static string CreateBackup(FeeProcessorDeploymentRequest request, Action<string>? progress)
@@ -109,7 +155,7 @@ public sealed class FeeProcessorDeploymentRunner
     }
 
 
-    private static async Task RunAsync(string fileName, IReadOnlyList<string> arguments, string workingDirectory,
+    private static async Task<int> RunAsync(string fileName, IReadOnlyList<string> arguments, string workingDirectory,
         Action<string>? progress, CancellationToken cancellationToken, bool failOnError = true)
     {
         using var process = new Process
@@ -154,6 +200,7 @@ public sealed class FeeProcessorDeploymentRunner
         await Task.WhenAll(outputTask, errorTask);
         if (failOnError && process.ExitCode != 0)
             throw new InvalidOperationException($"{fileName} exited with code {process.ExitCode}. Review the preceding output for the server response and authentication details.");
+        return process.ExitCode;
     }
 
     private static string Quote(string value) => value.Contains(' ')
