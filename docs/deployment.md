@@ -150,13 +150,15 @@ standard Windows **Application** Event Log.
 
 ## Upgrades
 
-Back up both ProgramData JSON files before upgrading. Run the new installer to
-replace binaries, then confirm the services remain configured and start them
-from the Control Panel. Current installer behavior leaves services stopped.
+The tray can install an available update directly. It downloads the installer to
+the current user's local update directory, validates the HTTPS origin, exact
+size, and SHA-256 checksum, requests administrator permission, then exits. The
+installer preserves ProgramData configuration and logs, restores the previous
+running state of both services, and relaunches the tray after success.
 
-The installer contains upgrade branches, but operators should not rely on
-automatic upgrade detection or restart behavior; verify both services after
-every upgrade.
+The installer is currently unsigned, so Windows displays **Unknown publisher**.
+Operators should cancel if the tray reports any size or checksum mismatch.
+Manual upgrades use the same service-state preservation behavior.
 
 ## Uninstall
 
@@ -175,10 +177,13 @@ machine will be reinstalled or if credentials and diagnostics are still needed.
 | `auto-review.yml` | Pull-request workflow events | Automated guarded review/approval |
 
 Release assets are four self-contained ZIPs for SMS, Agent, Tray, and Console,
-plus self-contained and framework-dependent installers. The release workflow
+plus self-contained and framework-dependent installers and `latest.json`. The release workflow
 also publishes only the two installer `.exe` files to the public `fee-syncer`
 S3 bucket and publishes
 `https://s3.munywele.co.ke/fee-syncer/latest.json` after all versioned objects.
+The tray uses the public GitHub release manifest as a fallback only when the S3
+manifest is unavailable or invalid. Both manifests declare exact installer sizes
+and SHA-256 checksums.
 
 Configure these private repository secrets before running a release:
 

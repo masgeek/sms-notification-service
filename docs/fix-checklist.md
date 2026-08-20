@@ -41,6 +41,7 @@ the current implementation.
 - [x] Provide combined SMS and Agent management
 - [x] Perform tray-based enrollment
 - [x] Add About access from the Control Panel and tray menu
+- [x] Verify installer size and SHA-256 before self-update
 - [ ] Validate all settings before save
 - [ ] Persist central Agent endpoint edits to Agent configuration
 - [ ] Insert the manual Amount field
@@ -50,7 +51,7 @@ the current implementation.
 
 ## Installer and CI
 
-- [ ] Preserve detected upgrade mode during wizard initialization
+- [x] Preserve detected upgrade mode during wizard initialization
 - [ ] Make the console selection meaningful or remove it
 - [ ] Check `Microsoft.WindowsDesktop.App 10` in the framework installer
 - [ ] Harden ProgramData and log directory permissions
