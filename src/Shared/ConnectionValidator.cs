@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using Dapper;
 using Microsoft.Data.SqlClient;
 
@@ -60,8 +62,21 @@ public sealed class ConnectionValidator
         try
         {
             var sw = Stopwatch.StartNew();
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(boundedTimeoutSeconds) };
-            using var response = await http.PostAsJsonAsync(loginUrl, new { username, password });
+            using var handler = new SocketsHttpHandler
+            {
+                UseProxy = false,
+                ConnectTimeout = TimeSpan.FromSeconds(boundedTimeoutSeconds),
+            };
+            using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(boundedTimeoutSeconds) };
+            using var request = new HttpRequestMessage(HttpMethod.Post, loginUrl)
+            {
+                Content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(new { username, password })),
+            };
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json")
+            {
+                CharSet = Encoding.UTF8.WebName,
+            };
+            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             sw.Stop();
 
             return new CheckResult

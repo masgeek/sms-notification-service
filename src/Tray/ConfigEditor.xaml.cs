@@ -529,6 +529,9 @@ public partial class ConfigEditor : UserControl
             [
                 $"HTTP request: POST {loginUrl}",
                 "Content type: application/json",
+                "Request body: fixed-length UTF-8 JSON",
+                "Proxy: bypassed for local API diagnostic",
+                "Completion: response headers (login body is not downloaded)",
                 $"Username: {Configured(LocalApiUsernameBox.Text)}",
                 $"Password: {Configured(LocalApiPasswordBox.Password)}",
                 $"Timeout: {timeoutSeconds} seconds",
