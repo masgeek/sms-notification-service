@@ -45,6 +45,24 @@ enroll the services.
 Tray startup uses the all-users Startup folder. The old `HKCU\...\Run` approach
 is not used by current installers.
 
+## Self-Update
+
+The tray downloads from the primary public S3 channel or its public GitHub
+Releases fallback and launches the matching installer with `/SELFUPDATE=1` and
+`/RESTARTTRAY=1` after verifying its declared size and SHA-256 checksum. During
+an upgrade the installer:
+
+1. Detects either existing FeeSyncer service.
+2. Records which services are running.
+3. Stops both services before replacing files.
+4. Preserves ProgramData configuration and logs.
+5. Restarts only services that were running before the update.
+6. Relaunches the tray as the original user with `--updated`.
+
+The installers are currently unsigned, so Windows displays **Unknown publisher**
+during elevation. Hash verification is mandatory, but it does not replace a
+future signed manifest or Authenticode signature.
+
 ## Structure
 
 ```text

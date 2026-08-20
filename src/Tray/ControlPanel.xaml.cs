@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.ServiceProcess;
+using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,14 +14,16 @@ namespace FeeSyncer.Tray;
 public partial class ControlPanel : Window
 {
     private readonly ServiceMonitor monitor;
+    private readonly UpdateChecker updater;
     private readonly DispatcherTimer refreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private TabItem? settingsTab;
     private TabItem? logsTab;
 
-    public ControlPanel(ServiceMonitor monitor)
+    public ControlPanel(ServiceMonitor monitor, UpdateChecker updater)
     {
         InitializeComponent();
         this.monitor = monitor;
+        this.updater = updater;
         settingsTab = new TabItem
         {
             Header = "Settings",
@@ -73,7 +76,7 @@ public partial class ControlPanel : Window
     private void StopSms_Click(object sender, RoutedEventArgs e) => monitor.StopNamedService(Constants.ServiceName);
     private void RestartSms_Click(object sender, RoutedEventArgs e) => monitor.RestartNamedService(Constants.ServiceName);
     private async void StartAgent_Click(object sender, RoutedEventArgs e) => await StartAfterValidationAsync(Constants.AgentServiceName);
-    private void RunAgentConsole_Click(object sender, RoutedEventArgs e) => RunConsole(Constants.AgentExecutableName, "Agent");
+    private void RunAgentConsole_Click(object sender, RoutedEventArgs e) => RunConsole(Constants.AgentExecutableName, "Agent", keepOpenOnFailure: true);
     private void StopAgent_Click(object sender, RoutedEventArgs e) => monitor.StopNamedService(Constants.AgentServiceName);
     private void RestartAgent_Click(object sender, RoutedEventArgs e) => monitor.RestartNamedService(Constants.AgentServiceName);
 
@@ -82,12 +85,35 @@ public partial class ControlPanel : Window
     private void UninstallSms_Click(object sender, RoutedEventArgs e) => Uninstall(Constants.ServiceName);
     private void UninstallAgent_Click(object sender, RoutedEventArgs e) => Uninstall(Constants.AgentServiceName);
 
-    private void RunConsole(string executableName, string displayName)
+    private void RunConsole(string executableName, string displayName, bool keepOpenOnFailure = false)
     {
         var path = ExecutablePathResolver.FindServiceExecutable(executableName);
         if (path is null)
         {
             MessageBox.Show($"{displayName} console executable was not found. Publish or install the {displayName} executable first.", "Console Application", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (keepOpenOnFailure)
+        {
+            var escapedPath = path.Replace("'", "''", StringComparison.Ordinal);
+            var script = $"& '{escapedPath}'; " +
+                         "$exitCode = $LASTEXITCODE; " +
+                         $"if ($exitCode -ne 0) {{ Write-Host ''; Write-Host 'FeeSyncer {displayName} exited with code' $exitCode -ForegroundColor Red; " +
+                         "Write-Host 'Review the error output above.' -ForegroundColor Yellow; [void](Read-Host 'Press Enter to close') }; " +
+                         "exit $exitCode";
+            var encodedScript = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+            var powerShell = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                WorkingDirectory = Path.GetDirectoryName(path),
+                UseShellExecute = true,
+            };
+            powerShell.ArgumentList.Add("-NoLogo");
+            powerShell.ArgumentList.Add("-NoProfile");
+            powerShell.ArgumentList.Add("-EncodedCommand");
+            powerShell.ArgumentList.Add(encodedScript);
+            Process.Start(powerShell);
             return;
         }
 
@@ -245,6 +271,11 @@ public partial class ControlPanel : Window
     private void About_Click(object sender, RoutedEventArgs e)
     {
         new AboutWindow { Owner = this }.ShowDialog();
+    }
+
+    private void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        new UpdateCheckWindow(updater) { Owner = this }.ShowDialog();
     }
 
     private void Minimize_Click(object sender, RoutedEventArgs e) => Hide();

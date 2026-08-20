@@ -92,7 +92,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; ============================================================================
 [Dirs]
 Name: "{app}"; Permissions: everyone-readexec
-Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full everyone-readexec
+Name: "{commonappdata}\{#ConfigDir}\logs"; Permissions: admins-full system-full everyone-readexec; Check: ShouldCreateDataDirectories
 
 ; ============================================================================
 ; [Files] - Application binaries (always overwrite)

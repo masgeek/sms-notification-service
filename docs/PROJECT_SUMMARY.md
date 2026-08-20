@@ -168,8 +168,9 @@ different from the Inno installer, which creates manual services.
 The tray enrollment client validates `enroll_...`, posts to the central endpoint,
 requires an `fsk_...` response token, saves it, and restarts the Agent.
 
-The update checker polls GitHub Releases at startup and every four hours. It
-notifies only; it does not download or install releases.
+The update checker polls the public S3 manifest at startup and every four hours.
+Manual checks are available from both the Control Panel and tray menu and can
+open the published installer URL.
 
 ## Shared Library
 
@@ -201,10 +202,10 @@ the binaries that are always copied.
 
 Known installer limitations:
 
-- Wizard initialization resets the previously detected upgrade flag.
 - Framework runtime detection checks `Microsoft.NETCore.App 10` but not the WPF Desktop Runtime.
 - Agent service registry cleanup is less defensive than SMS cleanup.
 - The ProgramData/log directory permissions are not hardened by the installer.
+- Installers are not Authenticode-signed; self-update currently relies on HTTPS, exact size, and SHA-256 verification.
 
 ## Build and Release
 
@@ -219,12 +220,14 @@ Release output:
 - Four self-contained ZIPs: SMS, Agent, Tray, Console
 - Self-contained installer
 - Framework-dependent installer
-- Public S3 manifest and versioned artifacts under `https://s3.munywele.co.ke/fee-syncer/`
+- Public S3 manifest and two versioned installer executables under `https://s3.munywele.co.ke/fee-syncer/`
+- Public GitHub release manifest used when the primary S3 channel is unavailable or invalid
 
 `tests.yml` runs on non-documentation pushes and manual dispatch, not ordinary
 pull-request events. `agent-tests.yml` runs on pull requests. The release flow
 uses conventional commits to generate a no-prefix tag. Public clients read the
-S3 `latest.json` manifest rather than the private GitHub Releases API.
+S3 `latest.json` manifest first and fall back to the public GitHub release
+manifest when necessary.
 
 ## Packages
 
@@ -244,13 +247,13 @@ Important direct product dependencies:
 
 ## Tests
 
-There are 37 xUnit facts in nine source files:
+There are 44 xUnit facts in eleven source files:
 
 | Project | Facts | Main coverage |
 |---|---:|---|
 | SMS | 18 | Sender results/backoff, processor flows, tray compatibility source checks |
 | Agent | 15 | Contracts/hashing, school API mapping, MQTT gate/topic, wake signal |
-| Tray | 4 | Tray icon construction and disposal |
+| Tray | 11 | Tray icon lifecycle, source fallback, and verified update downloads |
 
 There are no live database, broker, installer, or end-to-end integration tests.
 Operational UI and Agent orchestration coverage remains limited.

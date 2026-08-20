@@ -188,13 +188,13 @@ dotnet run --project src/Agent/FeeSyncer.Agent.csproj
 dotnet run --project src/Tray/FeeSyncer.Tray.csproj
 ```
 
-The repository currently contains 37 xUnit facts:
+The repository currently contains 44 xUnit facts:
 
 | Test project | Count |
 |---|---:|
 | SMS | 18 |
 | Agent | 15 |
-| Tray | 4 |
+| Tray | 11 |
 
 Tests do not require a live SQL Server, SMS provider, MQTT broker, or school API.
 
@@ -231,6 +231,7 @@ The tray application provides:
 - Fee Processor update configuration and manual update execution
 - Log viewing and manual SMS insertion
 - Connection validation and release checks
+- Hash-verified installer download and elevated self-update with service-state restoration
 - An About dialog available from the Control Panel and tray menu
 
 The current installer uses an all-users Startup-folder shortcut when tray
@@ -241,12 +242,16 @@ startup is selected.
 - `.github/workflows/tests.yml` runs on non-documentation pushes and manual dispatch.
 - `.github/workflows/agent-tests.yml` runs Agent tests on pushes to `main`/`develop` and on pull requests.
 - Successful Tests runs on `develop` can create or update a release PR to `main`.
-- Successful Tests runs on `main` can tag and publish four ZIPs and two installers to the private GitHub release and public S3 update channel.
+- Successful Tests runs on `main` can publish four ZIPs, two installers, and an update manifest to the public GitHub release, while the two installer executables are also published to the public S3 update channel.
 
 Public update metadata is available at
 `https://s3.munywele.co.ke/fee-syncer/latest.json`. Versioned artifacts are
-published under `https://s3.munywele.co.ke/fee-syncer/<version>/`. S3 write
+limited to the two installer executables under
+`https://s3.munywele.co.ke/fee-syncer/<version>/`. S3 write
 credentials are repository secrets and are never embedded in the application.
+If the S3 manifest is unavailable or invalid, clients fall back to the public
+GitHub release `latest.json`; both channels require exact size and SHA-256
+verification before installation.
 
 Versions are generated from conventional commits during release. The release
 workflow updates `Directory.Build.props` only in its build workspace.

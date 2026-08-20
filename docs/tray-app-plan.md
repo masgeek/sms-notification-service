@@ -14,7 +14,7 @@ is implemented under `src/Tray` with reusable support in `src/Shared`.
 - SMS and Agent configuration editor
 - Agent enrollment and MQTT diagnostics
 - Fee Processor updater settings and immediate deployment execution
-- GitHub release notifications
+- Public S3 release notifications with GitHub Releases fallback
 - About dialog from the Control Panel and tray context menu
 
 ## Navigation
@@ -69,14 +69,17 @@ they do not encrypt stored values.
 
 - The background tray icon monitors SMS; the Control Panel queries both services.
 - Displayed uptime is time since the monitor observed the current state.
-- Scheduled checks read the public Munywele S3 update manifest and notify when a new release exists.
-- Manual update checks open a blocking progress dialog with installed/latest versions, GitHub source, cancellation, detailed outcomes, and a releases link when an update exists.
+- Scheduled checks read the public Munywele S3 update manifest and fall back to the public GitHub release manifest if S3 is unavailable or invalid.
+- Manual update checks from either the Control Panel or tray menu open a blocking progress dialog with installed/latest versions, S3 source, cancellation, detailed outcomes, and an installer download when an update exists.
+- **Download and Install** validates HTTPS origin, exact size, and SHA-256 before launching the matching elevated installer and shutting down the tray.
+- Successful self-updates restore prior service states and relaunch the tray; unsigned installers still produce an Unknown publisher UAC warning.
 - Log **Clear** clears the display; refresh reloads files.
 - Log **Export** copies visible text to the clipboard.
 - Manual notification Amount is shown in the UI but not currently inserted.
 - Tray-based service installation uses delayed-auto startup.
 - Inno-based installation uses manual startup and leaves services stopped.
 - Tray autostart is installed through the all-users Startup folder.
+- Agent console launches preserve failed startup output and wait for a key press before closing.
 
 ## Build
 

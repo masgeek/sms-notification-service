@@ -16,11 +16,13 @@ prototype plan.
 - [x] Agent enrollment and service restart
 - [x] Fee Processor update settings and execution
 - [x] Manual SMS insertion dialog
-- [x] GitHub release notifications
-- [x] Blocking update-check dialog with progress, version details, cancellation, results, and releases link
+- [x] Public S3 release notifications with public GitHub Releases fallback
+- [x] Blocking update-check dialog from the Control Panel and tray menu with progress, cancellation, download-only, and self-update actions
+- [x] Exact size and SHA-256 verification before elevated installer launch
+- [x] Installer service-state restoration and tray relaunch after self-update
 - [x] About dialog available from the main window and tray icon
 - [x] Installer Start Menu and all-users Startup integration
-- [x] Four WPF tray construction/disposal tests
+- [x] Eleven tray, source-fallback, and verified-download tests
 
 ## Known Gaps
 

@@ -46,7 +46,7 @@ explicit NTFS permissions during installation.
 
 - Validate and normalize phone numbers before sending
 - Add throughput, failure, retry, heartbeat, and upload metrics with an exporter
-- Add semantic-version-aware update links/downloads
+- Add Authenticode signing or a cryptographically signed update manifest
 - Add notification history and richer diagnostics
 - Validate all tray fields before saving
 - Complete manual notification Amount handling
@@ -55,7 +55,7 @@ explicit NTFS permissions during installation.
 
 ## Engineering Priorities
 
-- Fix installer upgrade detection and console-option behavior
+- Make the console installer option meaningful or remove it
 - Verify both .NET and Windows Desktop runtimes in framework installation
 - Align CI pull-request triggers with auto-review requirements
 - Reconcile student contract JSON schema and serializer output
