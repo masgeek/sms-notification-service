@@ -64,10 +64,7 @@ public sealed class UpdateDownloadService
 
         try
         {
-            using var response = await _httpClient.GetAsync(
-                uri,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+            using var response = await GetInstallerResponseAsync(uri, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             var expectedSize = update.Size!.Value;
@@ -155,10 +152,7 @@ public sealed class UpdateDownloadService
         if (!update.IsUpdateAvailable || string.IsNullOrWhiteSpace(update.LatestVersion))
             throw new InvalidOperationException("No newer release is available for installation.");
         if (!Uri.TryCreate(update.DownloadUrl, UriKind.Absolute, out var uri) ||
-            uri.Scheme != Uri.UriSchemeHttps ||
-            !string.Equals(uri.Host, "s3.munywele.co.ke", StringComparison.OrdinalIgnoreCase) ||
-            !uri.AbsolutePath.StartsWith($"/fee-syncer/{update.LatestVersion}/", StringComparison.Ordinal) ||
-            !uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            !TrustedUpdateSource.IsTrustedInstaller(uri, update.LatestVersion))
         {
             throw new InvalidOperationException("The installer URL is not trusted.");
         }
@@ -176,6 +170,36 @@ public sealed class UpdateDownloadService
         }
 
         return uri;
+    }
+
+    private async Task<HttpResponseMessage> GetInstallerResponseAsync(Uri installerUri, CancellationToken cancellationToken)
+    {
+        var requestUri = installerUri;
+        for (var redirectCount = 0; redirectCount <= 3; redirectCount++)
+        {
+            var response = await _httpClient.GetAsync(
+                requestUri,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+            if ((int)response.StatusCode is < 300 or >= 400)
+                return response;
+
+            var location = response.Headers.Location;
+            response.Dispose();
+            if (location is null)
+                throw new InvalidDataException("The installer download returned a redirect without a destination.");
+
+            var redirectUri = location.IsAbsoluteUri ? location : new Uri(requestUri, location);
+            if (!string.Equals(installerUri.Host, "github.com", StringComparison.OrdinalIgnoreCase) ||
+                !TrustedUpdateSource.IsTrustedGitHubAssetRedirect(redirectUri))
+            {
+                throw new InvalidDataException("The installer download redirected to an untrusted destination.");
+            }
+
+            requestUri = redirectUri;
+        }
+
+        throw new InvalidDataException("The installer download exceeded the redirect limit.");
     }
 
     private static HttpClient CreateHttpClient()

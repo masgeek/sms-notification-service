@@ -29,16 +29,32 @@ public sealed record UpdateCheckResult(
 
 public sealed class UpdateChecker : IDisposable
 {
-    private const string ManifestUrl = "https://s3.munywele.co.ke/fee-syncer/latest.json";
+    private const string PrimaryManifestUrl = "https://s3.munywele.co.ke/fee-syncer/latest.json";
+    private const string FallbackManifestUrl =
+        "https://github.com/masgeek/sms-notification-service/releases/latest/download/latest.json";
     private readonly PeriodicTimer _timer;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _checkLock = new(1, 1);
+    private readonly HttpClient _httpClient;
+    private readonly bool _ownsHttpClient;
     private string? _lastNotifiedVersion;
 
     public event Action<string, string>? UpdateAvailable;
 
     public UpdateChecker()
+        : this(new HttpClient(), ownsHttpClient: true)
     {
+    }
+
+    public UpdateChecker(HttpClient httpClient)
+        : this(httpClient, ownsHttpClient: false)
+    {
+    }
+
+    private UpdateChecker(HttpClient httpClient, bool ownsHttpClient)
+    {
+        _httpClient = httpClient;
+        _ownsHttpClient = ownsHttpClient;
         _timer = new PeriodicTimer(TimeSpan.FromHours(4));
         AppLogger.Info("Updater", "UpdateChecker initialized");
     }
@@ -68,14 +84,7 @@ public sealed class UpdateChecker : IDisposable
             await _checkLock.WaitAsync(ct);
             lockTaken = true;
             AppLogger.Info("Updater", $"Checking for updates (current: {current})");
-            var manifest = await GetLatestRelease(ct);
-            var latest = manifest.Version?.TrimStart('v');
-            if (!Version.TryParse(latest, out _))
-                throw new InvalidOperationException("The latest release did not include a version tag.");
-            var installer = installerFlavor == UpdateInstallerFlavor.Framework
-                ? manifest.Installers?.Framework
-                : manifest.Installers?.SelfContained;
-            ValidateInstaller(installer, latest);
+            var (manifest, latest, installer) = await GetLatestRelease(installerFlavor, ct);
             var notificationRaised = false;
             var isUpdateAvailable = IsNewerVersion(latest, current);
 
@@ -125,10 +134,7 @@ public sealed class UpdateChecker : IDisposable
     private static void ValidateInstaller(UpdateArtifact? installer, string version)
     {
         if (!Uri.TryCreate(installer?.Url, UriKind.Absolute, out var uri) ||
-            uri.Scheme != Uri.UriSchemeHttps ||
-            !string.Equals(uri.Host, "s3.munywele.co.ke", StringComparison.OrdinalIgnoreCase) ||
-            !uri.AbsolutePath.StartsWith($"/fee-syncer/{version}/", StringComparison.Ordinal) ||
-            !uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            !TrustedUpdateSource.IsTrustedInstaller(uri, version))
         {
             throw new InvalidOperationException("The latest release included an invalid installer URL.");
         }
@@ -147,16 +153,60 @@ public sealed class UpdateChecker : IDisposable
         }
     }
 
-    private static async Task<UpdateManifest> GetLatestRelease(CancellationToken ct)
+    private async Task<(UpdateManifest Manifest, string Version, UpdateArtifact Installer)> GetLatestRelease(
+        UpdateInstallerFlavor installerFlavor,
+        CancellationToken ct)
     {
-        using var http = new HttpClient();
-        http.DefaultRequestHeaders.UserAgent.Add(new("FeeSyncer", "1.0"));
+        try
+        {
+            return await GetValidatedRelease(PrimaryManifestUrl, installerFlavor, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception primaryException)
+        {
+            AppLogger.Warn("Updater", $"Primary update source failed; trying GitHub Releases: {primaryException.Message}");
+            try
+            {
+                return await GetValidatedRelease(FallbackManifestUrl, installerFlavor, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception fallbackException)
+            {
+                throw new InvalidOperationException(
+                    $"Primary and fallback update sources failed. S3: {primaryException.Message} GitHub: {fallbackException.Message}",
+                    fallbackException);
+            }
+        }
+    }
 
-        var response = await http.GetAsync(ManifestUrl, ct);
+    private async Task<(UpdateManifest Manifest, string Version, UpdateArtifact Installer)> GetValidatedRelease(
+        string manifestUrl,
+        UpdateInstallerFlavor installerFlavor,
+        CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, manifestUrl);
+        request.Headers.UserAgent.ParseAdd("FeeSyncer/1.0");
+        using var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<UpdateManifest>(ct)
+        var manifest = await response.Content.ReadFromJsonAsync<UpdateManifest>(ct)
             ?? throw new InvalidOperationException("The update manifest was empty.");
+        var latest = manifest.Version?.TrimStart('v');
+        if (!Version.TryParse(latest, out _))
+            throw new InvalidOperationException("The latest release did not include a version tag.");
+
+        var installer = installerFlavor == UpdateInstallerFlavor.Framework
+            ? manifest.Installers?.Framework
+            : manifest.Installers?.SelfContained;
+        ValidateInstaller(installer, latest);
+
+        return (manifest, latest, installer!);
     }
 
     private sealed class UpdateManifest
@@ -185,5 +235,7 @@ public sealed class UpdateChecker : IDisposable
         _cts.Cancel();
         _cts.Dispose();
         _timer.Dispose();
+        if (_ownsHttpClient)
+            _httpClient.Dispose();
     }
 }

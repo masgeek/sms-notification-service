@@ -87,6 +87,73 @@ public sealed class UpdateDownloadServiceTests
         }
     }
 
+    [Fact]
+    public async Task DownloadAsync_GitHubReleaseRedirect_DownloadsTrustedAsset()
+    {
+        var bytes = "github installer"u8.ToArray();
+        var root = CreateTemporaryDirectory();
+        var redirectUri = new Uri("https://release-assets.githubusercontent.com/github-production-release-asset/file.exe?token=test");
+        using var http = new HttpClient(new StubHandler(request =>
+        {
+            if (request.RequestUri!.Host == "github.com")
+            {
+                return new HttpResponseMessage(HttpStatusCode.Redirect)
+                {
+                    Headers = { Location = redirectUri },
+                };
+            }
+
+            var content = new ByteArrayContent(bytes);
+            content.Headers.ContentLength = bytes.Length;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+        }));
+        var service = new UpdateDownloadService(http, root);
+        var update = CreateUpdate(bytes) with
+        {
+            DownloadUrl = "https://github.com/masgeek/sms-notification-service/releases/download/v1.1.0/FeeSyncer-Setup-1.1.0.exe",
+        };
+
+        try
+        {
+            using var download = await service.DownloadAsync(update);
+
+            File.Exists(download.Path).Should().BeTrue();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DownloadAsync_UntrustedRedirect_RejectsDownload()
+    {
+        var bytes = "redirected installer"u8.ToArray();
+        var root = CreateTemporaryDirectory();
+        using var http = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Redirect)
+        {
+            Headers = { Location = new Uri("https://example.com/FeeSyncer-Setup-1.1.0.exe") },
+        }));
+        var service = new UpdateDownloadService(http, root);
+        var update = CreateUpdate(bytes) with
+        {
+            DownloadUrl = "https://github.com/masgeek/sms-notification-service/releases/download/1.1.0/FeeSyncer-Setup-1.1.0.exe",
+        };
+
+        try
+        {
+            var action = () => service.DownloadAsync(update);
+
+            await action.Should().ThrowAsync<InvalidDataException>()
+                .WithMessage("*untrusted destination*");
+            Directory.GetFiles(root, "*", SearchOption.AllDirectories).Should().BeEmpty();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static UpdateCheckResult CreateUpdate(byte[] bytes) => new(
         "1.0.0",
         "1.1.0",
@@ -100,7 +167,7 @@ public sealed class UpdateDownloadServiceTests
 
     private static HttpClient CreateHttpClient(byte[] bytes, long? reportedLength = null)
     {
-        var handler = new StubHandler(() =>
+        var handler = new StubHandler(_ =>
         {
             var content = new ByteArrayContent(bytes);
             content.Headers.ContentLength = reportedLength ?? bytes.Length;
@@ -123,12 +190,12 @@ public sealed class UpdateDownloadServiceTests
         return memory.ToArray();
     }
 
-    private sealed class StubHandler(Func<HttpResponseMessage> responseFactory) : HttpMessageHandler
+    private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken) =>
-            Task.FromResult(responseFactory());
+            Task.FromResult(responseFactory(request));
     }
 
     private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>

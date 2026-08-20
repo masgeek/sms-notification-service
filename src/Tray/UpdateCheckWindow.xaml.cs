@@ -112,7 +112,7 @@ public partial class UpdateCheckWindow : Window
         Progress.Value = 0;
         StatusTitleText.Text = "Downloading update...";
         StatusTitleText.Foreground = Brushes.DodgerBlue;
-        StatusDetailsText.Text = "Downloading the installer from the Munywele public update channel.";
+        StatusDetailsText.Text = "Downloading the installer from the public update channel.";
 
         var progress = new Progress<UpdateDownloadProgress>(value =>
         {

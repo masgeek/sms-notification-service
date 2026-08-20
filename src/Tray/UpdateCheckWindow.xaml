@@ -52,7 +52,7 @@
                 <TextBlock x:Name="StatusTitleText" Text="Checking for updates..."
                            FontSize="16" FontWeight="SemiBold" Margin="0,16,0,5"/>
                 <TextBlock x:Name="StatusDetailsText"
-                           Text="Contacting the public S3 update channel and reading the latest release information. This can take a few moments."
+                           Text="Contacting the public update channel and reading the latest release information. This can take a few moments."
                            Foreground="#5F6B7A" TextWrapping="Wrap" LineHeight="20"/>
                 <TextBlock x:Name="ProgressDetailsText" Margin="0,10,0,0"
                            Foreground="#5F6B7A" TextWrapping="Wrap"/>

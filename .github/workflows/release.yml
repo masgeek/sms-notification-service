@@ -201,6 +201,44 @@ jobs:
       - name: List downloaded artifacts
         run: ls -la artifacts/
 
+      - name: Create GitHub update manifest
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.tag.outputs.version }}
+          RELEASE_TAG: ${{ needs.tag.outputs.new_tag }}
+          GITHUB_RELEASE_BASE_URL: https://github.com/${{ github.repository }}/releases/download
+        run: |
+          set -euo pipefail
+
+          VERSION="${RELEASE_VERSION:-${RELEASE_TAG:-}}"
+          VERSION="${VERSION#v}"
+          SELF_CONTAINED=$(find artifacts -maxdepth 1 -name "FeeSyncer-Setup-${VERSION}.exe" -print -quit)
+          FRAMEWORK=$(find artifacts -maxdepth 1 -name "FeeSyncer-Framework-Setup-${VERSION}.exe" -print -quit)
+          if [ -z "$VERSION" ] || [ -z "$RELEASE_TAG" ] || [ -z "$SELF_CONTAINED" ] || [ -z "$FRAMEWORK" ]; then
+            echo "Version, tag, or expected installer artifacts were not found"
+            exit 1
+          fi
+
+          SELF_NAME=$(basename "$SELF_CONTAINED")
+          FRAMEWORK_NAME=$(basename "$FRAMEWORK")
+          jq -n \
+            --arg version "$VERSION" \
+            --arg publishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg selfUrl "${GITHUB_RELEASE_BASE_URL}/${RELEASE_TAG}/${SELF_NAME}" \
+            --arg selfSha256 "$(sha256sum "$SELF_CONTAINED" | cut -d' ' -f1)" \
+            --argjson selfSize "$(stat -c%s "$SELF_CONTAINED")" \
+            --arg frameworkUrl "${GITHUB_RELEASE_BASE_URL}/${RELEASE_TAG}/${FRAMEWORK_NAME}" \
+            --arg frameworkSha256 "$(sha256sum "$FRAMEWORK" | cut -d' ' -f1)" \
+            --argjson frameworkSize "$(stat -c%s "$FRAMEWORK")" \
+            '{
+              version: $version,
+              publishedAt: $publishedAt,
+              installers: {
+                selfContained: { url: $selfUrl, sha256: $selfSha256, size: $selfSize },
+                framework: { url: $frameworkUrl, sha256: $frameworkSha256, size: $frameworkSize }
+              }
+            }' > artifacts/latest.json
+
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1.21.0
         with:
@@ -219,6 +257,7 @@ jobs:
             artifacts/FeeSyncer-console-win-x64.zip
             artifacts/FeeSyncer-Setup-*.exe
             artifacts/FeeSyncer-Framework-Setup-*.exe
+            artifacts/latest.json
 
       - name: Publish public S3 update channel
         shell: bash
