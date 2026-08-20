@@ -1,9 +1,32 @@
+function StartTrayAsOriginalUser(const Arguments: String): Boolean;
+var
+  ResultCode: Integer;
+  TrayPath: String;
+begin
+  TrayPath := ExpandConstant('{app}\{#TrayDir}\{#TrayAppName}.exe');
+  Result := ExecAsOriginalUser(TrayPath, Arguments, ExtractFileDir(TrayPath), SW_SHOWNORMAL,
+    ewNoWait, ResultCode);
+  if not Result then
+    Log('ExecAsOriginalUser failed; tray will not be started with the elevated installer token.');
+end;
+
 procedure MaybeStartTrayApp;
 var
   ResultCode: Integer;
   TrayPath: String;
   CommandLine: String;
 begin
+  if SelfUpdateMode then
+  begin
+    if RestartTrayAfterSelfUpdate then
+    begin
+      Log('Restarting tray app as the original user after self-update...');
+      if not StartTrayAsOriginalUser('--updated') then
+        Log('Failed to restart the tray app after self-update.');
+    end;
+    Exit;
+  end;
+
   if InstallTrayApp and StartTrayAfter then
   begin
     TrayPath := ExpandConstant('{app}\{#TrayDir}\{#TrayAppName}.exe');
@@ -32,6 +55,8 @@ begin
 
   Log('Services installed but left stopped until configuration and connection checks pass.');
 
+  if SelfUpdateMode then
+    SelfUpdateSucceeded := True;
   Log('=== Fresh install completed; only the tray monitor will be started ===');
   MaybeStartTrayApp;
 end;
@@ -40,14 +65,11 @@ procedure DoUpgrade;
 begin
   Log('=== Upgrade started ===');
 
-  Log('Stopping service for upgrade...');
-  StopService('{#ServiceName}');
-  StopService('{#AgentServiceName}');
-  WaitForServiceState('{#AgentServiceName}', 'STOPPED', 30000);
-  if WaitForServiceState('{#ServiceName}', 'STOPPED', 30000) then
-    Log('Service stopped for upgrade.')
-  else
-    RaiseException('Failed to stop the {#ServiceName} service. Please stop it manually and try again.');
+  SmsServiceWasRunning := ServiceIsRunning('{#ServiceName}');
+  AgentServiceWasRunning := ServiceIsRunning('{#AgentServiceName}');
+  UpgradeShutdownStarted := True;
+  StopServiceForUpgrade('{#ServiceName}');
+  StopServiceForUpgrade('{#AgentServiceName}');
 
   EnsureService('{#ServiceName}', '{#ServiceDisplay}', ExpandConstant('{app}') + '\FeeSyncer.Sms.exe');
   EnsureService('{#AgentServiceName}', '{#AgentServiceDisplay}', ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe');
@@ -58,11 +80,38 @@ begin
 end;
 
 procedure DoPostUpgrade;
+var
+  SmsServiceRestarted: Boolean;
+  AgentServiceRestarted: Boolean;
 begin
-  Log('Upgrade completed; services remain stopped until configuration is verified.');
+  SmsServiceRestarted := RestartServiceAfterUpgrade('{#ServiceName}', SmsServiceWasRunning);
+  AgentServiceRestarted := RestartServiceAfterUpgrade('{#AgentServiceName}', AgentServiceWasRunning);
 
-  Log('=== Upgrade completed; only the tray monitor will be started ===');
+  if not SmsServiceRestarted then
+    RaiseException('The {#ServiceName} service did not start successfully after the upgrade.');
+  if not AgentServiceRestarted then
+    RaiseException('The {#AgentServiceName} service did not start successfully after the upgrade.');
+
+  SelfUpdateSucceeded := True;
+  Log('=== Upgrade completed; prior service running state restored ===');
   MaybeStartTrayApp;
+end;
+
+procedure DeinitializeSetup;
+begin
+  if UpgradeShutdownStarted and not SelfUpdateSucceeded then
+  begin
+    Log('Upgrade did not complete; restoring prior service running state.');
+    RestartServiceAfterUpgrade('{#ServiceName}', SmsServiceWasRunning);
+    RestartServiceAfterUpgrade('{#AgentServiceName}', AgentServiceWasRunning);
+  end;
+
+  if SelfUpdateMode and RestartTrayAfterSelfUpdate and not SelfUpdateSucceeded then
+  begin
+    Log('Self-update did not complete; restarting tray with failure status.');
+    if not StartTrayAsOriginalUser('--update-failed') then
+      Log('Failed to restart the tray app after an unsuccessful self-update.');
+  end;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

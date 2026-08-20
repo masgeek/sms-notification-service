@@ -3,12 +3,23 @@ function GetTickCount: DWORD;
 
 function ServiceExists(const SvcName: String): Boolean;
 begin
-  Result := (RunCmd('sc.exe', 'query ' + SvcName) = 0);
+  Result := (RunCmd('sc.exe', 'query "' + SvcName + '"') = 0);
+end;
+
+function ServiceIsInState(const SvcName, TargetState: String): Boolean;
+begin
+  Result := (RunCmd(ExpandConstant('{cmd}'), '/C sc.exe query "' + SvcName +
+    '" | findstr /C:"STATE" | findstr /C:"' + TargetState + '" >nul 2>&1') = 0);
+end;
+
+function ServiceIsRunning(const SvcName: String): Boolean;
+begin
+  Result := ServiceExists(SvcName) and ServiceIsInState(SvcName, 'RUNNING');
 end;
 
 function StopService(const SvcName: String): Boolean;
 begin
-  Result := (RunCmd('sc.exe', 'stop ' + SvcName) = 0);
+  Result := (RunCmd('sc.exe', 'stop "' + SvcName + '"') = 0);
 end;
 
 function WaitForServiceState(const SvcName: String; const TargetState: String; TimeoutMs: Integer): Boolean;
@@ -50,24 +61,52 @@ end;
 
 function StartService(const SvcName: String): Boolean;
 begin
-  Result := (RunCmd('sc.exe', 'start ' + SvcName) = 0);
+  Result := (RunCmd('sc.exe', 'start "' + SvcName + '"') = 0);
 end;
 
 function DeleteService(const SvcName: String): Boolean;
 begin
-  Result := (RunCmd('sc.exe', 'delete ' + SvcName) = 0);
+  Result := (RunCmd('sc.exe', 'delete "' + SvcName + '"') = 0);
+end;
+
+procedure StopServiceForUpgrade(const SvcName: String);
+begin
+  if not ServiceExists(SvcName) then
+    Exit;
+
+  if ServiceIsInState(SvcName, 'STOPPED') then
+    Exit;
+
+  Log('Stopping service ' + SvcName + ' for upgrade.');
+  StopService(SvcName);
+  if not WaitForServiceState(SvcName, 'STOPPED', 30000) then
+    RaiseException('Failed to stop the ' + SvcName + ' service. Please stop it manually and try again.');
+end;
+
+function RestartServiceAfterUpgrade(const SvcName: String; WasRunning: Boolean): Boolean;
+begin
+  Result := True;
+  if not WasRunning then
+    Exit;
+
+  Log('Restarting service ' + SvcName + ' after upgrade.');
+  StartService(SvcName);
+  Result := WaitForServiceState(SvcName, 'RUNNING', 30000);
+  if not Result then
+    Log('The ' + SvcName + ' service failed to reach the running state after the upgrade.');
 end;
 
 procedure EnsureService(const SvcName, DisplayName, BinaryPath: String);
+var
+  QuotedBinaryPath: String;
 begin
+  QuotedBinaryPath := '\"' + BinaryPath + '\"';
   if ServiceExists(SvcName) then
   begin
     Log('Service already exists; updating ' + SvcName + '.');
-    StopService(SvcName);
-    WaitForServiceState(SvcName, 'STOPPED', 30000);
     ExecuteOrFail(
       'sc.exe',
-      'config ' + SvcName + ' binPath= "' + BinaryPath + '" start= demand DisplayName= "' + DisplayName + '" obj= LocalSystem',
+      'config "' + SvcName + '" binPath= "' + QuotedBinaryPath + '" DisplayName= "' + DisplayName + '" obj= LocalSystem',
       'Failed to update existing service ' + SvcName + '.'
     );
   end
@@ -76,7 +115,7 @@ begin
     Log('Creating service ' + SvcName + '.');
     ExecuteOrFail(
       'sc.exe',
-      'create ' + SvcName + ' binPath= "' + BinaryPath + '" start= demand DisplayName= "' + DisplayName + '" obj= LocalSystem',
+      'create "' + SvcName + '" binPath= "' + QuotedBinaryPath + '" start= demand DisplayName= "' + DisplayName + '" obj= LocalSystem',
       'Failed to create service ' + SvcName + '.'
     );
   end;

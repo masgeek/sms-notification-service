@@ -2,9 +2,9 @@ procedure InitializeWizard;
 var
   PrevPageID: Integer;
 begin
-  UpgradeMode := False;
   InstallTrayApp := True;
   InstallConsoleApp := True;
+  StartTrayAfter := True;
   PrevPageID := wpSelectDir;
 
   TrayPage := CreateInputOptionPage(PrevPageID,
@@ -38,11 +38,13 @@ function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
 
-  if UpgradeMode and (PageID = TrayPage.ID) then
+  if (UpgradeMode or SelfUpdateMode) and (PageID = TrayPage.ID) then
     Result := True;
-  if UpgradeMode and (PageID = ConsolePage.ID) then
+  if (UpgradeMode or SelfUpdateMode) and (PageID = ConsolePage.ID) then
     Result := True;
-  if (PageID = StartTrayPage.ID) then
+  if SelfUpdateMode and (PageID = StartTrayPage.ID) then
+    Result := True
+  else if (PageID = StartTrayPage.ID) then
     Result := not InstallTrayApp;
 end;
 
