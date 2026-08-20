@@ -187,9 +187,18 @@ public partial class ControlPanel : Window
             var localApi = agent.TryGetProperty("LocalApiBaseUrl", out var localValue)
                 ? localValue.GetString()
                 : "http://127.0.0.1:8001/api/";
+            var localUsername = agent.TryGetProperty("LocalApiUsername", out var usernameValue)
+                ? usernameValue.GetString()
+                : string.Empty;
+            var localPassword = agent.TryGetProperty("LocalApiPassword", out var passwordValue)
+                ? passwordValue.GetString()
+                : string.Empty;
             var gatewayTask = ConnectionValidator.ValidateHttpAsync(
                 ConfigReader.CombineUrl(baseUrl, workEndpoint) + "?wait=0", token);
-            var localTask = ConnectionValidator.ValidateHttpAsync(localApi?.TrimEnd('/') + "/", null);
+            var localTask = ConnectionValidator.ValidateSchoolApiAsync(
+                localApi ?? string.Empty,
+                localUsername ?? string.Empty,
+                localPassword ?? string.Empty);
             var results = await Task.WhenAll(gatewayTask, localTask);
             var summary = $"Agent gateway: {(results[0].Passed ? "OK" : "FAIL")} {results[0].Details}\n" +
                           $"Local API: {(results[1].Passed ? "OK" : "FAIL")} {results[1].Details}";

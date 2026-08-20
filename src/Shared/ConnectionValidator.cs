@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.Http;
+using System.Net.Http.Json;
 using Dapper;
 using Microsoft.Data.SqlClient;
 
@@ -41,6 +42,37 @@ public sealed class ConnectionValidator
     public static async Task<CheckResult> ValidateHttpAsync(string url, string? bearerToken = null)
     {
         return await ValidateApiAsync(url, bearerToken ?? string.Empty);
+    }
+
+    public static async Task<CheckResult> ValidateSchoolApiAsync(
+        string baseUrl,
+        string username,
+        string password)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return new CheckResult { Passed = false, Details = "No local API URL configured" };
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            return new CheckResult { Passed = false, Details = "Local API username and password are required" };
+
+        try
+        {
+            var sw = Stopwatch.StartNew();
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var loginUrl = baseUrl.TrimEnd('/') + "/v1/users/login";
+            using var response = await http.PostAsJsonAsync(loginUrl, new { username, password });
+            sw.Stop();
+
+            return new CheckResult
+            {
+                Passed = response.IsSuccessStatusCode,
+                ResponseTime = sw.ElapsedMilliseconds,
+                Details = $"{(int)response.StatusCode} {response.ReasonPhrase} ({sw.ElapsedMilliseconds}ms)"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new CheckResult { Passed = false, Details = ex.Message };
+        }
     }
 
     public async Task<CheckResult> ValidateDatabaseAsync()

@@ -501,7 +501,10 @@ public partial class ConfigEditor : UserControl
         await RunConnectionTestAsync(
             TestLocalAgentButton,
             "Local Agent Test",
-            () => ConnectionValidator.ValidateHttpAsync(LocalApiUrlBox.Text.TrimEnd('/') + "/"));
+            () => ConnectionValidator.ValidateSchoolApiAsync(
+                LocalApiUrlBox.Text,
+                LocalApiUsernameBox.Text,
+                LocalApiPasswordBox.Password));
 
     private async Task RunConnectionTestAsync(Button button, string title, Func<Task<CheckResult>> check)
     {

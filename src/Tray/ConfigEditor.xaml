@@ -32,6 +32,7 @@
                 <Grid x:Name="SmsSection">
                 <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
                         <GroupBox Header="Database" Margin="0,0,0,10" Padding="8">
+                        <StackPanel>
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -40,8 +41,11 @@
                             <TextBlock Grid.Row="2" Text="User ID:" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="DbUserIdBox" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Text="Password:" VerticalAlignment="Center"/><PasswordBox Grid.Row="3" Grid.Column="1" x:Name="DbPasswordBox" Margin="0,2"/>
                         </Grid>
+                        <Button Content="Test Database" x:Name="TestDatabaseButton" Click="TestDatabaseButton_Click" Padding="12,4" HorizontalAlignment="Left"/>
+                        </StackPanel>
                         </GroupBox>
                         <GroupBox Header="SMS API" Margin="0,0,0,10" Padding="8">
+                        <StackPanel>
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -57,6 +61,8 @@
                             <TextBlock Grid.Row="9" Text="Agent failure endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="9" Grid.Column="1" x:Name="AgentFailEndpointBox" Margin="0,2"/>
                             <TextBlock Grid.Row="10" Text="Authorization token:" VerticalAlignment="Center"/><Grid Grid.Row="10" Grid.Column="1" Width="520" HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox Grid.Column="0" x:Name="TokenBox" Margin="0,2" PasswordChanged="TokenBox_PasswordChanged"/><TextBox Grid.Column="0" x:Name="TokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="TokenVisibleBox_TextChanged"/><Button Grid.Column="1" x:Name="TokenVisibilityButton" Content="Show" Click="TokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/></Grid>
                         </Grid>
+                        <Button Content="Test SMS API" x:Name="TestSmsButton" Click="TestSmsButton_Click" Padding="12,4" HorizontalAlignment="Left"/>
+                        </StackPanel>
                         </GroupBox>
                         <GroupBox Header="Retry and Logging" Margin="0,0,0,10" Padding="8">
                         <Grid>
@@ -68,10 +74,6 @@
                             <TextBlock Grid.Row="3" Text="Max log size (MB):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="MaxSizeBox" Margin="0,2"/>
                         </Grid>
                         </GroupBox>
-                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <Button Content="Test Database" x:Name="TestDatabaseButton" Click="TestDatabaseButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                            <Button Content="Test SMS API" x:Name="TestSmsButton" Click="TestSmsButton_Click" Padding="12,4"/>
-                        </StackPanel>
                         <GroupBox Header="Tray behavior" Padding="8">
                             <CheckBox x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray"/>
                         </GroupBox>
@@ -91,13 +93,17 @@
                         <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Enrollment code:"/><TextBox x:Name="EnrollmentCodeBox" Margin="0,2"/></StackPanel>
                         <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="Agent name:"/><TextBox x:Name="AgentNameBox" Margin="0,2"/></StackPanel>
                     </Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Enroll / Re-enroll" x:Name="EnrollButton" Click="EnrollButton_Click" Padding="12,4" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="AgentStatusText" VerticalAlignment="Center" Foreground="Gray"/>
+                    </StackPanel>
                     </StackPanel>
                     </GroupBox>
                     <GroupBox Header="Agent and Local API" Margin="0,0,0,10" Padding="8">
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                         <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Agent token:"/><Grid Width="520" HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox Grid.Column="0" x:Name="AgentTokenBox" Margin="0,2" PasswordChanged="AgentTokenBox_PasswordChanged"/><TextBox Grid.Column="0" x:Name="AgentTokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="AgentTokenVisibleBox_TextChanged"/><Button Grid.Column="1" x:Name="AgentTokenVisibilityButton" Content="Show" Click="AgentTokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/></Grid><TextBlock Text="Enabled:" Margin="0,6,0,0"/><CheckBox x:Name="AgentEnabledBox" Margin="0,5"/></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="Local API URL:"/><TextBox x:Name="LocalApiUrlBox" Margin="0,2"/><TextBlock Text="Username:"/><TextBox x:Name="LocalApiUsernameBox" Margin="0,2"/><TextBlock Text="Password:"/><PasswordBox x:Name="LocalApiPasswordBox" Margin="0,2"/></StackPanel>
+                         <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Agent token:"/><Grid Width="520" HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox Grid.Column="0" x:Name="AgentTokenBox" Margin="0,2" PasswordChanged="AgentTokenBox_PasswordChanged"/><TextBox Grid.Column="0" x:Name="AgentTokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="AgentTokenVisibleBox_TextChanged"/><Button Grid.Column="1" x:Name="AgentTokenVisibilityButton" Content="Show" Click="AgentTokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/></Grid><TextBlock Text="Enabled:" Margin="0,6,0,0"/><CheckBox x:Name="AgentEnabledBox" Margin="0,5"/><Button Content="Test Agent API" x:Name="TestAgentApiButton" Click="TestAgentApiButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="Local API URL:"/><TextBox x:Name="LocalApiUrlBox" Margin="0,2"/><TextBlock Text="Username:"/><TextBox x:Name="LocalApiUsernameBox" Margin="0,2"/><TextBlock Text="Password:"/><PasswordBox x:Name="LocalApiPasswordBox" Margin="0,2"/><Button Content="Test Local API" x:Name="TestLocalAgentButton" Click="TestLocalAgentButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/></StackPanel>
                     </Grid>
                     </GroupBox>
                     <GroupBox Header="Timing and MQTT" Margin="0,0,0,10" Padding="8">
@@ -106,7 +112,7 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,4,0"><TextBlock Text="Request timeout"/><TextBox x:Name="RequestTimeoutBox"/><TextBlock Text="Idle delay" Margin="0,4,0,0"/><TextBox x:Name="IdleDelayBox"/><TextBlock Text="Heartbeat" Margin="0,4,0,0"/><TextBox x:Name="HeartbeatBox"/><TextBlock Text="Lease renewal" Margin="0,4,0,0"/><TextBox x:Name="LeaseRenewalBox"/></StackPanel>
                          <StackPanel Grid.Column="1" Margin="4,0"><TextBlock Text="MQTT environment"/><ComboBox x:Name="MqttEnvironmentBox" SelectedValuePath="Content" SelectedValue="Production" SelectionChanged="MqttEnvironmentBox_SelectionChanged"><ComboBoxItem Content="Development"/><ComboBoxItem Content="Production"/><ComboBoxItem Content="Custom"/></ComboBox><TextBlock Text="MQTT enabled" Margin="0,4,0,0"/><CheckBox x:Name="MqttEnabledBox" Margin="0,5"/><TextBlock Text="Broker URL"/><TextBox x:Name="MqttHostBox"/><TextBlock Text="Broker port (fallback)" Margin="0,4,0,0"/><TextBox x:Name="MqttPortBox"/><TextBlock Text="Broker path (fallback)" Margin="0,4,0,0"/><TextBox x:Name="MqttPathBox"/><TextBlock Text="TLS (fallback)" Margin="0,4,0,0"/><CheckBox x:Name="MqttTlsBox" Margin="0,5"/></StackPanel>
-                        <StackPanel Grid.Column="2" Margin="4,0,0,0"><TextBlock Text="MQTT username"/><TextBox x:Name="MqttUsernameBox"/><TextBlock Text="MQTT password" Margin="0,4,0,0"/><PasswordBox x:Name="MqttPasswordBox"/><TextBlock Text="Topic prefix" Margin="0,4,0,0"/><TextBox x:Name="MqttTopicBox"/><TextBlock Text="Keep alive" Margin="0,4,0,0"/><TextBox x:Name="MqttKeepAliveBox"/></StackPanel>
+                         <StackPanel Grid.Column="2" Margin="4,0,0,0"><TextBlock Text="MQTT username"/><TextBox x:Name="MqttUsernameBox"/><TextBlock Text="MQTT password" Margin="0,4,0,0"/><PasswordBox x:Name="MqttPasswordBox"/><TextBlock Text="Topic prefix" Margin="0,4,0,0"/><TextBox x:Name="MqttTopicBox"/><TextBlock Text="Keep alive" Margin="0,4,0,0"/><TextBox x:Name="MqttKeepAliveBox"/><Button Content="Test MQTT" x:Name="TestMqttButton" Click="TestMqttButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/></StackPanel>
                     </Grid>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -116,13 +122,6 @@
                     </Grid>
                     </StackPanel>
                     </GroupBox>
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button Content="Enroll / Re-enroll" x:Name="EnrollButton" Click="EnrollButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                            <Button Content="Test Agent API" x:Name="TestAgentApiButton" Click="TestAgentApiButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                            <Button Content="Test MQTT" x:Name="TestMqttButton" Click="TestMqttButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                            <Button Content="Test Local Agent" x:Name="TestLocalAgentButton" Click="TestLocalAgentButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                            <TextBlock x:Name="AgentStatusText" VerticalAlignment="Center" Foreground="Gray"/>
-                        </StackPanel>
                     <GroupBox Header="Agent Connectivity Test Output" Margin="0,8,0,0" Padding="8" Visibility="Collapsed" x:Name="AgentTestOutputGroup">
                         <TextBox x:Name="AgentTestOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" MinHeight="100" MaxHeight="180"/>
                     </GroupBox>
