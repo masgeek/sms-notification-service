@@ -487,26 +487,60 @@ public partial class ConfigEditor : UserControl
 
     private async void TestAgentApiButton_Click(object sender, RoutedEventArgs e)
     {
+        var url = ConfigReader.CombineUrl(ApiUrlBox.Text, AgentWorkEndpointBox.Text) + "?wait=0";
         await RunConnectionTestAsync(
             TestAgentApiButton,
             "Agent API Test",
-            () => ConnectionValidator.ValidateHttpAsync(
-                ConfigReader.CombineUrl(ApiUrlBox.Text, AgentWorkEndpointBox.Text) + "?wait=0", AgentTokenBox.Password.Trim()));
+            () => ConnectionValidator.ValidateHttpAsync(url, AgentTokenBox.Password.Trim()),
+            [
+                $"HTTP request: GET {url}",
+                $"Bearer token: {Configured(AgentTokenBox.Password)}",
+                "Timeout: 10 seconds",
+            ]);
     }
 
-    private async void TestMqttButton_Click(object sender, RoutedEventArgs e) =>
-        await RunConnectionTestAsync(TestMqttButton, "MQTT Test", ValidateMqttAsync);
+    private async void TestMqttButton_Click(object sender, RoutedEventArgs e)
+    {
+        var timeoutSeconds = ParsedInt(RequestTimeoutBox.Text, 30);
+        await RunConnectionTestAsync(
+            TestMqttButton,
+            "MQTT Test",
+            ValidateMqttAsync,
+            [
+                $"WebSocket target: {BuildMqttUri()}",
+                $"MQTT username: {(string.IsNullOrWhiteSpace(MqttUsernameBox.Text) ? "Agent token fallback" : "Configured")}",
+                $"MQTT password: {Configured(MqttPasswordBox.Password)}",
+                $"Timeout: {timeoutSeconds} seconds",
+            ]);
+    }
 
-    private async void TestLocalAgentButton_Click(object sender, RoutedEventArgs e) =>
+    private async void TestLocalAgentButton_Click(object sender, RoutedEventArgs e)
+    {
+        var timeoutSeconds = ParsedInt(RequestTimeoutBox.Text, 30);
+        var loginUrl = LocalApiUrlBox.Text.TrimEnd('/') + "/v1/users/login";
         await RunConnectionTestAsync(
             TestLocalAgentButton,
             "Local Agent Test",
             () => ConnectionValidator.ValidateSchoolApiAsync(
                 LocalApiUrlBox.Text,
                 LocalApiUsernameBox.Text,
-                LocalApiPasswordBox.Password));
+                LocalApiPasswordBox.Password,
+                timeoutSeconds),
+            [
+                $"HTTP request: POST {loginUrl}",
+                "Content type: application/json",
+                $"Username: {Configured(LocalApiUsernameBox.Text)}",
+                $"Password: {Configured(LocalApiPasswordBox.Password)}",
+                $"Timeout: {timeoutSeconds} seconds",
+                "Response body: omitted because a successful login may contain an access token",
+            ]);
+    }
 
-    private async Task RunConnectionTestAsync(Button button, string title, Func<Task<CheckResult>> check)
+    private async Task RunConnectionTestAsync(
+        Button button,
+        string title,
+        Func<Task<CheckResult>> check,
+        IReadOnlyList<string>? diagnostics = null)
     {
         button.IsEnabled = false;
         var originalContent = button.Content;
@@ -514,6 +548,11 @@ public partial class ConfigEditor : UserControl
         AgentTestOutputGroup.Visibility = Visibility.Visible;
         AgentTestOutputBox.Clear();
         AppendAgentTestOutput($"{DateTime.Now:HH:mm:ss} {title}: testing...");
+        if (diagnostics is not null)
+        {
+            foreach (var diagnostic in diagnostics)
+                AppendAgentTestOutput($"  {diagnostic}");
+        }
         try
         {
             var result = await check();
@@ -538,6 +577,9 @@ public partial class ConfigEditor : UserControl
             button.Content = originalContent;
         }
     }
+
+    private static string Configured(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "not configured" : "configured (value hidden)";
 
     private void AppendAgentTestOutput(string message)
     {
