@@ -69,7 +69,7 @@ they do not encrypt stored values.
 
 - The background tray icon monitors SMS; the Control Panel queries both services.
 - Displayed uptime is time since the monitor observed the current state.
-- Scheduled checks read the public Munywele S3 update manifest and fall back to the public GitHub release manifest if S3 is unavailable or invalid.
+- Scheduled checks use the interval configured under **SMS Service > Tray behavior**, read the public Munywele S3 update manifest, and fall back to the public GitHub release manifest if S3 is unavailable or invalid.
 - Manual update checks from either the Control Panel or tray menu open a blocking progress dialog with installed/latest versions, S3 source, cancellation, detailed outcomes, and an installer download when an update exists.
 - **Download and Install** validates HTTPS origin, exact size, and SHA-256 before launching the matching elevated installer and shutting down the tray.
 - Successful self-updates restore prior service states and relaunch the tray; unsigned installers still produce an Unknown publisher UAC warning.

@@ -27,7 +27,7 @@ public partial class ControlPanel : Window
         settingsTab = new TabItem
         {
             Header = "Settings",
-            Content = new ConfigEditor(monitor),
+            Content = new ConfigEditor(monitor, updater),
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Stretch,
         };

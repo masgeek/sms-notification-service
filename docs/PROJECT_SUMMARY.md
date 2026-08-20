@@ -168,7 +168,8 @@ different from the Inno installer, which creates manual services.
 The tray enrollment client validates `enroll_...`, posts to the central endpoint,
 requires an `fsk_...` response token, saves it, and restarts the Agent.
 
-The update checker polls the public S3 manifest at startup and every four hours.
+The update checker polls the public S3 manifest at startup and then uses the
+configurable `Tray:UpdateCheckInterval` schedule, which defaults to four hours.
 Manual checks are available from both the Control Panel and tray menu and can
 open the published installer URL.
 

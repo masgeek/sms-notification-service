@@ -32,39 +32,92 @@ public sealed class UpdateChecker : IDisposable
     private const string PrimaryManifestUrl = "https://s3.munywele.co.ke/fee-syncer/latest.json";
     private const string FallbackManifestUrl =
         "https://github.com/masgeek/sms-notification-service/releases/latest/download/latest.json";
-    private readonly PeriodicTimer _timer;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _checkLock = new(1, 1);
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
+    private readonly object _scheduleLock = new();
+    private TimeSpan _checkInterval;
+    private TaskCompletionSource _scheduleChanged = CreateScheduleSignal();
     private string? _lastNotifiedVersion;
 
     public event Action<string, string>? UpdateAvailable;
 
     public UpdateChecker()
-        : this(new HttpClient(), ownsHttpClient: true)
+        : this(new HttpClient(), ownsHttpClient: true, UpdateCheckSchedule.DefaultInterval)
+    {
+    }
+
+    public UpdateChecker(TimeSpan checkInterval)
+        : this(new HttpClient(), ownsHttpClient: true, checkInterval)
     {
     }
 
     public UpdateChecker(HttpClient httpClient)
-        : this(httpClient, ownsHttpClient: false)
+        : this(httpClient, ownsHttpClient: false, UpdateCheckSchedule.DefaultInterval)
     {
     }
 
-    private UpdateChecker(HttpClient httpClient, bool ownsHttpClient)
+    private UpdateChecker(HttpClient httpClient, bool ownsHttpClient, TimeSpan checkInterval)
     {
+        if (checkInterval <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(checkInterval));
+
         _httpClient = httpClient;
         _ownsHttpClient = ownsHttpClient;
-        _timer = new PeriodicTimer(TimeSpan.FromHours(4));
-        AppLogger.Info("Updater", "UpdateChecker initialized");
+        _checkInterval = checkInterval;
+        AppLogger.Info("Updater", $"UpdateChecker initialized with interval {FeeProcessorInterval.Format(checkInterval)}");
     }
 
     public async Task StartAsync()
     {
-        await CheckInternalAsync(_cts.Token, notifyAvailable: true);
-        while (await _timer.WaitForNextTickAsync(_cts.Token))
+        try
+        {
             await CheckInternalAsync(_cts.Token, notifyAvailable: true);
+            while (!_cts.IsCancellationRequested)
+            {
+                var (interval, scheduleChanged) = GetSchedule();
+                var delay = Task.Delay(interval, _cts.Token);
+                if (await Task.WhenAny(delay, scheduleChanged) == scheduleChanged)
+                    continue;
+
+                await delay;
+                await CheckInternalAsync(_cts.Token, notifyAvailable: true);
+            }
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+        }
     }
+
+    public void SetCheckInterval(TimeSpan interval)
+    {
+        if (interval <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(interval));
+
+        TaskCompletionSource changed;
+        lock (_scheduleLock)
+        {
+            if (_checkInterval == interval)
+                return;
+
+            _checkInterval = interval;
+            changed = _scheduleChanged;
+            _scheduleChanged = CreateScheduleSignal();
+        }
+
+        AppLogger.Info("Updater", $"Update check interval changed to {FeeProcessorInterval.Format(interval)}");
+        changed.TrySetResult();
+    }
+
+    private (TimeSpan Interval, Task ScheduleChanged) GetSchedule()
+    {
+        lock (_scheduleLock)
+            return (_checkInterval, _scheduleChanged.Task);
+    }
+
+    private static TaskCompletionSource CreateScheduleSignal() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public Task<UpdateCheckResult> CheckAsync(
         CancellationToken ct = default,
@@ -234,7 +287,6 @@ public sealed class UpdateChecker : IDisposable
         AppLogger.Info("Updater", "Disposing UpdateChecker");
         _cts.Cancel();
         _cts.Dispose();
-        _timer.Dispose();
         if (_ownsHttpClient)
             _httpClient.Dispose();
     }
