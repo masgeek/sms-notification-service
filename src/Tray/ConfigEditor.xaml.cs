@@ -16,11 +16,13 @@ namespace FeeSyncer.Tray;
 public partial class ConfigEditor : UserControl
 {
     private readonly ServiceMonitor _monitor;
+    private readonly UpdateChecker _updater;
 
-    public ConfigEditor(ServiceMonitor monitor)
+    public ConfigEditor(ServiceMonitor monitor, UpdateChecker updater)
     {
         InitializeComponent();
         _monitor = monitor;
+        _updater = updater;
 
         Loaded += async (_, _) =>
         {
@@ -86,7 +88,11 @@ public partial class ConfigEditor : UserControl
 
             LoadAgentConfig();
             if (doc.RootElement.TryGetProperty("Tray", out var tray))
+            {
                 TrayStartMinimizedBox.IsChecked = BoolValue(tray, "StartMinimizedToTray", true);
+                UpdateCheckIntervalBox.SelectedValue = UpdateCheckSchedule.Normalize(
+                    StringValue(tray, "UpdateCheckInterval", UpdateCheckSchedule.DefaultValue));
+            }
         }
         catch (Exception ex)
         {
@@ -189,7 +195,11 @@ public partial class ConfigEditor : UserControl
         AgentFailEndpointBox.Text = StringValue(endpoints, "AgentFail", Constants.DefaultAgentFailEndpoint);
     }
 
-    private void LoadTrayDefaults() => TrayStartMinimizedBox.IsChecked = false;
+    private void LoadTrayDefaults()
+    {
+        TrayStartMinimizedBox.IsChecked = false;
+        UpdateCheckIntervalBox.SelectedValue = UpdateCheckSchedule.DefaultValue;
+    }
 
     private void SetAgentToken(string token)
     {
@@ -863,6 +873,7 @@ public partial class ConfigEditor : UserControl
             mutable["Tray"] = new Dictionary<string, object?>
             {
                 ["StartMinimizedToTray"] = TrayStartMinimizedBox.IsChecked == true,
+                ["UpdateCheckInterval"] = UpdateCheckSchedule.Normalize(UpdateCheckIntervalBox.SelectedValue?.ToString()),
             };
 
             mutable["FeeSyncer"] = new Dictionary<string, object?>
@@ -885,6 +896,7 @@ public partial class ConfigEditor : UserControl
             var output = JsonSerializer.Serialize(mutable, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(configPath, output);
             await SaveAgentConfigAsync(string.Empty);
+            _updater.SetCheckInterval(UpdateCheckSchedule.ParseOrDefault(UpdateCheckIntervalBox.SelectedValue?.ToString()));
 
             var result = MessageBox.Show(
                 "Configuration saved. Restart SMS and Agent services now?",

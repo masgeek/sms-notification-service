@@ -75,7 +75,16 @@
                         </Grid>
                         </GroupBox>
                         <GroupBox Header="Tray behavior" Padding="8">
-                            <CheckBox x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Startup:" VerticalAlignment="Center"/>
+                                <CheckBox Grid.Row="0" Grid.Column="1" x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray" Margin="0,5"/>
+                                <TextBlock Grid.Row="1" Text="Update check interval:" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="UpdateCheckIntervalBox" SelectedValuePath="Content" SelectedValue="4h" Margin="0,2">
+                                    <ComboBoxItem Content="15m"/><ComboBoxItem Content="30m"/><ComboBoxItem Content="1h"/><ComboBoxItem Content="2h"/><ComboBoxItem Content="4h"/><ComboBoxItem Content="6h"/><ComboBoxItem Content="12h"/><ComboBoxItem Content="24h"/><ComboBoxItem Content="2d"/><ComboBoxItem Content="7d"/>
+                                </ComboBox>
+                            </Grid>
                         </GroupBox>
                 </StackPanel>
                 </Grid>
@@ -169,7 +178,7 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Update interval:" VerticalAlignment="Center"/><ComboBox Grid.Row="0" Grid.Column="1" x:Name="FeeUpdateIntervalBox" SelectedValuePath="Content" SelectedValue="24h" ToolTip="Select how often Fee Processor updates run." Margin="0,2">
-                                <ComboBoxItem Content="15m"/><ComboBoxItem Content="30m"/><ComboBoxItem Content="1h"/><ComboBoxItem Content="2h"/><ComboBoxItem Content="6h"/><ComboBoxItem Content="12h"/><ComboBoxItem Content="24h"/><ComboBoxItem Content="2d"/><ComboBoxItem Content="7d"/>
+                                <ComboBoxItem Content="15m"/><ComboBoxItem Content="30m"/><ComboBoxItem Content="1h"/><ComboBoxItem Content="2h"/><ComboBoxItem Content="4h"/><ComboBoxItem Content="6h"/><ComboBoxItem Content="12h"/><ComboBoxItem Content="24h"/><ComboBoxItem Content="2d"/><ComboBoxItem Content="7d"/>
                             </ComboBox>
                             <TextBlock Grid.Row="1" Text="Backup directory:" VerticalAlignment="Center"/><DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True"><Button DockPanel.Dock="Right" Content="..." Click="BrowseBackupPath_Click" Width="30" Margin="4,2,0,2"/><TextBox x:Name="FeeUpdateBackupBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
                         </Grid>

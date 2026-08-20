@@ -26,7 +26,7 @@ internal sealed class TrayIcon : IDisposable
         AppLogger.Info("Tray", "Initializing TrayIcon...");
 
         _monitor = new ServiceMonitor();
-        _updater = new UpdateChecker();
+        _updater = new UpdateChecker(UpdateCheckSchedule.ParseOrDefault(UpdateCheckSchedule.LoadConfiguredValue()));
 
         _icon = new TaskbarIcon
         {
