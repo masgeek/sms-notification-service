@@ -168,6 +168,11 @@ Missing pnpm or a failed pnpm install/build is logged but does not stop the
 remaining deployment steps. Configure and test this feature from the tray before
 enabling its schedule.
 
+Detailed deployment output is written separately to
+`C:\ProgramData\Munywele\FeeSyncer\logs\fee-processor-updates.log`. Scheduled
+updates, including configuration failures and exceptions, do not write to the
+Agent console or Agent HTTP log category.
+
 ## Diagnostics
 
 The Agent defines process-local .NET metrics for MQTT connections,
@@ -177,3 +182,15 @@ default. Operational logs are written under:
 ```text
 C:\ProgramData\Munywele\FeeSyncer\logs\
 ```
+
+When the `FeeSyncer.Agent.SchoolIntegration.AgentHttpLoggingHandler` category is
+set to `Debug`, both gateway and local-school HTTP clients log every request and
+response with method, URL, status, duration, correlation ID, and header/body
+metadata. Authorization, lease, cookie, password, token, and payload values are
+never logged. Windows Event Log deployments must also allow `Debug` for the
+`Logging:EventLog:LogLevel` provider.
+
+The global level can be set under **Settings > SMS Service > Retry and Logging**.
+Saving writes the selected `Logging:LogLevel:Default` and
+`Logging:EventLog:LogLevel:Default` values to both SMS and Agent machine
+configuration files. Restart the services when prompted to apply the new level.

@@ -248,12 +248,12 @@ Important direct product dependencies:
 
 ## Tests
 
-There are 44 xUnit facts in eleven source files:
+There are 46 xUnit facts in twelve source files:
 
 | Project | Facts | Main coverage |
 |---|---:|---|
 | SMS | 18 | Sender results/backoff, processor flows, tray compatibility source checks |
-| Agent | 15 | Contracts/hashing, school API mapping, MQTT gate/topic, wake signal |
+| Agent | 17 | Contracts/hashing, school API mapping, HTTP diagnostics, MQTT gate/topic, wake signal |
 | Tray | 11 | Tray icon lifecycle, source fallback, and verified update downloads |
 
 There are no live database, broker, installer, or end-to-end integration tests.

@@ -150,7 +150,6 @@ public sealed class FeeProcessorDeploymentRunner
     private static void Report(Action<string>? progress, string message)
     {
         FeeProcessorActivityLogger.Write(message);
-        AppLogger.Info("FeeProcessorUpdate", message);
         progress?.Invoke(message);
     }
 
