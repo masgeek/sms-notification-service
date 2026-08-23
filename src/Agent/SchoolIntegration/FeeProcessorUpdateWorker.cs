@@ -4,9 +4,7 @@ using FeeSyncer.Shared;
 
 namespace FeeSyncer.Agent.SchoolIntegration;
 
-internal sealed class FeeProcessorUpdateWorker(
-    IOptions<AgentOptions> options,
-    ILogger<FeeProcessorUpdateWorker> logger) : BackgroundService
+internal sealed class FeeProcessorUpdateWorker(IOptions<AgentOptions> options) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -20,7 +18,7 @@ internal sealed class FeeProcessorUpdateWorker(
                 }
                 catch (Exception exception)
                 {
-                    logger.LogError(exception, "Fee-processor automatic update failed.");
+                    FeeProcessorActivityLogger.Write($"Automatic update failed: {exception}");
                 }
             }
 
@@ -38,7 +36,7 @@ internal sealed class FeeProcessorUpdateWorker(
         if (string.IsNullOrWhiteSpace(settings.FeeProcessorPath)
             || string.IsNullOrWhiteSpace(settings.FeeProcessorRepository))
         {
-            logger.LogWarning("Fee-processor updates are enabled but path or repository is not configured.");
+            FeeProcessorActivityLogger.Write("Updates are enabled but the application path or repository is not configured.");
             return;
         }
 
@@ -46,7 +44,7 @@ internal sealed class FeeProcessorUpdateWorker(
         var composer = FeeProcessorToolResolver.Resolve(settings.ComposerExecutablePath, "composer");
         if (string.IsNullOrWhiteSpace(php) || string.IsNullOrWhiteSpace(composer))
         {
-            logger.LogWarning("Fee-processor update requires PHP and Composer. Configure executable paths or add them to PATH.");
+            FeeProcessorActivityLogger.Write("Update requires PHP and Composer, but one or both tools were not found.");
             return;
         }
 
@@ -64,8 +62,8 @@ internal sealed class FeeProcessorUpdateWorker(
             GitExecutablePath: settings.GitExecutablePath);
         await new FeeProcessorDeploymentRunner().RunAsync(
             request,
-            message => logger.LogInformation("Fee-processor update: {Message}", message),
-            cancellationToken);
+            progress: null,
+            cancellationToken: cancellationToken);
     }
 
 }

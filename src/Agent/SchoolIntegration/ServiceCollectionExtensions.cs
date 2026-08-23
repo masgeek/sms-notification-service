@@ -43,20 +43,21 @@ public static class SchoolIntegrationServiceCollectionExtensions
             return services;
         }
 
+        services.AddTransient<FeeSyncer.Agent.SchoolIntegration.AgentHttpLoggingHandler>();
         services.AddHttpClient<FeeSyncer.Agent.SchoolIntegration.GatewayClient>((provider, client) =>
         {
             var options = provider.GetRequiredService<IOptions<FeeSyncer.Agent.SchoolIntegration.AgentOptions>>().Value;
             client.BaseAddress = new Uri(options.ServerUrl, UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(options.RequestTimeoutSeconds);
             client.DefaultRequestHeaders.Authorization = new("Bearer", options.AgentToken);
-        });
+        }).AddHttpMessageHandler<FeeSyncer.Agent.SchoolIntegration.AgentHttpLoggingHandler>();
 
         services.AddHttpClient<FeeSyncer.Agent.SchoolIntegration.SchoolApiClient>((provider, client) =>
         {
             var options = provider.GetRequiredService<IOptions<FeeSyncer.Agent.SchoolIntegration.AgentOptions>>().Value;
             client.BaseAddress = new Uri(options.LocalApiBaseUrl.TrimEnd('/') + '/', UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(options.RequestTimeoutSeconds);
-        });
+        }).AddHttpMessageHandler<FeeSyncer.Agent.SchoolIntegration.AgentHttpLoggingHandler>();
 
         services.AddSingleton<FeeSyncer.Agent.SchoolIntegration.IStudentAdapter, FeeSyncer.Agent.SchoolIntegration.SchoolApiStudentAdapter>();
         services.AddHostedService<FeeSyncer.Agent.SchoolIntegration.SchoolIntegrationWorker>();

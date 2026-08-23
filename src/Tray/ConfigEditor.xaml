@@ -67,11 +67,15 @@
                         <GroupBox Header="Retry and Logging" Margin="0,0,0,10" Padding="8">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Retry backoff (s):" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="BackoffBox" Margin="0,2"/>
                             <TextBlock Grid.Row="1" Text="Retry poll interval (s):" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="PollIntervalBox" Margin="0,2"/>
                             <TextBlock Grid.Row="2" Text="Log retention (days):" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="RetentionBox" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Text="Max log size (MB):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="MaxSizeBox" Margin="0,2"/>
+                            <TextBlock Grid.Row="4" Text="Global log level:" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Row="4" Grid.Column="1" x:Name="LogLevelBox" SelectedValuePath="Content" SelectedValue="Information" Margin="0,2" ToolTip="Applies to SMS, Agent, console, file, and Windows Event Log providers after restart.">
+                                <ComboBoxItem Content="Trace"/><ComboBoxItem Content="Debug"/><ComboBoxItem Content="Information"/><ComboBoxItem Content="Warning"/><ComboBoxItem Content="Error"/><ComboBoxItem Content="Critical"/><ComboBoxItem Content="None"/>
+                            </ComboBox>
                         </Grid>
                         </GroupBox>
                         <GroupBox Header="Tray behavior" Padding="8">

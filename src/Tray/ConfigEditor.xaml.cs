@@ -86,6 +86,12 @@ public partial class ConfigEditor : UserControl
                     MaxSizeBox.Text = maxSizeVal.ToString();
             }
 
+            if (doc.RootElement.TryGetProperty("Logging", out var logging) &&
+                logging.TryGetProperty("LogLevel", out var logLevels))
+            {
+                LogLevelBox.SelectedValue = NormalizeLogLevel(StringValue(logLevels, "Default", "Information"));
+            }
+
             LoadAgentConfig();
             if (doc.RootElement.TryGetProperty("Tray", out var tray))
             {
@@ -177,6 +183,7 @@ public partial class ConfigEditor : UserControl
         PollIntervalBox.Text = "30";
         RetentionBox.Text = "7";
         MaxSizeBox.Text = "10";
+        LogLevelBox.SelectedValue = "Information";
     }
 
     private void LoadApiEndpoints(JsonElement feeSyncer)
@@ -416,6 +423,7 @@ public partial class ConfigEditor : UserControl
         agent["FeeProcessorSshKeyPath"] = FeeProcessorSshKeyPathBox.Text.Trim();
         agent["FeeProcessorSshPassphrase"] = FeeProcessorSshPassphraseBox.Password;
         root["Agent"] = agent;
+        ApplyLogLevel(root, SelectedLogLevel());
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
         await File.WriteAllTextAsync(configPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
@@ -701,8 +709,6 @@ public partial class ConfigEditor : UserControl
     private void AppendFeeUpdateOutput(string? line)
     {
         if (string.IsNullOrWhiteSpace(line)) return;
-        FeeProcessorActivityLogger.Write(line);
-        AppLogger.Info("FeeProcessorTools", line);
         Dispatcher.BeginInvoke(() =>
         {
             FeeUpdateOutputBox.AppendText(line + Environment.NewLine);
@@ -869,6 +875,7 @@ public partial class ConfigEditor : UserControl
             if (int.TryParse(RetentionBox.Text, out var retention)) smsDict["LogRetentionDays"] = retention;
             if (int.TryParse(MaxSizeBox.Text, out var maxSize)) smsDict["MaxLogFileSizeMb"] = maxSize;
             mutable["SmsService"] = smsDict;
+            mutable["Logging"] = BuildLoggingSettings(root, SelectedLogLevel());
 
             mutable["Tray"] = new Dictionary<string, object?>
             {
@@ -914,6 +921,61 @@ public partial class ConfigEditor : UserControl
         {
             MessageBox.Show($"Error saving: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private string SelectedLogLevel() => NormalizeLogLevel(LogLevelBox.SelectedValue?.ToString());
+
+    private static string NormalizeLogLevel(string? value) => value switch
+    {
+        "Trace" => "Trace",
+        "Debug" => "Debug",
+        "Warning" => "Warning",
+        "Error" => "Error",
+        "Critical" => "Critical",
+        "None" => "None",
+        _ => "Information",
+    };
+
+    private static JsonObject BuildLoggingSettings(JsonElement root, string level)
+    {
+        var logging = root.TryGetProperty("Logging", out var existing)
+            ? JsonNode.Parse(existing.GetRawText()) as JsonObject ?? new JsonObject()
+            : new JsonObject();
+        ApplyLogLevel(logging, level, isLoggingSection: true);
+        return logging;
+    }
+
+    private static void ApplyLogLevel(JsonObject root, string level, bool isLoggingSection = false)
+    {
+        var logging = isLoggingSection ? root : root["Logging"] as JsonObject;
+        if (logging is null)
+        {
+            logging = new JsonObject();
+            root["Logging"] = logging;
+        }
+
+        var logLevels = logging["LogLevel"] as JsonObject;
+        if (logLevels is null)
+        {
+            logLevels = new JsonObject();
+            logging["LogLevel"] = logLevels;
+        }
+        logLevels["Default"] = level;
+
+        var eventLog = logging["EventLog"] as JsonObject;
+        if (eventLog is null)
+        {
+            eventLog = new JsonObject();
+            logging["EventLog"] = eventLog;
+        }
+
+        var eventLogLevels = eventLog["LogLevel"] as JsonObject;
+        if (eventLogLevels is null)
+        {
+            eventLogLevels = new JsonObject();
+            eventLog["LogLevel"] = eventLogLevels;
+        }
+        eventLogLevels["Default"] = level;
     }
 
 }
