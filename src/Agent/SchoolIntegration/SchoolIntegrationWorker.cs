@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 using FeeSyncer.Shared;
 
 namespace FeeSyncer.Agent.SchoolIntegration;
@@ -253,8 +254,41 @@ internal sealed class SchoolIntegrationWorker(
             return;
         }
 
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug(
+                "Uploading student snapshot page. JobId={JobId} PageNumber={PageNumber} RecordCount={RecordCount} ContentHash={ContentHash} RedactedSamples={RedactedSamples}",
+                work.JobId,
+                pageNumber,
+                records.Count,
+                hash,
+                CreateRedactedStudentSamples(records));
+        }
+
         await gateway.UploadPageAsync(work, pageNumber, records, hash, cancellationToken);
     }
+
+    internal static string CreateRedactedStudentSamples(IReadOnlyList<StudentRecordV1> records) =>
+        JsonSerializer.Serialize(records.Take(3).Select((record, index) => new
+        {
+            sample_index = index + 1,
+            admission_number = Redact(record.AdmissionNumber),
+            record.ClassIdentifier,
+            record.EnrollmentStatus,
+            source_student_id = Redact(record.SourceStudentId),
+            record.SourceUpdatedAt,
+            name = Redact(record.Name),
+            phone = Redact(record.Phone),
+            record.Stream,
+            record.Form,
+            record.Term,
+            record.Year,
+            parent_name = Redact(record.ParentName),
+            balance = Redact(record.Balance),
+            record.ClassNumber,
+        }), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+    private static string? Redact(string? value) => value is null ? null : "[redacted]";
 
     private async Task UploadFeePageOrConfirmAsync(
         SyncWork work,

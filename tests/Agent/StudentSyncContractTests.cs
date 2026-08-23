@@ -77,6 +77,34 @@ public sealed class StudentSyncContractTests
     }
 
     [Fact]
+    public void Debug_sample_redacts_student_identity_and_financial_values()
+    {
+        StudentRecordV1[] records = [new()
+        {
+            SourceStudentId = "private-source-id",
+            AdmissionNumber = "private-admission",
+            EnrollmentStatus = "active",
+            ClassIdentifier = "FORM-1-A",
+            Name = "Private Student",
+            Phone = "254700000000",
+            ParentName = "Private Parent",
+            Balance = "1234.56",
+        }];
+
+        var sample = SchoolIntegrationWorker.CreateRedactedStudentSamples(records);
+
+        Assert.Contains("FORM-1-A", sample, StringComparison.Ordinal);
+        Assert.Contains("active", sample, StringComparison.Ordinal);
+        Assert.Contains("redacted", sample, StringComparison.Ordinal);
+        Assert.DoesNotContain("private-source-id", sample, StringComparison.Ordinal);
+        Assert.DoesNotContain("private-admission", sample, StringComparison.Ordinal);
+        Assert.DoesNotContain("Private Student", sample, StringComparison.Ordinal);
+        Assert.DoesNotContain("254700000000", sample, StringComparison.Ordinal);
+        Assert.DoesNotContain("Private Parent", sample, StringComparison.Ordinal);
+        Assert.DoesNotContain("1234.56", sample, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Synthetic_adapter_returns_multiple_bounded_pages()
     {
         var adapter = new SyntheticStudentAdapter();

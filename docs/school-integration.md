@@ -190,7 +190,12 @@ metadata. Authorization, lease, cookie, password, token, and payload values are
 never logged. Windows Event Log deployments must also allow `Debug` for the
 `Logging:EventLog:LogLevel` provider.
 
-The global level can be set under **Settings > SMS Service > Retry and Logging**.
+Student page uploads also log up to three redacted sample records at `Debug`.
+Class, enrollment, term, and other non-identifying structural fields remain
+visible, while admission/source IDs, names, phone numbers, parent names, and
+balances are replaced with `[redacted]`.
+
+The global level can be set under **Settings > Logging**.
 Saving writes the selected `Logging:LogLevel:Default` and
 `Logging:EventLog:LogLevel:Default` values to both SMS and Agent machine
 configuration files. Restart the services when prompted to apply the new level.
