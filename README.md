@@ -188,12 +188,12 @@ dotnet run --project src/Agent/FeeSyncer.Agent.csproj
 dotnet run --project src/Tray/FeeSyncer.Tray.csproj
 ```
 
-The repository currently contains 46 xUnit facts:
+The repository currently contains 47 xUnit facts:
 
 | Test project | Count |
 |---|---:|
 | SMS | 18 |
-| Agent | 17 |
+| Agent | 18 |
 | Tray | 11 |
 
 Tests do not require a live SQL Server, SMS provider, MQTT broker, or school API.
