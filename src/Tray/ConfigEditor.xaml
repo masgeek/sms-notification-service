@@ -64,18 +64,14 @@
                         <Button Content="Test SMS API" x:Name="TestSmsButton" Click="TestSmsButton_Click" Padding="12,4" HorizontalAlignment="Left"/>
                         </StackPanel>
                         </GroupBox>
-                        <GroupBox Header="Retry and Logging" Margin="0,0,0,10" Padding="8">
+                        <GroupBox Header="Retry and File Logging" Margin="0,0,0,10" Padding="8">
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Retry backoff (s):" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="BackoffBox" Margin="0,2"/>
                             <TextBlock Grid.Row="1" Text="Retry poll interval (s):" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="PollIntervalBox" Margin="0,2"/>
                             <TextBlock Grid.Row="2" Text="Log retention (days):" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="RetentionBox" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Text="Max log size (MB):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="MaxSizeBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="4" Text="Global log level:" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="4" Grid.Column="1" x:Name="LogLevelBox" SelectedValuePath="Content" SelectedValue="Information" Margin="0,2" ToolTip="Applies to SMS, Agent, console, file, and Windows Event Log providers after restart.">
-                                <ComboBoxItem Content="Trace"/><ComboBoxItem Content="Debug"/><ComboBoxItem Content="Information"/><ComboBoxItem Content="Warning"/><ComboBoxItem Content="Error"/><ComboBoxItem Content="Critical"/><ComboBoxItem Content="None"/>
-                            </ComboBox>
                         </Grid>
                         </GroupBox>
                         <GroupBox Header="Tray behavior" Padding="8">
@@ -140,6 +136,32 @@
                     </GroupBox>
                 </StackPanel>
                 </Grid>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Logging">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
+                    <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
+                        <GroupBox Header="Global logging" Margin="0,0,0,10" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Set one default logging level for the SMS service and School Agent. Debug enables detailed Agent HTTP request and response diagnostics." TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Log level:" VerticalAlignment="Center"/>
+                                    <ComboBox Grid.Column="1" x:Name="LogLevelBox" SelectedValuePath="Content" SelectedValue="Information" Margin="0,2" ToolTip="Applies to SMS, Agent, console, file, and Windows Event Log providers after restart.">
+                                        <ComboBoxItem Content="Trace"/><ComboBoxItem Content="Debug"/><ComboBoxItem Content="Information"/><ComboBoxItem Content="Warning"/><ComboBoxItem Content="Error"/><ComboBoxItem Content="Critical"/><ComboBoxItem Content="None"/>
+                                    </ComboBox>
+                                </Grid>
+                                <TextBlock Text="Save All writes this value to both machine configuration files. Restart the services when prompted to apply it." TextWrapping="Wrap" Foreground="Gray" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+                        <GroupBox Header="Log destinations" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Application logs: C:\ProgramData\Munywele\FeeSyncer\logs\" TextWrapping="Wrap"/>
+                                <TextBlock Text="Fee Processor updates: C:\ProgramData\Munywele\FeeSyncer\logs\fee-processor-updates.log" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <TextBlock Text="Fee Processor deployment output remains separate from Agent console and HTTP diagnostics at every level." TextWrapping="Wrap" Foreground="Gray" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="Fee Processor Updates">
