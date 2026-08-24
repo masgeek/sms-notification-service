@@ -9,12 +9,19 @@ internal sealed record AgentHeartbeat(
     [property: JsonPropertyName("capabilities")] IReadOnlyList<string> Capabilities,
     [property: JsonPropertyName("adapter_versions")] IReadOnlyList<string> AdapterVersions);
 
+internal sealed record AgentHeartbeatResponse(
+    [property: JsonPropertyName("accepted")] bool Accepted,
+    [property: JsonPropertyName("work_poll_seconds")] int WorkPollSeconds,
+    [property: JsonPropertyName("long_poll_max_seconds")] int LongPollMaxSeconds,
+    [property: JsonPropertyName("require_lease_generation")] bool RequireLeaseGeneration);
+
 internal sealed record SyncWork(
     [property: JsonPropertyName("job_id")] string JobId,
     [property: JsonPropertyName("operation")] string Operation,
     [property: JsonPropertyName("schema_version")] int SchemaVersion,
     [property: JsonPropertyName("parameters")] SyncParameters Parameters,
     [property: JsonPropertyName("lease_token")] string LeaseToken,
+    [property: JsonPropertyName("lease_generation")] int LeaseGeneration,
     [property: JsonPropertyName("lease_expires_at")] DateTimeOffset LeaseExpiresAt,
     [property: JsonPropertyName("confirmed_pages")] Dictionary<int, string> ConfirmedPages);
 
@@ -135,11 +142,14 @@ internal sealed record StudentRecordV1
     public string? ClassNumber { get; init; }
 }
 
-internal sealed record PageUpload(
-    [property: JsonPropertyName("content_hash")] string ContentHash,
-    [property: JsonPropertyName("records")] object Records);
-
 internal sealed record CompletionManifest(
     [property: JsonPropertyName("page_hashes")] IReadOnlyList<string> PageHashes,
-    [property: JsonPropertyName("record_count")] int RecordCount,
-    [property: JsonPropertyName("checkpoint")] Dictionary<string, string> Checkpoint);
+    [property: JsonPropertyName("record_count")] int RecordCount);
+
+internal sealed record CompletionResult(
+    [property: JsonPropertyName("accepted")] bool Accepted,
+    [property: JsonPropertyName("status")] string Status,
+    [property: JsonPropertyName("completed")] bool Completed,
+    [property: JsonPropertyName("duplicate")] bool Duplicate);
+
+internal sealed record CanonicalPage(string ContentHash, byte[] RecordsJson);

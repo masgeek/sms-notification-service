@@ -14,7 +14,7 @@ public sealed class SchoolApiStudentAdapterTests
             StatusCode = System.Net.HttpStatusCode.OK,
             Content = new StringContent(request.RequestUri?.AbsolutePath.EndsWith("/v1/users/login", StringComparison.Ordinal) == true
                 ? "{\"token\":\"synthetic-local-token\"}"
-                : "{\"data\":[{\"admno\":\"SYN-001\",\"ClassNo\":\"FORM-1-A\"}],\"next_page_url\":null}"),
+                : "{\"data\":[{\"admno\":\"SYN-001\",\"ClassNo\":\"FORM-1-A\"}],\"total\":42,\"next_page_url\":null}"),
         })))
         {
             BaseAddress = new Uri("http://127.0.0.1:8080/api/"),
@@ -35,6 +35,7 @@ public sealed class SchoolApiStudentAdapterTests
         var student = Assert.Single(records);
         Assert.Equal("SYN-001", student.SourceStudentId);
         Assert.Equal("FORM-1-A", student.ClassIdentifier);
+        Assert.Equal(42, client.ExpectedStudentRecordCount);
     }
 
     [Fact]
@@ -51,7 +52,7 @@ public sealed class SchoolApiStudentAdapterTests
 
             var page = request.RequestUri?.Query.Contains("page=2", StringComparison.Ordinal) == true ? "2" : "1";
             var next = page == "1" ? "\"next_page_url\":\"http://127.0.0.1:8080/api/v1/students?page=2\"" : "\"next_page_url\":null";
-            return Task.FromResult(JsonResponse($"{{\"data\":[{{\"admno\":\"SYN-{page}\"}}],{next}}}"));
+            return Task.FromResult(JsonResponse($"{{\"current_page\":{page},\"data\":[{{\"admno\":\"SYN-{page}\"}}],\"last_page\":100,\"per_page\":200,\"total\":20000,{next}}}"));
         }))
         {
             BaseAddress = new Uri("http://127.0.0.1:8080/api/"),
@@ -70,6 +71,7 @@ public sealed class SchoolApiStudentAdapterTests
 
         Assert.Equal(2, students.Count);
         Assert.Equal(2, loginAttempts);
+        Assert.Equal(20000, client.ExpectedStudentRecordCount);
     }
 
     [Fact]
@@ -78,7 +80,7 @@ public sealed class SchoolApiStudentAdapterTests
         using var httpClient = new HttpClient(new StubHandler(request => Task.FromResult(JsonResponse(
             request.RequestUri?.AbsolutePath.EndsWith("/v1/users/login", StringComparison.Ordinal) == true
                 ? "{\"token\":\"synthetic-local-token\",\"expires\":600000}"
-                : "{\"data\":[{\"admno\":\"SYN-001\",\"Payable\":59000,\"Bal\":-7800,\"Opening_Balance\":40000,\"Dated\":\"2026-05-06\",\"Name\":\"Synthetic Student\",\"phone\":\"0700000000\"}],\"next_page_url\":null}"))))
+                : "{\"data\":[{\"admno\":\"SYN-001\",\"Payable\":59000,\"Bal\":-7800,\"Opening_Balance\":40000,\"Dated\":\"2026-05-06\",\"Name\":\"Synthetic Student\",\"phone\":\"0700000000\"}],\"total\":1,\"next_page_url\":null}"))))
         {
             BaseAddress = new Uri("http://127.0.0.1:8001/api/"),
         };
@@ -101,6 +103,7 @@ public sealed class SchoolApiStudentAdapterTests
         Assert.Equal("40000.00", fee.OpeningBalance);
         Assert.Equal("KES", fee.Currency);
         Assert.Equal("Synthetic Student", fee.Name);
+        Assert.Equal(1, client.ExpectedFeeRecordCount);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler

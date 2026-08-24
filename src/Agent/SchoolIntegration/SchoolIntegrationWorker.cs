@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using System.Runtime.ExceptionServices;
 using FeeSyncer.Shared;
 
 namespace FeeSyncer.Agent.SchoolIntegration;
@@ -9,13 +10,16 @@ internal sealed class SchoolIntegrationWorker(
     IStudentAdapter adapter,
     SchoolApiClient schoolApi,
     AgentWakeSignal wakeSignal,
-    MqttAgentState mqttState,
+    AgentMqttEventQueue mqttEvents,
     IOptions<AgentOptions> options,
     ILogger<SchoolIntegrationWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var nextHeartbeat = DateTimeOffset.MinValue;
+        var workPollSeconds = options.Value.WorkPollSeconds;
+        var longPollSeconds = options.Value.LongPollSeconds;
+        var transientFailures = 0;
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -25,31 +29,83 @@ internal sealed class SchoolIntegrationWorker(
             {
                 if (DateTimeOffset.UtcNow >= nextHeartbeat)
                 {
-                    await gateway.HeartbeatAsync(new AgentHeartbeat(
+                    var heartbeat = await gateway.HeartbeatAsync(new AgentHeartbeat(
                         VersionHelper.GetCurrentVersion(),
                         ["students.snapshot.v1", "fees.snapshot.v1", "payments.record.v1"],
                         [$"{adapter.Id}:{adapter.Version}"]), stoppingToken);
+                    workPollSeconds = Math.Clamp(heartbeat.WorkPollSeconds, 1, 300);
+                    var maxLongPoll = Math.Max(0, Math.Min(55, options.Value.RequestTimeoutSeconds - 5));
+                    longPollSeconds = Math.Clamp(heartbeat.LongPollMaxSeconds, 0, maxLongPoll);
                     nextHeartbeat = DateTimeOffset.UtcNow.AddSeconds(options.Value.HeartbeatSeconds);
+                    mqttEvents.Publish("heartbeat", status: "accepted");
                 }
 
-                if (!mqttState.IsConnected)
-                {
-                    await mqttState.WaitForConnectionAsync(stoppingToken);
-                    continue;
-                }
-
-                work = await gateway.LeaseAsync(0, stoppingToken);
+                work = await gateway.LeaseAsync(longPollSeconds, stoppingToken);
+                transientFailures = 0;
                 if (work is null)
                 {
-                    await WaitForNextWorkAsync(stoppingToken);
+                    if (longPollSeconds == 0)
+                    {
+                        await WaitForNextWorkAsync(workPollSeconds, stoppingToken);
+                    }
                     continue;
                 }
 
+                mqttEvents.Publish("progress", status: "active", operation: work.Operation, stage: "processing");
                 await ExecuteWorkAsync(work, stoppingToken);
+                mqttEvents.Publish("progress", status: "idle", stage: "reported");
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
+            }
+            catch (AgentAuthenticationException exception)
+            {
+                PublishInterruptedWork(work);
+                logger.LogCritical(exception, "Agent authentication failed; stopping work polling until the service is re-enrolled.");
+                break;
+            }
+            catch (AgentProtocolException exception)
+            {
+                PublishInterruptedWork(work);
+                logger.LogCritical(exception, "Agent protocol configuration is incompatible with the gateway; stopping work polling.");
+                break;
+            }
+            catch (AgentLeaseLostException exception)
+            {
+                logger.LogWarning(exception, "Discarding stale lease for job {JobId}; polling for authoritative work.", work?.JobId ?? "none");
+                mqttEvents.Publish("progress", status: "lease_lost", operation: work?.Operation, stage: "reconciling");
+            }
+            catch (AgentRateLimitException exception)
+            {
+                PublishInterruptedWork(work);
+                var retryAfter = exception.RetryAfter > TimeSpan.Zero ? exception.RetryAfter : TimeSpan.FromSeconds(30);
+                logger.LogWarning("Agent gateway rate limit reached; polling resumes in {RetryAfterSeconds} seconds.", retryAfter.TotalSeconds);
+                await Task.Delay(retryAfter, stoppingToken);
+            }
+            catch (HttpRequestException exception)
+            {
+                PublishInterruptedWork(work);
+                transientFailures++;
+                var delay = TransientFailureDelay(transientFailures);
+                logger.LogWarning(
+                    exception,
+                    "Agent gateway request failed; polling resumes in {RetryDelaySeconds} seconds. CorrelationId={CorrelationId}",
+                    delay.TotalSeconds,
+                    gateway.LastRequestId ?? "none");
+                await Task.Delay(delay, stoppingToken);
+            }
+            catch (OperationCanceledException exception)
+            {
+                PublishInterruptedWork(work);
+                transientFailures++;
+                var delay = TransientFailureDelay(transientFailures);
+                logger.LogWarning(
+                    exception,
+                    "Agent gateway request timed out; polling resumes in {RetryDelaySeconds} seconds. CorrelationId={CorrelationId}",
+                    delay.TotalSeconds,
+                    gateway.LastRequestId ?? "none");
+                await Task.Delay(delay, stoppingToken);
             }
             catch (Exception exception)
             {
@@ -66,11 +122,15 @@ internal sealed class SchoolIntegrationWorker(
                     {
                         var failureCode = exception is SchoolApiException schoolApiException
                             ? schoolApiException.FailureCode
+                            : exception is AgentRequestRejectedException requestException
+                                ? requestException.FailureCode
                             : "SYNC_FAILED";
                         await gateway.FailAsync(work, failureCode, stoppingToken);
+                        mqttEvents.Publish("progress", status: "idle", stage: "failure_reported");
                     }
                     catch (Exception failureException)
                     {
+                        PublishInterruptedWork(work);
                         logger.LogError(failureException, "Could not report failure for job {JobId}.", work.JobId);
                     }
                 }
@@ -80,35 +140,63 @@ internal sealed class SchoolIntegrationWorker(
         }
     }
 
-    private async Task WaitForNextWorkAsync(CancellationToken cancellationToken)
+    private async Task WaitForNextWorkAsync(int delaySeconds, CancellationToken cancellationToken)
     {
-        if (!mqttState.IsConnected)
-        {
-            await mqttState.WaitForConnectionAsync(cancellationToken);
-            return;
-        }
-
-        // MQTT is the fast wake-up path, but a missed hint must not strand work.
-        await wakeSignal.WaitAsync(TimeSpan.FromSeconds(Math.Max(1, options.Value.IdleDelaySeconds)), cancellationToken);
+        // MQTT only accelerates the periodic HTTP loop; it never gates work discovery.
+        await wakeSignal.WaitAsync(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
     }
 
     private async Task ExecuteWorkAsync(SyncWork work, CancellationToken cancellationToken)
     {
-        using var renewalCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var renewalTask = RenewLeaseLoopAsync(work, renewalCts.Token);
+        using var workCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var renewalTask = RenewLeaseLoopAsync(work, workCts.Token);
+        var processingTask = ExecuteWorkWithoutRenewalAsync(work, workCts.Token);
+
+        var completedTask = await Task.WhenAny(processingTask, renewalTask);
+        if (completedTask == renewalTask)
+        {
+            Exception renewalFailure;
+            try
+            {
+                await renewalTask;
+                renewalFailure = new InvalidOperationException("Lease renewal stopped unexpectedly.");
+            }
+            catch (Exception exception)
+            {
+                renewalFailure = exception;
+            }
+
+            workCts.Cancel();
+            try
+            {
+                await processingTask;
+            }
+            catch (OperationCanceledException) when (workCts.IsCancellationRequested)
+            {
+            }
+            catch (Exception processingException)
+            {
+                logger.LogWarning(
+                    processingException,
+                    "Work processing for job {JobId} stopped after lease renewal failed.",
+                    work.JobId);
+            }
+
+            ExceptionDispatchInfo.Capture(renewalFailure).Throw();
+        }
 
         try
         {
-            await ExecuteWorkWithoutRenewalAsync(work, cancellationToken);
+            await processingTask;
         }
         finally
         {
-            renewalCts.Cancel();
+            workCts.Cancel();
             try
             {
                 await renewalTask;
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || renewalCts.IsCancellationRequested)
+            catch (OperationCanceledException) when (workCts.IsCancellationRequested)
             {
             }
         }
@@ -181,17 +269,11 @@ internal sealed class SchoolIntegrationWorker(
             await UploadOrConfirmAsync(work, pageNumber, page, pageHashes, cancellationToken);
         }
 
-        await gateway.CompleteAsync(work, new CompletionManifest(
-            pageHashes,
-            recordCount,
-            new Dictionary<string, string>
-            {
-                ["adapter_id"] = adapter.Id,
-                ["adapter_version"] = adapter.Version,
-                ["snapshot_id"] = work.JobId,
-            }), cancellationToken);
+        var completion = await gateway.CompleteAsync(work, new CompletionManifest(pageHashes, recordCount), cancellationToken);
 
-        logger.LogInformation("Completed student snapshot job {JobId} with {RecordCount} records across {PageCount} pages.", work.JobId, recordCount, pageHashes.Count);
+        logger.LogInformation(
+            "Student snapshot upload accepted for job {JobId} with {RecordCount} records across {PageCount} pages. ServerStatus={ServerStatus} MaterializationCompleted={MaterializationCompleted}",
+            work.JobId, recordCount, pageHashes.Count, completion.Status, completion.Completed);
     }
 
     private async Task ExecuteFeeSnapshotAsync(SyncWork work, CancellationToken cancellationToken)
@@ -221,17 +303,11 @@ internal sealed class SchoolIntegrationWorker(
             logger.LogInformation("Uploaded fee page {PageNumber} for job {JobId} with {RecordCount} records.", pageNumber, work.JobId, page.Count);
         }
 
-        await gateway.CompleteAsync(work, new CompletionManifest(
-            pageHashes,
-            recordCount,
-            new Dictionary<string, string>
-            {
-                ["dataset"] = "fees",
-                ["currency"] = "KES",
-                ["snapshot_id"] = work.JobId,
-            }), cancellationToken);
+        var completion = await gateway.CompleteAsync(work, new CompletionManifest(pageHashes, recordCount), cancellationToken);
 
-        logger.LogInformation("Completed fee snapshot job {JobId} with {RecordCount} records across {PageCount} pages.", work.JobId, recordCount, pageHashes.Count);
+        logger.LogInformation(
+            "Fee snapshot upload accepted for job {JobId} with {RecordCount} records across {PageCount} pages. ServerStatus={ServerStatus} MaterializationCompleted={MaterializationCompleted}",
+            work.JobId, recordCount, pageHashes.Count, completion.Status, completion.Completed);
     }
 
     private async Task UploadOrConfirmAsync(
@@ -241,12 +317,12 @@ internal sealed class SchoolIntegrationWorker(
         List<string> pageHashes,
         CancellationToken cancellationToken)
     {
-        var hash = GatewayClient.HashPage(records);
-        pageHashes.Add(hash);
+        var page = GatewayClient.SerializePage(records);
+        pageHashes.Add(page.ContentHash);
 
         if (work.ConfirmedPages.TryGetValue(pageNumber, out var confirmedHash))
         {
-            if (!string.Equals(hash, confirmedHash, StringComparison.Ordinal))
+            if (!string.Equals(page.ContentHash, confirmedHash, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException($"Confirmed page {pageNumber} differs from the current adapter snapshot.");
             }
@@ -261,11 +337,11 @@ internal sealed class SchoolIntegrationWorker(
                 work.JobId,
                 pageNumber,
                 records.Count,
-                hash,
+                page.ContentHash,
                 CreateRedactedStudentSamples(records));
         }
 
-        await gateway.UploadPageAsync(work, pageNumber, records, hash, cancellationToken);
+        await gateway.UploadPageAsync(work, pageNumber, page, schoolApi.ExpectedStudentRecordCount, cancellationToken);
     }
 
     internal static string CreateRedactedStudentSamples(IReadOnlyList<StudentRecordV1> records) =>
@@ -290,6 +366,20 @@ internal sealed class SchoolIntegrationWorker(
 
     private static string? Redact(string? value) => value is null ? null : "[redacted]";
 
+    private static TimeSpan TransientFailureDelay(int failureCount)
+    {
+        var seconds = Math.Min(60, Math.Pow(2, Math.Min(failureCount - 1, 6)));
+        return TimeSpan.FromSeconds(seconds * (0.8 + Random.Shared.NextDouble() * 0.4));
+    }
+
+    private void PublishInterruptedWork(SyncWork? work)
+    {
+        if (work is not null)
+        {
+            mqttEvents.Publish("progress", status: "lease_lost", operation: work.Operation, stage: "reconciling");
+        }
+    }
+
     private async Task UploadFeePageOrConfirmAsync(
         SyncWork work,
         int pageNumber,
@@ -297,12 +387,12 @@ internal sealed class SchoolIntegrationWorker(
         List<string> pageHashes,
         CancellationToken cancellationToken)
     {
-        var hash = GatewayClient.HashRecords(records);
-        pageHashes.Add(hash);
+        var page = GatewayClient.SerializePage(records);
+        pageHashes.Add(page.ContentHash);
 
         if (work.ConfirmedPages.TryGetValue(pageNumber, out var confirmedHash))
         {
-            if (!string.Equals(hash, confirmedHash, StringComparison.Ordinal))
+            if (!string.Equals(page.ContentHash, confirmedHash, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException($"Confirmed fee page {pageNumber} differs from the current adapter snapshot.");
             }
@@ -310,6 +400,6 @@ internal sealed class SchoolIntegrationWorker(
             return;
         }
 
-        await gateway.UploadPageAsync(work, pageNumber, records, hash, cancellationToken);
+        await gateway.UploadPageAsync(work, pageNumber, page, schoolApi.ExpectedFeeRecordCount, cancellationToken);
     }
 }

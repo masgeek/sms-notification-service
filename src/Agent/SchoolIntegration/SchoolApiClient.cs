@@ -15,6 +15,10 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
 
     private static readonly TimeSpan TokenRefreshSkew = TimeSpan.FromSeconds(30);
 
+    public int? ExpectedStudentRecordCount { get; private set; }
+
+    public int? ExpectedFeeRecordCount { get; private set; }
+
     public async Task<PaymentDeliveryResult> RecordPaymentAsync(
         PaymentRequestV1 payment,
         CancellationToken cancellationToken)
@@ -69,7 +73,12 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
         int pageSize,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await foreach (var item in ReadRecordsAsync("v1/students", pageSize, cancellationToken))
+        ExpectedStudentRecordCount = null;
+        await foreach (var item in ReadRecordsAsync(
+                           "v1/students",
+                           pageSize,
+                           total => ExpectedStudentRecordCount = total,
+                           cancellationToken))
         {
             var sourceId = StringValue(item, "admno", "adm_no");
             if (sourceId is null)
@@ -102,7 +111,12 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
         int pageSize,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await foreach (var item in ReadRecordsAsync("v1/students/fee-balance", pageSize, cancellationToken))
+        ExpectedFeeRecordCount = null;
+        await foreach (var item in ReadRecordsAsync(
+                           "v1/students/fee-balance",
+                           pageSize,
+                           total => ExpectedFeeRecordCount = total,
+                           cancellationToken))
         {
             var sourceId = StringValue(item, "admno", "adm_no");
             if (sourceId is null)
@@ -177,6 +191,7 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
     private async IAsyncEnumerable<JsonElement> ReadRecordsAsync(
         string path,
         int pageSize,
+        Action<int> reportTotal,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         for (var page = 1; ; page++)
@@ -205,18 +220,58 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
                 throw new SchoolApiException("SYNC_FAILED");
             }
 
-            var count = 0;
+            var count = records.GetArrayLength();
+            var hasNextPage = document.RootElement.TryGetProperty("next_page_url", out var next)
+                && next.ValueKind is not JsonValueKind.Null
+                && !string.IsNullOrWhiteSpace(next.GetString());
+            if (page == 1
+                && TryGetTotalRecords(document.RootElement, out var totalRecords)
+                && totalRecords >= count
+                && (!hasNextPage || totalRecords > count))
+            {
+                reportTotal(totalRecords);
+            }
+
             foreach (var record in records.EnumerateArray())
             {
-                count++;
                 yield return record.Clone();
             }
 
-            if (count == 0 || !document.RootElement.TryGetProperty("next_page_url", out var next) || next.ValueKind == JsonValueKind.Null)
+            if (count == 0 || !hasNextPage)
             {
                 yield break;
             }
         }
+    }
+
+    private static bool TryGetTotalRecords(JsonElement root, out int total)
+    {
+        total = 0;
+        foreach (var containerName in new[] { "meta", "pagination" })
+        {
+            if (root.TryGetProperty(containerName, out var container)
+                && container.ValueKind == JsonValueKind.Object
+                && container.TryGetProperty("total", out var nestedTotal)
+                && TryGetNonNegativeInt(nestedTotal, out total))
+            {
+                return true;
+            }
+        }
+
+        return root.TryGetProperty("total", out var rootTotal)
+            && TryGetNonNegativeInt(rootTotal, out total);
+    }
+
+    private static bool TryGetNonNegativeInt(JsonElement value, out int result)
+    {
+        if (value.TryGetInt32(out result))
+        {
+            return result >= 0;
+        }
+
+        return value.ValueKind == JsonValueKind.String
+            && int.TryParse(value.GetString(), out result)
+            && result >= 0;
     }
 
     private static string? StringValue(JsonElement element, params string[] names)
