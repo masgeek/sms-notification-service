@@ -14,7 +14,9 @@ public sealed class SchoolApiStudentAdapterTests
             StatusCode = System.Net.HttpStatusCode.OK,
             Content = new StringContent(request.RequestUri?.AbsolutePath.EndsWith("/v1/users/login", StringComparison.Ordinal) == true
                 ? "{\"token\":\"synthetic-local-token\"}"
-                : "{\"data\":[{\"admno\":\"SYN-001\",\"ClassNo\":\"FORM-1-A\"}],\"total\":42,\"next_page_url\":null}"),
+                : request.RequestUri?.AbsolutePath.EndsWith("/v1/students/count", StringComparison.Ordinal) == true
+                    ? "{\"count\":42}"
+                    : "{\"data\":[{\"admno\":\"SYN-001\",\"ClassNo\":\"FORM-1-A\"}],\"next_page_url\":null}"),
         })))
         {
             BaseAddress = new Uri("http://127.0.0.1:8080/api/"),
@@ -25,6 +27,7 @@ public sealed class SchoolApiStudentAdapterTests
             LocalApiPassword = "synthetic-password",
         }));
         var adapter = new SchoolApiStudentAdapter(client);
+        var expectedCount = await client.GetExpectedStudentCountAsync(CancellationToken.None);
 
         var records = new List<StudentRecordV1>();
         await foreach (var record in adapter.ReadSnapshotAsync(CancellationToken.None))
@@ -35,7 +38,7 @@ public sealed class SchoolApiStudentAdapterTests
         var student = Assert.Single(records);
         Assert.Equal("SYN-001", student.SourceStudentId);
         Assert.Equal("FORM-1-A", student.ClassIdentifier);
-        Assert.Equal(42, client.ExpectedStudentRecordCount);
+        Assert.Equal(42, expectedCount);
     }
 
     [Fact]
@@ -71,16 +74,22 @@ public sealed class SchoolApiStudentAdapterTests
 
         Assert.Equal(2, students.Count);
         Assert.Equal(2, loginAttempts);
-        Assert.Equal(20000, client.ExpectedStudentRecordCount);
     }
 
     [Fact]
     public async Task Maps_fee_balance_amounts_to_fixed_precision_KES_records()
     {
-        using var httpClient = new HttpClient(new StubHandler(request => Task.FromResult(JsonResponse(
-            request.RequestUri?.AbsolutePath.EndsWith("/v1/users/login", StringComparison.Ordinal) == true
+        var requestedPaths = new List<string>();
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            requestedPaths.Add(request.RequestUri?.AbsolutePath ?? string.Empty);
+
+            return Task.FromResult(JsonResponse(request.RequestUri?.AbsolutePath.EndsWith("/v1/users/login", StringComparison.Ordinal) == true
                 ? "{\"token\":\"synthetic-local-token\",\"expires\":600000}"
-                : "{\"data\":[{\"admno\":\"SYN-001\",\"Payable\":59000,\"Bal\":-7800,\"Opening_Balance\":40000,\"Dated\":\"2026-05-06\",\"Name\":\"Synthetic Student\",\"phone\":\"0700000000\"}],\"total\":1,\"next_page_url\":null}"))))
+                : request.RequestUri?.AbsolutePath.EndsWith("/v1/fees/count", StringComparison.Ordinal) == true
+                    ? "{\"data\":{\"count\":1}}"
+                    : "{\"data\":[{\"admno\":\"SYN-001\",\"Payable\":59000,\"Bal\":-7800,\"Opening_Balance\":40000,\"Dated\":\"2026-05-06\",\"Name\":\"Synthetic Student\",\"phone\":\"0700000000\"}],\"next_page_url\":null}"));
+        }))
         {
             BaseAddress = new Uri("http://127.0.0.1:8001/api/"),
         };
@@ -90,6 +99,7 @@ public sealed class SchoolApiStudentAdapterTests
             LocalApiPassword = "synthetic-password",
         }));
 
+        var expectedCount = await client.GetExpectedFeeCountAsync(CancellationToken.None);
         var fees = new List<FeeRecordV1>();
         await foreach (var record in client.ReadFeeBalancesAsync(2, CancellationToken.None))
         {
@@ -103,7 +113,8 @@ public sealed class SchoolApiStudentAdapterTests
         Assert.Equal("40000.00", fee.OpeningBalance);
         Assert.Equal("KES", fee.Currency);
         Assert.Equal("Synthetic Student", fee.Name);
-        Assert.Equal(1, client.ExpectedFeeRecordCount);
+        Assert.Equal(1, expectedCount);
+        Assert.Contains("/api/v1/fees", requestedPaths);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler

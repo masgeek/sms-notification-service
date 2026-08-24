@@ -25,6 +25,7 @@ public static class SchoolIntegrationServiceCollectionExtensions
                 options.AgentHeartbeatEndpoint = Endpoint(configuration, "AgentHeartbeat", Constants.DefaultAgentHeartbeatEndpoint);
                 options.AgentRenewEndpoint = Endpoint(configuration, "AgentRenew", Constants.DefaultAgentRenewEndpoint);
                 options.AgentPageEndpoint = Endpoint(configuration, "AgentPage", Constants.DefaultAgentPageEndpoint);
+                options.AgentProgressEndpoint = Endpoint(configuration, "AgentProgress", Constants.DefaultAgentProgressEndpoint);
                 options.AgentCompleteEndpoint = Endpoint(configuration, "AgentComplete", Constants.DefaultAgentCompleteEndpoint);
                 options.AgentPaymentCompleteEndpoint = Endpoint(configuration, "AgentPaymentComplete", Constants.DefaultAgentPaymentCompleteEndpoint);
                 options.AgentFailEndpoint = Endpoint(configuration, "AgentFail", Constants.DefaultAgentFailEndpoint);

@@ -219,12 +219,13 @@ public sealed class StudentSyncContractTests
         var page = GatewayClient.SerializePage<StudentRecordV1>([]);
 
         await gateway.RenewLeaseAsync(work, CancellationToken.None);
+        await gateway.ReportExpectedRecordCountAsync(work, 250, CancellationToken.None);
         await gateway.UploadPageAsync(work, 1, page, 250, CancellationToken.None);
         var completion = await gateway.CompleteAsync(work, new CompletionManifest([page.ContentHash], 0), CancellationToken.None);
         await gateway.CompletePaymentAsync(work, new PaymentDeliveryResult("accepted"), CancellationToken.None);
         await gateway.FailAsync(work, "SYNC_FAILED", CancellationToken.None);
 
-        Assert.Equal(5, requests.Count);
+        Assert.Equal(6, requests.Count);
         Assert.All(requests, request =>
         {
             Assert.Equal("lease-token", request.Token);
@@ -236,6 +237,8 @@ public sealed class StudentSyncContractTests
         var uploadBody = requests.Single(request => request.Path.Contains("/pages/", StringComparison.Ordinal)).Body;
         Assert.Contains($"\"records\":{Encoding.UTF8.GetString(page.RecordsJson)}", uploadBody, StringComparison.Ordinal);
         Assert.Contains("\"expected_record_count\":250", uploadBody, StringComparison.Ordinal);
+        var progressBody = requests.Single(request => request.Path.EndsWith("/progress", StringComparison.Ordinal)).Body;
+        Assert.Contains("\"expected_record_count\":250", progressBody, StringComparison.Ordinal);
     }
 
     [Theory]

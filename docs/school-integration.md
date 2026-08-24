@@ -166,7 +166,7 @@ The default base URL is `http://127.0.0.1:8001/api/`. The Agent uses:
 |---|---|
 | Login | `POST v1/users/login` |
 | Students | `GET v1/students?page=N&per_page=P` |
-| Fee balances | `GET v1/students/fee-balance?page=N&per_page=P` |
+| Fee balances | `GET v1/fees?page=N&per_page=P` |
 | Record payment | `POST v1/payments` |
 
 Local access tokens are cached in memory and refreshed before expiry. HTTP 422

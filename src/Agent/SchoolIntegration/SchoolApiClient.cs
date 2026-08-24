@@ -15,10 +15,6 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
 
     private static readonly TimeSpan TokenRefreshSkew = TimeSpan.FromSeconds(30);
 
-    public int? ExpectedStudentRecordCount { get; private set; }
-
-    public int? ExpectedFeeRecordCount { get; private set; }
-
     public async Task<PaymentDeliveryResult> RecordPaymentAsync(
         PaymentRequestV1 payment,
         CancellationToken cancellationToken)
@@ -73,12 +69,7 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
         int pageSize,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        ExpectedStudentRecordCount = null;
-        await foreach (var item in ReadRecordsAsync(
-                           "v1/students",
-                           pageSize,
-                           total => ExpectedStudentRecordCount = total,
-                           cancellationToken))
+        await foreach (var item in ReadRecordsAsync("v1/students", pageSize, cancellationToken))
         {
             var sourceId = StringValue(item, "admno", "adm_no");
             if (sourceId is null)
@@ -111,12 +102,7 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
         int pageSize,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        ExpectedFeeRecordCount = null;
-        await foreach (var item in ReadRecordsAsync(
-                           "v1/students/fee-balance",
-                           pageSize,
-                           total => ExpectedFeeRecordCount = total,
-                           cancellationToken))
+        await foreach (var item in ReadRecordsAsync("v1/fees", pageSize, cancellationToken))
         {
             var sourceId = StringValue(item, "admno", "adm_no");
             if (sourceId is null)
@@ -142,6 +128,12 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
             };
         }
     }
+
+    public Task<int> GetExpectedStudentCountAsync(CancellationToken cancellationToken) =>
+        ReadExpectedCountAsync("v1/students/count", cancellationToken);
+
+    public Task<int> GetExpectedFeeCountAsync(CancellationToken cancellationToken) =>
+        ReadExpectedCountAsync("v1/fees/count", cancellationToken);
 
     private async Task EnsureTokenAsync(CancellationToken cancellationToken)
     {
@@ -191,7 +183,6 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
     private async IAsyncEnumerable<JsonElement> ReadRecordsAsync(
         string path,
         int pageSize,
-        Action<int> reportTotal,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         for (var page = 1; ; page++)
@@ -220,58 +211,54 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
                 throw new SchoolApiException("SYNC_FAILED");
             }
 
-            var count = records.GetArrayLength();
             var hasNextPage = document.RootElement.TryGetProperty("next_page_url", out var next)
                 && next.ValueKind is not JsonValueKind.Null
                 && !string.IsNullOrWhiteSpace(next.GetString());
-            if (page == 1
-                && TryGetTotalRecords(document.RootElement, out var totalRecords)
-                && totalRecords >= count
-                && (!hasNextPage || totalRecords > count))
-            {
-                reportTotal(totalRecords);
-            }
 
             foreach (var record in records.EnumerateArray())
             {
                 yield return record.Clone();
             }
 
-            if (count == 0 || !hasNextPage)
+            if (records.GetArrayLength() == 0 || !hasNextPage)
             {
                 yield break;
             }
         }
     }
 
-    private static bool TryGetTotalRecords(JsonElement root, out int total)
+    private async Task<int> ReadExpectedCountAsync(string path, CancellationToken cancellationToken)
     {
-        total = 0;
-        foreach (var containerName in new[] { "meta", "pagination" })
+        await EnsureTokenAsync(cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Authorization = new("Bearer", accessToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
-            if (root.TryGetProperty(containerName, out var container)
-                && container.ValueKind == JsonValueKind.Object
-                && container.TryGetProperty("total", out var nestedTotal)
-                && TryGetNonNegativeInt(nestedTotal, out total))
-            {
-                return true;
-            }
+            accessToken = null;
+            accessTokenExpiresAt = DateTimeOffset.MinValue;
+            throw new SchoolApiException("LOCAL_AUTH_FAILED");
         }
 
-        return root.TryGetProperty("total", out var rootTotal)
-            && TryGetNonNegativeInt(rootTotal, out total);
-    }
-
-    private static bool TryGetNonNegativeInt(JsonElement value, out int result)
-    {
-        if (value.TryGetInt32(out result))
+        if (!response.IsSuccessStatusCode)
         {
-            return result >= 0;
+            throw new SchoolApiException("LOCAL_UNAVAILABLE");
         }
 
-        return value.ValueKind == JsonValueKind.String
-            && int.TryParse(value.GetString(), out result)
-            && result >= 0;
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        var root = document.RootElement;
+        var count = root.TryGetProperty("count", out var rootCount)
+            ? rootCount
+            : root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object && data.TryGetProperty("count", out var nestedCount)
+                ? nestedCount
+                : default;
+        if (count.ValueKind != JsonValueKind.Number || !count.TryGetInt32(out var result) || result < 0)
+        {
+            throw new SchoolApiException("SYNC_FAILED");
+        }
+
+        return result;
     }
 
     private static string? StringValue(JsonElement element, params string[] names)

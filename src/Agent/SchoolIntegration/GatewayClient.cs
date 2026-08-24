@@ -84,6 +84,15 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
         return envelope?.Data ?? throw new InvalidOperationException("Completion response did not contain status data.");
     }
 
+    public async Task ReportExpectedRecordCountAsync(SyncWork work, int expectedRecordCount, CancellationToken cancellationToken)
+    {
+        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentProgressEndpoint, work.JobId), work);
+        request.Content = JsonContent.Create(new { expected_record_count = expectedRecordCount }, options: JsonOptions);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        CaptureRequestId(response);
+        await EnsureSuccessAsync(response, cancellationToken, leaseMutation: true);
+    }
+
     public async Task CompletePaymentAsync(SyncWork work, PaymentDeliveryResult result, CancellationToken cancellationToken)
     {
         using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentPaymentCompleteEndpoint, work.JobId), work);
