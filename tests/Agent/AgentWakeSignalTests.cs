@@ -16,4 +16,16 @@ public sealed class AgentWakeSignalTests
         await wait;
         Assert.False(cancellationTokenSource.IsCancellationRequested);
     }
+
+    [Fact]
+    public async Task Timed_out_wait_does_not_consume_a_later_signal()
+    {
+        var signal = new AgentWakeSignal();
+
+        await signal.WaitAsync(TimeSpan.FromMilliseconds(10), CancellationToken.None);
+        var nextWait = signal.WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None);
+        signal.Signal();
+
+        await nextWait.WaitAsync(TimeSpan.FromSeconds(1));
+    }
 }

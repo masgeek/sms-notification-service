@@ -16,13 +16,14 @@ internal sealed class AgentWakeSignal
 
     public async Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
     {
-        var signalTask = _signals.Reader.WaitToReadAsync(cancellationToken).AsTask();
-        var delayTask = Task.Delay(timeout, cancellationToken);
-        await Task.WhenAny(signalTask, delayTask);
-
-        if (signalTask.IsCompletedSuccessfully)
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(timeout);
+        try
         {
-            _signals.Reader.TryRead(out _);
+            await _signals.Reader.ReadAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
         }
     }
 }

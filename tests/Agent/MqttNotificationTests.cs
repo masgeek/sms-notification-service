@@ -1,4 +1,5 @@
 using FeeSyncer.Agent.SchoolIntegration;
+using System.Text.Json;
 
 namespace FeeSyncer.Agent.Tests;
 
@@ -13,6 +14,9 @@ public sealed class MqttNotificationTests
 
         Assert.DoesNotContain(options.AgentToken, topic, StringComparison.Ordinal);
         Assert.EndsWith("/work", topic, StringComparison.Ordinal);
+        Assert.EndsWith("/events", MqttAgentConnection.BuildEventsTopic(options), StringComparison.Ordinal);
+        Assert.EndsWith("/presence", MqttAgentConnection.BuildPresenceTopic(options), StringComparison.Ordinal);
+        Assert.DoesNotContain(options.AgentToken, MqttAgentConnection.BuildEventsTopic(options), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -48,11 +52,27 @@ public sealed class MqttNotificationTests
     {
         var now = DateTimeOffset.UtcNow;
         var gate = new MqttNotificationGate();
-        var notification = new WorkNotification("work_available", 1, "event-1", "job-1", "students.snapshot.v1", now);
+        var notification = new WorkNotification("work_available", 1, "event-1", now);
 
         Assert.True(gate.TryAccept(notification, now));
         Assert.False(gate.TryAccept(notification, now));
         Assert.False(gate.TryAccept(notification with { EventId = "event-2", SentAt = now.AddMinutes(-11) }, now));
+    }
+
+    [Fact]
+    public void Wake_envelope_deserializes_snake_case_fields()
+    {
+        var sentAt = DateTimeOffset.UtcNow;
+        var json = $$"""
+            {"version":1,"event_id":"event-1","sent_at":"{{sentAt:O}}","type":"work_available","job_id":"job-1","operation":"students.snapshot.v1"}
+            """;
+
+        var notification = JsonSerializer.Deserialize<WorkNotification>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.NotNull(notification);
+        Assert.Equal("event-1", notification.EventId);
+        Assert.Equal("job-1", notification.JobId);
+        Assert.Equal(sentAt, notification.SentAt);
     }
 
     [Fact]
@@ -65,5 +85,21 @@ public sealed class MqttNotificationTests
 
         await wait.WaitAsync(TimeSpan.FromSeconds(1));
         Assert.True(state.IsConnected);
+    }
+
+    [Fact]
+    public async Task Outbound_events_are_bounded_to_non_sensitive_operational_fields()
+    {
+        var events = new AgentMqttEventQueue();
+        events.PublishHello("1.2.3", ["students.snapshot.v1"]);
+
+        var mqttEvent = await events.ReadAsync(CancellationToken.None);
+        var json = JsonSerializer.Serialize(mqttEvent, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Contains("hello", json, StringComparison.Ordinal);
+        Assert.Contains("students.snapshot.v1", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("token", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("job_id", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("lease", json, StringComparison.OrdinalIgnoreCase);
     }
 }

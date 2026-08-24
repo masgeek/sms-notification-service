@@ -12,6 +12,7 @@ public static class SchoolIntegrationServiceCollectionExtensions
         services
             .AddSingleton<FeeSyncer.Agent.SchoolIntegration.AgentWakeSignal>()
             .AddSingleton<FeeSyncer.Agent.SchoolIntegration.MqttAgentState>()
+            .AddSingleton<FeeSyncer.Agent.SchoolIntegration.AgentMqttEventQueue>()
             .AddOptions<FeeSyncer.Agent.SchoolIntegration.AgentOptions>()
             .Bind(configuration.GetSection(FeeSyncer.Agent.SchoolIntegration.AgentOptions.SectionName))
             .PostConfigure(options =>
@@ -117,7 +118,20 @@ public static class SchoolIntegrationServiceCollectionExtensions
         FeeSyncer.Agent.SchoolIntegration.AgentOptions options,
         IConfiguration configuration)
     {
-        if (!options.MqttEnabled || options.MqttUseTls)
+        if (!options.MqttEnabled)
+        {
+            return true;
+        }
+
+        if (!Uri.TryCreate(
+                FeeSyncer.Agent.SchoolIntegration.MqttAgentConnection.BuildBrokerUri(options),
+                UriKind.Absolute,
+                out var brokerUri))
+        {
+            return false;
+        }
+
+        if (brokerUri.Scheme == Uri.UriSchemeWss)
         {
             return true;
         }
@@ -125,6 +139,8 @@ public static class SchoolIntegrationServiceCollectionExtensions
         var environment = configuration["DOTNET_ENVIRONMENT"]
             ?? configuration["ASPNETCORE_ENVIRONMENT"]
             ?? Environments.Production;
-        return string.Equals(environment, Environments.Development, StringComparison.OrdinalIgnoreCase);
+        return brokerUri.Scheme == Uri.UriSchemeWs
+            && brokerUri.IsLoopback
+            && string.Equals(environment, Environments.Development, StringComparison.OrdinalIgnoreCase);
     }
 }
