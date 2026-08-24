@@ -16,6 +16,7 @@ internal sealed class AgentOptions
     public string AgentHeartbeatEndpoint { get; set; } = Constants.DefaultAgentHeartbeatEndpoint;
     public string AgentRenewEndpoint { get; set; } = Constants.DefaultAgentRenewEndpoint;
     public string AgentPageEndpoint { get; set; } = Constants.DefaultAgentPageEndpoint;
+    public string AgentProgressEndpoint { get; set; } = Constants.DefaultAgentProgressEndpoint;
     public string AgentCompleteEndpoint { get; set; } = Constants.DefaultAgentCompleteEndpoint;
     public string AgentPaymentCompleteEndpoint { get; set; } = Constants.DefaultAgentPaymentCompleteEndpoint;
     public string AgentFailEndpoint { get; set; } = Constants.DefaultAgentFailEndpoint;
@@ -27,6 +28,12 @@ internal sealed class AgentOptions
 
     [Range(1, 300)]
     public int IdleDelaySeconds { get; init; } = 5;
+
+    [Range(1, 300)]
+    public int WorkPollSeconds { get; init; } = 30;
+
+    [Range(0, 55)]
+    public int LongPollSeconds { get; init; } = 10;
 
     [Range(10, 3600)]
     public int HeartbeatSeconds { get; init; } = 60;
@@ -50,6 +57,14 @@ internal sealed class AgentOptions
     public string MqttPassword { get; init; } = string.Empty;
 
     public string MqttTopicPrefix { get; init; } = "fee-syncer/agent";
+
+    public string MqttClientId { get; init; } = string.Empty;
+
+    [Range(300, 604800)]
+    public int MqttSessionExpirySeconds { get; init; } = 86400;
+
+    [Range(10, 3600)]
+    public int MqttHealthSeconds { get; init; } = 60;
 
     [Range(5, 300)]
     public int MqttKeepAliveSeconds { get; init; } = 30;

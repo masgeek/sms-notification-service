@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Options;
 using FeeSyncer.Agent.SchoolIntegration;
 using Xunit;
@@ -50,14 +52,16 @@ public sealed class StudentSyncContractTests
             SourceStudentId = "SYN-001",
             AdmissionNumber = "SYN-001",
             EnrollmentStatus = "active",
-            Name = "Achieng Odhiambo",
+            Name = "Achieng Odhiambo / 阿香",
         }];
 
-        var hash = GatewayClient.HashPage(records);
+        var page = GatewayClient.SerializePage(records);
+        var json = Encoding.UTF8.GetString(page.RecordsJson);
 
-        Assert.Equal(
-            "975b6c97480ba14bf9b9872305f483b21a4e3ee3d9d4e6887ca9b42aad717ef2",
-            hash);
+        Assert.Contains("阿香", json, StringComparison.Ordinal);
+        Assert.Contains(" / ", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\u963f", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(Convert.ToHexStringLower(SHA256.HashData(page.RecordsJson)), page.ContentHash);
     }
 
     [Fact]
@@ -166,9 +170,136 @@ public sealed class StudentSyncContractTests
         Assert.Equal("duplicate", (await schoolApi.RecordPaymentAsync(payment, CancellationToken.None)).Status);
     }
 
+    [Fact]
+    public async Task Gateway_uses_heartbeat_configuration_and_deserializes_lease_generation()
+    {
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            var response = request.Method == HttpMethod.Post
+                ? JsonResponse(HttpStatusCode.OK, """{"data":{"accepted":true,"work_poll_seconds":30,"long_poll_max_seconds":10,"require_lease_generation":true}}""")
+                : JsonResponse(HttpStatusCode.OK, """{"data":{"job_id":"job-1","operation":"students.snapshot.v1","schema_version":1,"parameters":{"page_size":100},"lease_token":"lease-token","lease_generation":7,"lease_expires_at":"2026-08-24T10:00:00Z","confirmed_pages":{}}}""");
+            return Task.FromResult(response);
+        }))
+        {
+            BaseAddress = new Uri("https://gateway.example.test/"),
+        };
+        var gateway = new GatewayClient(httpClient, Options.Create(new AgentOptions()));
+
+        var heartbeat = await gateway.HeartbeatAsync(new AgentHeartbeat("1.0.0", ["students.snapshot.v1"], ["adapter:1"]), CancellationToken.None);
+        var work = await gateway.LeaseAsync(10, CancellationToken.None);
+
+        Assert.True(heartbeat.RequireLeaseGeneration);
+        Assert.Equal(30, heartbeat.WorkPollSeconds);
+        Assert.Equal(10, heartbeat.LongPollMaxSeconds);
+        Assert.Equal(7, work?.LeaseGeneration);
+    }
+
+    [Fact]
+    public async Task Every_lease_mutation_sends_token_and_generation_headers_and_accepts_202_completion()
+    {
+        var requests = new List<(string Path, string Token, string Generation, string? Body)>();
+        using var httpClient = new HttpClient(new StubHandler(async request =>
+        {
+            requests.Add((
+                request.RequestUri!.AbsolutePath,
+                request.Headers.GetValues("X-Lease-Token").Single(),
+                request.Headers.GetValues("X-Lease-Generation").Single(),
+                request.Content is null ? null : await request.Content.ReadAsStringAsync()));
+
+            return request.RequestUri.AbsolutePath.EndsWith("/complete", StringComparison.Ordinal)
+                && !request.RequestUri.AbsolutePath.Contains("payment-jobs", StringComparison.Ordinal)
+                ? JsonResponse(HttpStatusCode.Accepted, """{"data":{"accepted":true,"status":"uploaded","completed":false,"duplicate":false}}""")
+                : JsonResponse(HttpStatusCode.OK, "{}");
+        }))
+        {
+            BaseAddress = new Uri("https://gateway.example.test/"),
+        };
+        var gateway = new GatewayClient(httpClient, Options.Create(new AgentOptions()));
+        var work = CreateWork();
+        var page = GatewayClient.SerializePage<StudentRecordV1>([]);
+
+        await gateway.RenewLeaseAsync(work, CancellationToken.None);
+        await gateway.ReportExpectedRecordCountAsync(work, 250, CancellationToken.None);
+        await gateway.UploadPageAsync(work, 1, page, 250, CancellationToken.None);
+        var completion = await gateway.CompleteAsync(work, new CompletionManifest([page.ContentHash], 0), CancellationToken.None);
+        await gateway.CompletePaymentAsync(work, new PaymentDeliveryResult("accepted"), CancellationToken.None);
+        await gateway.FailAsync(work, "SYNC_FAILED", CancellationToken.None);
+
+        Assert.Equal(6, requests.Count);
+        Assert.All(requests, request =>
+        {
+            Assert.Equal("lease-token", request.Token);
+            Assert.Equal("7", request.Generation);
+        });
+        Assert.True(completion.Accepted);
+        Assert.Equal("uploaded", completion.Status);
+        Assert.False(completion.Completed);
+        var uploadBody = requests.Single(request => request.Path.Contains("/pages/", StringComparison.Ordinal)).Body;
+        Assert.Contains($"\"records\":{Encoding.UTF8.GetString(page.RecordsJson)}", uploadBody, StringComparison.Ordinal);
+        Assert.Contains("\"expected_record_count\":250", uploadBody, StringComparison.Ordinal);
+        var progressBody = requests.Single(request => request.Path.EndsWith("/progress", StringComparison.Ordinal)).Body;
+        Assert.Contains("\"expected_record_count\":250", progressBody, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.PreconditionRequired)]
+    public async Task Stale_lease_responses_are_not_treated_as_retryable_mutations(HttpStatusCode statusCode)
+    {
+        using var httpClient = new HttpClient(new StubHandler(_ => Task.FromResult(JsonResponse(statusCode, "{}"))))
+        {
+            BaseAddress = new Uri("https://gateway.example.test/"),
+        };
+        var gateway = new GatewayClient(httpClient, Options.Create(new AgentOptions()));
+
+        await Assert.ThrowsAsync<AgentLeaseLostException>(() => gateway.RenewLeaseAsync(CreateWork(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Work_endpoint_unauthorized_requires_reenrollment()
+    {
+        using var httpClient = new HttpClient(new StubHandler(_ => Task.FromResult(JsonResponse(HttpStatusCode.Unauthorized, "{}"))))
+        {
+            BaseAddress = new Uri("https://gateway.example.test/"),
+        };
+        var gateway = new GatewayClient(httpClient, Options.Create(new AgentOptions()));
+
+        await Assert.ThrowsAsync<AgentAuthenticationException>(() => gateway.LeaseAsync(10, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Invalid_page_response_is_reportable_instead_of_retried_as_a_network_failure()
+    {
+        using var httpClient = new HttpClient(new StubHandler(_ => Task.FromResult(JsonResponse(HttpStatusCode.UnprocessableEntity, "{}"))))
+        {
+            BaseAddress = new Uri("https://gateway.example.test/"),
+        };
+        var gateway = new GatewayClient(httpClient, Options.Create(new AgentOptions()));
+
+        var exception = await Assert.ThrowsAsync<AgentRequestRejectedException>(() => gateway.UploadPageAsync(
+            CreateWork(),
+            1,
+            GatewayClient.SerializePage<StudentRecordV1>([]),
+            null,
+            CancellationToken.None));
+
+        Assert.Equal("INVALID_PAYLOAD", exception.FailureCode);
+    }
+
     private sealed record HashFixture(
         [property: JsonPropertyName("records")] StudentRecordV1[] Records,
         [property: JsonPropertyName("expected_page_hash")] string ExpectedPageHash);
+
+    private static SyncWork CreateWork() => new(
+        "job-1",
+        "students.snapshot.v1",
+        1,
+        new SyncParameters(),
+        "lease-token",
+        7,
+        DateTimeOffset.UtcNow.AddMinutes(2),
+        []);
 
     private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string json)
     {

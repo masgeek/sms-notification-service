@@ -42,9 +42,10 @@ MQTT work hint
 ```
 
 MQTT carries metadata-only wake hints. HTTP remains authoritative for leases,
-records, completion, and failure reporting. While MQTT is connected, an idle
-timeout also causes another HTTP lease check. If MQTT disconnects, work
-discovery pauses until it reconnects.
+records, completion, and failure reporting. The Agent polls HTTP periodically
+whether MQTT is connected or not; MQTT only accelerates the next work check.
+The same persistent MQTT connection publishes retained presence and bounded
+operational events back to the central service.
 
 ## Requirements
 
@@ -145,6 +146,8 @@ SMS endpoint when a base URL is present.
     "LocalApiPassword": "...",
     "RequestTimeoutSeconds": 30,
     "IdleDelaySeconds": 5,
+    "WorkPollSeconds": 30,
+    "LongPollSeconds": 10,
     "HeartbeatSeconds": 60,
     "LeaseRenewalSeconds": 30,
     "MqttEnabled": true,
@@ -155,6 +158,9 @@ SMS endpoint when a base URL is present.
     "MqttUsername": "",
     "MqttPassword": "",
     "MqttTopicPrefix": "fee-syncer/agent",
+    "MqttClientId": "",
+    "MqttSessionExpirySeconds": 86400,
+    "MqttHealthSeconds": 60,
     "MqttKeepAliveSeconds": 30,
     "MqttReconnectMinSeconds": 1,
     "MqttReconnectMaxSeconds": 60
@@ -188,12 +194,12 @@ dotnet run --project src/Agent/FeeSyncer.Agent.csproj
 dotnet run --project src/Tray/FeeSyncer.Tray.csproj
 ```
 
-The repository currently contains 47 xUnit facts:
+The repository currently contains 57 xUnit tests:
 
 | Test project | Count |
 |---|---:|
 | SMS | 18 |
-| Agent | 18 |
+| Agent | 28 |
 | Tray | 11 |
 
 Tests do not require a live SQL Server, SMS provider, MQTT broker, or school API.

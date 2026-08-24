@@ -59,6 +59,8 @@ Example:
     "LocalApiPassword": "...",
     "RequestTimeoutSeconds": 30,
     "IdleDelaySeconds": 5,
+    "WorkPollSeconds": 30,
+    "LongPollSeconds": 10,
     "HeartbeatSeconds": 60,
     "LeaseRenewalSeconds": 30,
     "MqttEnabled": true,
@@ -69,6 +71,9 @@ Example:
     "MqttUsername": "",
     "MqttPassword": "",
     "MqttTopicPrefix": "fee-syncer/agent",
+    "MqttClientId": "",
+    "MqttSessionExpirySeconds": 86400,
+    "MqttHealthSeconds": 60,
     "MqttKeepAliveSeconds": 30,
     "MqttReconnectMinSeconds": 1,
     "MqttReconnectMaxSeconds": 60
@@ -102,11 +107,22 @@ Accepted notifications must be version 1 `work_available` messages with a valid
 event ID, job ID, operation, and timestamp. Duplicate, stale, future-dated,
 wrong-topic, malformed, and oversized notifications are ignored.
 
-On connection or notification, MQTT wakes the HTTP lease loop immediately. When
-connected but idle, `IdleDelaySeconds` also triggers another HTTP lease check.
-When disconnected, work discovery pauses until reconnection. Disabling MQTT is
-not currently a supported polling-only mode because the worker waits for MQTT
-connection state.
+On connection or notification, MQTT wakes the HTTP lease loop immediately. HTTP
+polling continues on the server-advertised cadence while MQTT is disconnected or
+disabled. MQTT never provides executable work and never gates work discovery.
+
+The Agent uses MQTT 5 with a stable client ID, clean start disabled, and a
+bounded persistent session. If `MqttClientId` is blank, a nonsecret identifier is
+derived from the enrolled token hash. The connection publishes:
+
+```text
+fee-syncer/agent/key/<token-hash>/events
+fee-syncer/agent/key/<token-hash>/presence
+```
+
+Presence is retained at QoS 1 with an offline last will. Events include hello,
+HTTP-heartbeat acknowledgement, health, and coarse work progress. They never
+include records, job IDs, lease values, page hashes, local paths, or credentials.
 
 ### WSS Troubleshooting
 
@@ -121,7 +137,7 @@ All runtime gateway calls use `Authorization: Bearer <AgentToken>`.
 
 | Purpose | Method | Default route |
 |---|---|---|
-| Lease work | GET | `api/agent/work?wait=0` |
+| Lease work | GET | `api/agent/work?wait=10` |
 | Heartbeat | POST | `api/agent/heartbeat` |
 | Renew lease | POST | `api/agent/sync-jobs/{jobId}/renew` |
 | Upload page | PUT | `api/agent/sync-jobs/{jobId}/pages/{page}` |
@@ -135,9 +151,12 @@ Supported operations are:
 - `fees.snapshot.v1`
 - `payments.record.v1`
 
-Snapshot pages are hashed with SHA-256 and can resume from confirmed page
-hashes. Heartbeats advertise these three capabilities. Heartbeat timing is tied
-to the main work loop, so long jobs or MQTT outages can delay it.
+Snapshot pages are serialized once as unescaped UTF-8 JSON and hashed with
+SHA-256 over those exact bytes. Upload, renewal, completion, payment completion,
+and failure calls send both the lease token and generation. Snapshot completion
+normally returns `202 uploaded`; this means server materialization was accepted,
+not that tenant activation has completed. Heartbeats advertise all three
+capabilities and provide the polling cadence and maximum long-poll duration.
 
 ## Local API
 
@@ -147,7 +166,7 @@ The default base URL is `http://127.0.0.1:8001/api/`. The Agent uses:
 |---|---|
 | Login | `POST v1/users/login` |
 | Students | `GET v1/students?page=N&per_page=P` |
-| Fee balances | `GET v1/students/fee-balance?page=N&per_page=P` |
+| Fee balances | `GET v1/fees?page=N&per_page=P` |
 | Record payment | `POST v1/payments` |
 
 Local access tokens are cached in memory and refreshed before expiry. HTTP 422

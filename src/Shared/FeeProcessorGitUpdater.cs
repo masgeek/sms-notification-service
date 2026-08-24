@@ -119,12 +119,13 @@ public sealed class FeeProcessorGitUpdater
         }
         else
         {
-            Repository.Clone(request.Repository, request.AppPath, new CloneOptions
+            var options = new CloneOptions
             {
                 IsBare = false,
                 Checkout = true,
-                FetchOptions = new FetchOptions { CredentialsProvider = Credentials(request) },
-            });
+            };
+            options.FetchOptions.CredentialsProvider = Credentials(request);
+            Repository.Clone(request.Repository, request.AppPath, options);
         }
     }
 

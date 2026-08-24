@@ -1,14 +1,20 @@
 using System.Net;
 using System.Diagnostics;
+using System.Buffers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace FeeSyncer.Agent.SchoolIntegration;
 
 internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.Options.IOptions<AgentOptions> options)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        WriteIndented = false,
+    };
     private readonly AgentOptions _options = options.Value;
 
     public string? LastRequestId { get; private set; }
@@ -26,7 +32,7 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
                 return null;
             }
 
-            response.EnsureSuccessStatusCode();
+            await EnsureSuccessAsync(response, cancellationToken);
             var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<SyncWork>>(JsonOptions, cancellationToken);
             return envelope?.Data ?? throw new InvalidOperationException("Lease response did not contain work data.");
         }
@@ -36,55 +42,73 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
         }
     }
 
-    public async Task HeartbeatAsync(AgentHeartbeat heartbeat, CancellationToken cancellationToken)
+    public async Task<AgentHeartbeatResponse> HeartbeatAsync(AgentHeartbeat heartbeat, CancellationToken cancellationToken)
     {
         using var response = await httpClient.PostAsJsonAsync(_options.AgentHeartbeatEndpoint, heartbeat, JsonOptions, cancellationToken);
         CaptureRequestId(response);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<AgentHeartbeatResponse>>(JsonOptions, cancellationToken);
+        return envelope?.Data ?? throw new InvalidOperationException("Heartbeat response did not contain configuration data.");
     }
 
     public async Task RenewLeaseAsync(SyncWork work, CancellationToken cancellationToken)
     {
-        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentRenewEndpoint, work.JobId), work.LeaseToken);
+        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentRenewEndpoint, work.JobId), work);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         CaptureRequestId(response);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken, leaseMutation: true);
     }
 
-    public async Task UploadPageAsync(SyncWork work, int pageNumber, object records, string hash, CancellationToken cancellationToken)
+    public async Task UploadPageAsync(
+        SyncWork work,
+        int pageNumber,
+        CanonicalPage page,
+        int? expectedRecordCount,
+        CancellationToken cancellationToken)
     {
-        using var request = CreateLeasedRequest(HttpMethod.Put, Format(_options.AgentPageEndpoint, work.JobId, pageNumber), work.LeaseToken);
-        request.Content = JsonContent.Create(new PageUpload(hash, records), options: JsonOptions);
+        using var request = CreateLeasedRequest(HttpMethod.Put, Format(_options.AgentPageEndpoint, work.JobId, pageNumber), work);
+        request.Content = CreatePageContent(page, expectedRecordCount);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         CaptureRequestId(response);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken, leaseMutation: true);
     }
 
-    public async Task CompleteAsync(SyncWork work, CompletionManifest manifest, CancellationToken cancellationToken)
+    public async Task<CompletionResult> CompleteAsync(SyncWork work, CompletionManifest manifest, CancellationToken cancellationToken)
     {
-        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentCompleteEndpoint, work.JobId), work.LeaseToken);
+        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentCompleteEndpoint, work.JobId), work);
         request.Content = JsonContent.Create(manifest, options: JsonOptions);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         CaptureRequestId(response);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken, leaseMutation: true);
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<CompletionResult>>(JsonOptions, cancellationToken);
+        return envelope?.Data ?? throw new InvalidOperationException("Completion response did not contain status data.");
+    }
+
+    public async Task ReportExpectedRecordCountAsync(SyncWork work, int expectedRecordCount, CancellationToken cancellationToken)
+    {
+        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentProgressEndpoint, work.JobId), work);
+        request.Content = JsonContent.Create(new { expected_record_count = expectedRecordCount }, options: JsonOptions);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        CaptureRequestId(response);
+        await EnsureSuccessAsync(response, cancellationToken, leaseMutation: true);
     }
 
     public async Task CompletePaymentAsync(SyncWork work, PaymentDeliveryResult result, CancellationToken cancellationToken)
     {
-        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentPaymentCompleteEndpoint, work.JobId), work.LeaseToken);
+        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentPaymentCompleteEndpoint, work.JobId), work);
         request.Content = JsonContent.Create(result, options: JsonOptions);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         CaptureRequestId(response);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken, leaseMutation: true);
     }
 
     public async Task FailAsync(SyncWork work, string failureCode, CancellationToken cancellationToken)
     {
-        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentFailEndpoint, work.JobId), work.LeaseToken);
+        using var request = CreateLeasedRequest(HttpMethod.Post, Format(_options.AgentFailEndpoint, work.JobId), work);
         request.Content = JsonContent.Create(new { failure_code = failureCode }, options: JsonOptions);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         CaptureRequestId(response);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken, leaseMutation: true);
     }
 
     public static string HashPage(IReadOnlyList<StudentRecordV1> records)
@@ -94,15 +118,42 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
 
     public static string HashRecords<T>(IReadOnlyList<T> records)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(records, JsonOptions);
-        return Convert.ToHexStringLower(SHA256.HashData(bytes));
+        return SerializePage(records).ContentHash;
     }
 
-    private static HttpRequestMessage CreateLeasedRequest(HttpMethod method, string url, string leaseToken)
+    public static CanonicalPage SerializePage<T>(IReadOnlyList<T> records)
+    {
+        var recordsJson = JsonSerializer.SerializeToUtf8Bytes(records, JsonOptions);
+        return new CanonicalPage(Convert.ToHexStringLower(SHA256.HashData(recordsJson)), recordsJson);
+    }
+
+    private static HttpRequestMessage CreateLeasedRequest(HttpMethod method, string url, SyncWork work)
     {
         var request = new HttpRequestMessage(method, url);
-        request.Headers.Add("X-Lease-Token", leaseToken);
+        request.Headers.Add("X-Lease-Token", work.LeaseToken);
+        request.Headers.Add("X-Lease-Generation", work.LeaseGeneration.ToString(System.Globalization.CultureInfo.InvariantCulture));
         return request;
+    }
+
+    private static HttpContent CreatePageContent(CanonicalPage page, int? expectedRecordCount)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("content_hash", page.ContentHash);
+            if (expectedRecordCount is not null)
+            {
+                writer.WriteNumber("expected_record_count", expectedRecordCount.Value);
+            }
+            writer.WritePropertyName("records");
+            writer.WriteRawValue(page.RecordsJson, skipInputValidation: false);
+            writer.WriteEndObject();
+        }
+
+        var content = new ByteArrayContent(buffer.WrittenSpan.ToArray());
+        content.Headers.ContentType = new("application/json") { CharSet = "utf-8" };
+        return content;
     }
 
     private static string Format(string template, string jobId, int? pageNumber = null) =>
@@ -116,15 +167,76 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
             : null;
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private static Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken,
+        bool leaseMutation = false)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (response.IsSuccessStatusCode)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        body = body.Length > 2_000 ? body[..2_000] : body;
-        throw new HttpRequestException($"HTTP {(int)response.StatusCode} ({response.StatusCode}) from agent gateway: {body}");
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            if (leaseMutation)
+            {
+                throw new AgentLeaseLostException("The server rejected stale lease credentials with HTTP 401.");
+            }
+
+            throw new AgentAuthenticationException("The agent credential was rejected; re-enrollment is required.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new AgentAuthenticationException("The agent credential does not have permission for this operation.");
+        }
+
+        if (leaseMutation && response.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.PreconditionRequired)
+        {
+            throw new AgentLeaseLostException($"The server rejected lease credentials with HTTP {(int)response.StatusCode}.");
+        }
+
+        if (leaseMutation && response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new AgentLeaseLostException("The leased job is no longer available.");
+        }
+
+        if (!leaseMutation && response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)
+        {
+            throw new AgentProtocolException($"The configured agent endpoint rejected the protocol with HTTP {(int)response.StatusCode}.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            var retryAfter = response.Headers.RetryAfter?.Delta
+                ?? response.Headers.RetryAfter?.Date - DateTimeOffset.UtcNow
+                ?? TimeSpan.FromSeconds(30);
+            throw new AgentRateLimitException(retryAfter);
+        }
+
+        if ((int)response.StatusCode is >= 400 and < 500 && response.StatusCode != HttpStatusCode.RequestTimeout)
+        {
+            throw new AgentRequestRejectedException("INVALID_PAYLOAD");
+        }
+
+        throw new HttpRequestException($"HTTP {(int)response.StatusCode} ({response.StatusCode}) from agent gateway.");
     }
 }
+
+internal sealed class AgentAuthenticationException(string message) : Exception(message);
+
+internal sealed class AgentLeaseLostException(string message) : Exception(message);
+
+internal sealed class AgentRateLimitException(TimeSpan retryAfter) : Exception("The agent gateway rate limit was reached.")
+{
+    public TimeSpan RetryAfter { get; } = retryAfter;
+}
+
+internal sealed class AgentRequestRejectedException(string failureCode) : Exception("The agent gateway rejected the request payload.")
+{
+    public string FailureCode { get; } = failureCode;
+}
+
+internal sealed class AgentProtocolException(string message) : Exception(message);

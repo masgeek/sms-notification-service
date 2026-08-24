@@ -224,7 +224,7 @@ WHERE name = 'school';
 1. Verify `agentsettings.json` and a valid `fsk_...` token.
 2. Verify the gateway and loopback local API from the tray diagnostics.
 3. Test the MQTT WebSocket endpoint and credentials.
-4. Remember that discovery pauses while MQTT is disconnected.
+4. Confirm HTTP polling continues while MQTT reconnects and that retained presence returns online after recovery.
 5. Review `[Agent]` and MQTT-related logs.
 
 ### Enrollment fails

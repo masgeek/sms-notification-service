@@ -98,10 +98,14 @@ FeeProcessorUpdateWorker
 MqttAgentConnection (when MqttEnabled is true)
 ```
 
-The work loop heartbeats, waits for MQTT connection, requests an HTTP lease,
-executes a supported operation, and renews the lease in parallel. MQTT signals
-provide immediate wake-up; a connected idle timeout also checks HTTP. A broker
-outage pauses discovery.
+The work loop heartbeats, continuously requests HTTP leases, executes one
+supported operation at a time, and renews the lease in parallel. MQTT signals
+only accelerate the next HTTP check; polling continues during broker outages or
+when MQTT is disabled.
+
+The MQTT 5 connection is bidirectional and session-persistent. It subscribes to
+work hints and publishes retained presence plus bounded operational events. All
+durable work transitions remain on authenticated HTTP endpoints.
 
 Supported operations:
 
@@ -109,8 +113,10 @@ Supported operations:
 - `fees.snapshot.v1`
 - `payments.record.v1`
 
-Snapshot uploads are paged, SHA-256 hashed, and resumable against confirmed page
-hashes. Payment completion uses a payment-specific completion route.
+Snapshot uploads are paged, SHA-256 hashed over their exact UTF-8 JSON bytes,
+and resumable against confirmed page hashes. All lease mutations send the lease
+token and generation. Payment completion uses a payment-specific completion
+route.
 
 The separate Fee Processor updater is locally scheduled. It is not a gateway
 work operation and is not advertised as an Agent capability.
@@ -248,12 +254,12 @@ Important direct product dependencies:
 
 ## Tests
 
-There are 47 xUnit facts in twelve source files:
+There are 57 xUnit tests in twelve source files:
 
 | Project | Facts | Main coverage |
 |---|---:|---|
 | SMS | 18 | Sender results/backoff, processor flows, tray compatibility source checks |
-| Agent | 18 | Contracts/hashing, redacted debug samples, school API mapping, HTTP diagnostics, MQTT gate/topic, wake signal |
+| Agent | 28 | Contracts/hashing, lease fencing, redacted debug samples, school API mapping, HTTP diagnostics, MQTT control/events, wake signal |
 | Tray | 11 | Tray icon lifecycle, source fallback, and verified update downloads |
 
 There are no live database, broker, installer, or end-to-end integration tests.
