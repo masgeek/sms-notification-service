@@ -255,13 +255,13 @@ Important direct product dependencies:
 
 ## Tests
 
-There are 69 xUnit tests in twelve source files:
+There are 70 xUnit tests in twelve source files:
 
 | Project | Facts | Main coverage |
 |---|---:|---|
 | SMS | 18 | Sender results/backoff, processor flows, tray compatibility source checks |
 | Agent | 33 | Contracts/hashing, lease fencing, redacted debug samples, school API mapping, HTTP diagnostics, MQTT control/events, wake signal |
-| Tray | 18 | Tray icon lifecycle, local API diagnostics, source fallback, and verified update downloads |
+| Tray | 19 | Tray icon lifecycle, local API diagnostics, source fallback, and verified update downloads |
 
 There are no live database, broker, installer, or end-to-end integration tests.
 Operational UI and Agent orchestration coverage remains limited.

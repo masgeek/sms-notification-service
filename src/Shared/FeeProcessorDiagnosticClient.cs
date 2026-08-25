@@ -110,7 +110,7 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
         CancellationToken cancellationToken)
     {
         using var response = await SendAuthenticatedGetAsync(path, token, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken, token);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         var root = document.RootElement;
@@ -141,7 +141,7 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
     {
         using var response = await SendAuthenticatedGetAsync(
             $"{path}?page=1&per_page={DiagnosticPageSize}", token, cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken, token);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         if (!document.RootElement.TryGetProperty("data", out var records)
@@ -171,7 +171,10 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
         return await httpClient.SendAsync(request, cancellationToken);
     }
 
-    private async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private async Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken,
+        params string[] additionalSecrets)
     {
         if (response.IsSuccessStatusCode)
         {
@@ -190,6 +193,10 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         body = Redact(body, username);
         body = Redact(body, password);
+        foreach (var secret in additionalSecrets)
+        {
+            body = Redact(body, secret);
+        }
         if (body.Length > MaxDiagnosticBodyLength)
         {
             body = body[..MaxDiagnosticBodyLength] + $"{Environment.NewLine}[truncated]";
