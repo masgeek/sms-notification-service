@@ -264,14 +264,14 @@ internal sealed class SchoolIntegrationWorker(
 
             if (page.Count == pageSize)
             {
-                await UploadOrConfirmAsync(work, pageNumber++, page, pageHashes, expectedRecordCount, cancellationToken);
+                await UploadOrConfirmAsync(work, pageNumber++, page, pageHashes, cancellationToken);
                 page = new List<StudentRecordV1>(pageSize);
             }
         }
 
         if (page.Count > 0)
         {
-            await UploadOrConfirmAsync(work, pageNumber, page, pageHashes, expectedRecordCount, cancellationToken);
+            await UploadOrConfirmAsync(work, pageNumber, page, pageHashes, cancellationToken);
         }
 
         var completion = await gateway.CompleteAsync(work, new CompletionManifest(pageHashes, recordCount), cancellationToken);
@@ -300,7 +300,7 @@ internal sealed class SchoolIntegrationWorker(
 
             if (page.Count == pageSize)
             {
-                await UploadFeePageOrConfirmAsync(work, pageNumber++, page, pageHashes, expectedRecordCount, cancellationToken);
+                await UploadFeePageOrConfirmAsync(work, pageNumber++, page, pageHashes, cancellationToken);
                 logger.LogInformation("Uploaded fee page {PageNumber} for job {JobId} with {RecordCount} records.", pageNumber - 1, work.JobId, page.Count);
                 page = new List<FeeRecordV1>(pageSize);
             }
@@ -308,7 +308,7 @@ internal sealed class SchoolIntegrationWorker(
 
         if (page.Count > 0)
         {
-            await UploadFeePageOrConfirmAsync(work, pageNumber, page, pageHashes, expectedRecordCount, cancellationToken);
+            await UploadFeePageOrConfirmAsync(work, pageNumber, page, pageHashes, cancellationToken);
             logger.LogInformation("Uploaded fee page {PageNumber} for job {JobId} with {RecordCount} records.", pageNumber, work.JobId, page.Count);
         }
 
@@ -324,7 +324,6 @@ internal sealed class SchoolIntegrationWorker(
         int pageNumber,
         IReadOnlyList<StudentRecordV1> records,
         List<string> pageHashes,
-        int expectedRecordCount,
         CancellationToken cancellationToken)
     {
         var page = GatewayClient.SerializePage(records);
@@ -351,7 +350,7 @@ internal sealed class SchoolIntegrationWorker(
                 CreateRedactedStudentSamples(records));
         }
 
-        await gateway.UploadPageAsync(work, pageNumber, page, expectedRecordCount, cancellationToken);
+        await gateway.UploadPageAsync(work, pageNumber, page, cancellationToken);
     }
 
     internal static string CreateRedactedStudentSamples(IReadOnlyList<StudentRecordV1> records) =>
@@ -395,7 +394,6 @@ internal sealed class SchoolIntegrationWorker(
         int pageNumber,
         IReadOnlyList<FeeRecordV1> records,
         List<string> pageHashes,
-        int expectedRecordCount,
         CancellationToken cancellationToken)
     {
         var page = GatewayClient.SerializePage(records);
@@ -411,6 +409,6 @@ internal sealed class SchoolIntegrationWorker(
             return;
         }
 
-        await gateway.UploadPageAsync(work, pageNumber, page, expectedRecordCount, cancellationToken);
+        await gateway.UploadPageAsync(work, pageNumber, page, cancellationToken);
     }
 }

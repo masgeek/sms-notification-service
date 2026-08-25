@@ -160,6 +160,16 @@ normally returns `202 uploaded`; this means server materialization was accepted,
 not that tenant activation has completed. Heartbeats advertise all three
 capabilities and provide the polling cadence and maximum long-poll duration.
 
+Individual page payloads contain only `content_hash` and `records`. The Agent
+reports `expected_record_count` through the progress endpoint and sends the final
+`record_count` in the completion manifest. Structured gateway validation errors
+retain their code, message, and field-level reasons in Agent logs instead of
+being collapsed into a generic invalid-payload message.
+
+Gateways should return validation failures as HTTP 422 with a stable `code`, a
+human-readable `message`, and an `errors` object keyed by record and field path.
+The Agent logs those details without logging the submitted record payload.
+
 ## Local API
 
 The default base URL is `http://127.0.0.1:8001/api/`. The Agent uses:
