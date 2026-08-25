@@ -27,7 +27,7 @@ public partial class ConfigEditor : UserControl
         Loaded += async (_, _) =>
         {
             ConfigPathText.Text = $"SMS settings: {ConfigPathResolver.GetActiveConfigFile()}{Environment.NewLine}" +
-                                  $"Agent settings: {ConfigPathResolver.GetActiveAgentConfigFile()}";
+                                  $"Agent settings: {ConfigPathResolver.GetMachineAgentConfigFile()}";
             LoadConfig();
             await UpdateFeeToolDetectionTextAsync();
         };
@@ -110,7 +110,10 @@ public partial class ConfigEditor : UserControl
     private void LoadAgentConfig()
     {
         LoadAgentDefaults();
-        var configPath = ConfigPathResolver.FindAgentConfigFile();
+        var machineConfigPath = ConfigPathResolver.GetMachineAgentConfigFile();
+        var configPath = File.Exists(machineConfigPath)
+            ? machineConfigPath
+            : ConfigPathResolver.FindAgentConfigFile();
         if (!File.Exists(configPath))
         {
             AgentStatusText.Text = "Not enrolled";
@@ -118,6 +121,14 @@ public partial class ConfigEditor : UserControl
         }
 
         using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
+        if (doc.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer))
+        {
+            var baseUrl = StringValue(feeSyncer, "BaseUrl");
+            if (!string.IsNullOrWhiteSpace(baseUrl))
+                ApiUrlBox.Text = baseUrl;
+            LoadApiEndpoints(feeSyncer);
+        }
+
         if (!doc.RootElement.TryGetProperty("Agent", out var agent))
             return;
 
@@ -423,6 +434,7 @@ public partial class ConfigEditor : UserControl
         agent["FeeProcessorSshKeyPath"] = FeeProcessorSshKeyPathBox.Text.Trim();
         agent["FeeProcessorSshPassphrase"] = FeeProcessorSshPassphraseBox.Password;
         root["Agent"] = agent;
+        root["FeeSyncer"] = JsonSerializer.SerializeToNode(BuildFeeSyncerSettings());
         ApplyLogLevel(root, SelectedLogLevel());
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
         await File.WriteAllTextAsync(configPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
@@ -436,6 +448,24 @@ public partial class ConfigEditor : UserControl
 
     private static string NormalizeEndpoint(string value, string fallback) =>
         string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().TrimStart('/');
+
+    private Dictionary<string, object?> BuildFeeSyncerSettings() => new()
+    {
+        ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/",
+        ["ApiEndpoints"] = new Dictionary<string, object?>
+        {
+            ["SmsNotifications"] = NormalizeEndpoint(SmsNotificationsEndpointBox.Text, Constants.DefaultSmsNotificationsEndpoint),
+            ["AgentEnroll"] = NormalizeEndpoint(AgentEnrollEndpointBox.Text, Constants.DefaultAgentEnrollEndpoint),
+            ["AgentWork"] = NormalizeEndpoint(AgentWorkEndpointBox.Text, Constants.DefaultAgentWorkEndpoint),
+            ["AgentHeartbeat"] = NormalizeEndpoint(AgentHeartbeatEndpointBox.Text, Constants.DefaultAgentHeartbeatEndpoint),
+            ["AgentRenew"] = NormalizeEndpoint(AgentRenewEndpointBox.Text, Constants.DefaultAgentRenewEndpoint),
+            ["AgentPage"] = NormalizeEndpoint(AgentPageEndpointBox.Text, Constants.DefaultAgentPageEndpoint),
+            ["AgentProgress"] = Constants.DefaultAgentProgressEndpoint,
+            ["AgentComplete"] = NormalizeEndpoint(AgentCompleteEndpointBox.Text, Constants.DefaultAgentCompleteEndpoint),
+            ["AgentPaymentComplete"] = NormalizeEndpoint(AgentPaymentCompleteEndpointBox.Text, Constants.DefaultAgentPaymentCompleteEndpoint),
+            ["AgentFail"] = NormalizeEndpoint(AgentFailEndpointBox.Text, Constants.DefaultAgentFailEndpoint),
+        },
+    };
 
     private void ParseConnectionString(string connectionString)
     {
@@ -926,22 +956,7 @@ public partial class ConfigEditor : UserControl
                 ["UpdateCheckInterval"] = UpdateCheckSchedule.Normalize(UpdateCheckIntervalBox.SelectedValue?.ToString()),
             };
 
-            mutable["FeeSyncer"] = new Dictionary<string, object?>
-            {
-                ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/",
-                ["ApiEndpoints"] = new Dictionary<string, object?>
-                {
-                    ["SmsNotifications"] = NormalizeEndpoint(SmsNotificationsEndpointBox.Text, Constants.DefaultSmsNotificationsEndpoint),
-                    ["AgentEnroll"] = NormalizeEndpoint(AgentEnrollEndpointBox.Text, Constants.DefaultAgentEnrollEndpoint),
-                    ["AgentWork"] = NormalizeEndpoint(AgentWorkEndpointBox.Text, Constants.DefaultAgentWorkEndpoint),
-                    ["AgentHeartbeat"] = NormalizeEndpoint(AgentHeartbeatEndpointBox.Text, Constants.DefaultAgentHeartbeatEndpoint),
-                    ["AgentRenew"] = NormalizeEndpoint(AgentRenewEndpointBox.Text, Constants.DefaultAgentRenewEndpoint),
-                    ["AgentPage"] = NormalizeEndpoint(AgentPageEndpointBox.Text, Constants.DefaultAgentPageEndpoint),
-                    ["AgentComplete"] = NormalizeEndpoint(AgentCompleteEndpointBox.Text, Constants.DefaultAgentCompleteEndpoint),
-                    ["AgentPaymentComplete"] = NormalizeEndpoint(AgentPaymentCompleteEndpointBox.Text, Constants.DefaultAgentPaymentCompleteEndpoint),
-                    ["AgentFail"] = NormalizeEndpoint(AgentFailEndpointBox.Text, Constants.DefaultAgentFailEndpoint),
-                }
-            };
+            mutable["FeeSyncer"] = BuildFeeSyncerSettings();
 
             var output = JsonSerializer.Serialize(mutable, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(configPath, output);
