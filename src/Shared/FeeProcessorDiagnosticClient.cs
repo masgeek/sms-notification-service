@@ -17,6 +17,14 @@ public enum FeeProcessorDiagnosticEndpoint
 public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string username, string password)
 {
     private const int DiagnosticPageSize = 3;
+    private const int MaxDiagnosticBodyLength = 64 * 1024;
+    private readonly bool includeResponseDetails;
+
+    public FeeProcessorDiagnosticClient(HttpClient httpClient, string username, string password, bool includeResponseDetails)
+        : this(httpClient, username, password)
+    {
+        this.includeResponseDetails = includeResponseDetails;
+    }
 
     public async Task<CheckResult> CheckAsync(
         FeeProcessorDiagnosticEndpoint endpoint,
@@ -65,6 +73,10 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
                 ? "Local API could not be reached"
                 : $"Local API returned HTTP {(int)exception.StatusCode} ({exception.StatusCode})");
         }
+        catch (DiagnosticResponseException exception)
+        {
+            return Failed(exception.Message);
+        }
         catch (JsonException)
         {
             return Failed("Local API returned invalid JSON");
@@ -77,7 +89,7 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
             "v1/users/login",
             new { username, password },
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
@@ -98,7 +110,7 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
         CancellationToken cancellationToken)
     {
         using var response = await SendAuthenticatedGetAsync(path, token, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         var root = document.RootElement;
@@ -129,7 +141,7 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
     {
         using var response = await SendAuthenticatedGetAsync(
             $"{path}?page=1&per_page={DiagnosticPageSize}", token, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         if (!document.RootElement.TryGetProperty("data", out var records)
@@ -159,6 +171,43 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
         return await httpClient.SendAsync(request, cancellationToken);
     }
 
+    private async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var summary = $"Local API returned HTTP {(int)response.StatusCode} ({response.StatusCode})";
+        if (!includeResponseDetails)
+        {
+            throw new DiagnosticResponseException(summary);
+        }
+
+        var headers = response.Headers
+            .Concat(response.Content.Headers)
+            .Select(header => $"{header.Key}: {(IsSensitiveHeader(header.Key) ? "[redacted]" : string.Join(", ", header.Value))}");
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        body = Redact(body, username);
+        body = Redact(body, password);
+        if (body.Length > MaxDiagnosticBodyLength)
+        {
+            body = body[..MaxDiagnosticBodyLength] + $"{Environment.NewLine}[truncated]";
+        }
+
+        throw new DiagnosticResponseException(
+            $"{summary}{Environment.NewLine}Response headers:{Environment.NewLine}{string.Join(Environment.NewLine, headers)}{Environment.NewLine}Response body:{Environment.NewLine}{(body.Length == 0 ? "[empty]" : body)}");
+    }
+
+    private static bool IsSensitiveHeader(string name) =>
+        name.Contains("authorization", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("cookie", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("token", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("key", StringComparison.OrdinalIgnoreCase);
+
+    private static string Redact(string value, string secret) =>
+        string.IsNullOrEmpty(secret) ? value : value.Replace(secret, "[redacted]", StringComparison.Ordinal);
+
     private static CheckResult Passed(string details, Stopwatch stopwatch)
     {
         stopwatch.Stop();
@@ -172,4 +221,6 @@ public sealed class FeeProcessorDiagnosticClient(HttpClient httpClient, string u
     }
 
     private static CheckResult Failed(string details) => new() { Passed = false, Details = details };
+
+    private sealed class DiagnosticResponseException(string message) : Exception(message);
 }

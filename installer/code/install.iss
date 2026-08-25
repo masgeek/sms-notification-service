@@ -45,13 +45,8 @@ begin
   Log('Configuration is managed by the application; installer will not write credentials.');
 
   Log('Creating or updating Windows services...');
-  EnsureService('{#ServiceName}', '{#ServiceDisplay}', ExpandConstant('{app}') + '\FeeSyncer.Sms.exe');
-  EnsureService('{#AgentServiceName}', '{#AgentServiceDisplay}', ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe');
-  ConfigureServiceDescription('{#AgentServiceName}', '{#AgentServiceDesc}');
-  ConfigureRecovery('{#AgentServiceName}');
-
-  ConfigureServiceDescription('{#ServiceName}', '{#ServiceDesc}');
-  ConfigureRecovery('{#ServiceName}');
+  EnsureService('{#ServiceName}', '{#ServiceDisplay}', '{#ServiceDesc}', ExpandConstant('{app}') + '\FeeSyncer.Sms.exe');
+  EnsureService('{#AgentServiceName}', '{#AgentServiceDisplay}', '{#AgentServiceDesc}', ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe');
 
   Log('Services installed but left stopped until configuration and connection checks pass.');
 
@@ -71,8 +66,8 @@ begin
   StopServiceForUpgrade('{#ServiceName}');
   StopServiceForUpgrade('{#AgentServiceName}');
 
-  EnsureService('{#ServiceName}', '{#ServiceDisplay}', ExpandConstant('{app}') + '\FeeSyncer.Sms.exe');
-  EnsureService('{#AgentServiceName}', '{#AgentServiceDisplay}', ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe');
+  EnsureService('{#ServiceName}', '{#ServiceDisplay}', '{#ServiceDesc}', ExpandConstant('{app}') + '\FeeSyncer.Sms.exe');
+  EnsureService('{#AgentServiceName}', '{#AgentServiceDisplay}', '{#AgentServiceDesc}', ExpandConstant('{app}') + '\{#AgentDir}\FeeSyncer.Agent.exe');
 
   Log('Configuration is managed by the application; existing configuration was not changed.');
 

@@ -31,7 +31,7 @@ prototype plan.
 - [ ] Ensure Agent central endpoint edits are saved to `agentsettings.json`
 - [ ] Insert the Amount field from the manual notification dialog
 - [ ] Distinguish intentional service stops from unexpected failures
-- [ ] Report `sc.exe` completion and errors in the UI
+- [ ] Report detailed Servy and `sc.exe` completion errors in the UI
 - [ ] Test MQTT-disabled behavior or add a supported HTTP-only mode
 - [ ] Add Control Panel, enrollment, settings, About, and log-viewer tests
 - [ ] Verify the framework installer checks the Windows Desktop Runtime
@@ -44,7 +44,7 @@ prototype plan.
 | Tray library | `H.NotifyIcon.Wpf` 2.4.1 |
 | MQTT library | `MQTTnet` 5.2.0.1603 |
 | Production config | ProgramData machine JSON files |
-| Service control | `ServiceController` for status, `sc.exe` for actions |
+| Service control | Servy-first installation, `sc.exe` fallback, `ServiceController` status |
 | Tray exit | Explicit application shutdown |
 | Window close | Hide and remain in tray |
 | Autostart | All-users Startup-folder shortcut |
