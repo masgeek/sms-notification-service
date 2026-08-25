@@ -76,8 +76,8 @@ they do not encrypt stored values.
 - Log **Clear** clears the display; refresh reloads files.
 - Log **Export** copies visible text to the clipboard.
 - Manual notification Amount is shown in the UI but not currently inserted.
-- Tray-based service installation uses delayed-auto startup.
-- Inno-based installation uses manual startup and leaves services stopped.
+- Tray-based service installation prefers Servy, falls back to `sc.exe`, and uses delayed-auto startup.
+- Inno-based installation uses the same Servy-first fallback strategy with manual startup and leaves services stopped.
 - Tray autostart is installed through the all-users Startup folder.
 - Agent console launches preserve failed startup output and wait for a key press before closing.
 

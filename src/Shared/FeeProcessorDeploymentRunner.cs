@@ -15,7 +15,6 @@ public sealed record FeeProcessorDeploymentRequest(
     string SshUsername = "git",
     string SshKeyPath = "",
     string SshPassphrase = "",
-    string IisSiteName = "FeeProcessor",
     IReadOnlyList<string>? WindowsServices = null,
     string GitExecutablePath = "");
 
@@ -28,7 +27,6 @@ public sealed class FeeProcessorDeploymentRunner
         ValidateRequest(request);
         Directory.CreateDirectory(request.AppPath);
         var services = request.WindowsServices ?? ["FeeProcessorQueue"];
-        var appCmd = FindAppCmd();
         var php = FeeProcessorToolResolver.Resolve(request.PhpPath, "php");
         if (string.IsNullOrWhiteSpace(php))
             throw new InvalidOperationException("PHP must be installed and available on PATH or configured explicitly.");
@@ -43,8 +41,6 @@ public sealed class FeeProcessorDeploymentRunner
                     await RunAsync("sc.exe", ["stop", service], request.AppPath, message => Report(progress, message), cancellationToken, false);
                 else Report(progress, $"Service {service} is not installed; skipping stop.");
 
-            if (!string.IsNullOrWhiteSpace(appCmd))
-                await RunAsync(appCmd, ["stop", "site", $"/{request.IisSiteName}"], request.AppPath, message => Report(progress, message), cancellationToken, false);
             gitUpdater.Update(new FeeProcessorGitRequest(request.AppPath, request.Repository, request.Branch, request.Tag, request.SshUsername, request.SshKeyPath, request.SshPassphrase, request.GitExecutablePath), message => Report(progress, message));
             await InstallNodeDependenciesAsync(request.AppPath, progress, cancellationToken);
             // await RunAsync(composer, ["install", "--no-dev", "--optimize-autoloader", "--no-interaction", "-vvv"], request.AppPath, message => Report(progress, message), cancellationToken);
@@ -55,8 +51,6 @@ public sealed class FeeProcessorDeploymentRunner
         }
         finally
         {
-            if (!string.IsNullOrWhiteSpace(appCmd))
-                await RunAsync(appCmd, ["start", "site", $"/{request.IisSiteName}"], request.AppPath, message => Report(progress, message), CancellationToken.None, false);
             foreach (var service in services)
                 if (ServiceInstalled(service))
                     await RunAsync("sc.exe", ["start", service], request.AppPath, message => Report(progress, message), CancellationToken.None, false);
@@ -132,13 +126,6 @@ public sealed class FeeProcessorDeploymentRunner
     private static void ValidateRequest(FeeProcessorDeploymentRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Repository)) throw new InvalidOperationException("Repository is required.");
-    }
-
-    private static string FindAppCmd()
-    {
-        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-        var path = Path.Combine(windows, "System32", "inetsrv", "appcmd.exe");
-        return File.Exists(path) ? path : string.Empty;
     }
 
     private static bool ServiceInstalled(string name)

@@ -10,6 +10,7 @@ namespace FeeSyncer.Agent.SchoolIntegration;
 
 internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.Options.IOptions<AgentOptions> options)
 {
+    private const int MaxGatewayErrorLength = 2048;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
@@ -63,11 +64,10 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
         SyncWork work,
         int pageNumber,
         CanonicalPage page,
-        int? expectedRecordCount,
         CancellationToken cancellationToken)
     {
         using var request = CreateLeasedRequest(HttpMethod.Put, Format(_options.AgentPageEndpoint, work.JobId, pageNumber), work);
-        request.Content = CreatePageContent(page, expectedRecordCount);
+        request.Content = CreatePageContent(page);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         CaptureRequestId(response);
         await EnsureSuccessAsync(response, cancellationToken, leaseMutation: true);
@@ -135,17 +135,13 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
         return request;
     }
 
-    private static HttpContent CreatePageContent(CanonicalPage page, int? expectedRecordCount)
+    private static HttpContent CreatePageContent(CanonicalPage page)
     {
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
         {
             writer.WriteStartObject();
             writer.WriteString("content_hash", page.ContentHash);
-            if (expectedRecordCount is not null)
-            {
-                writer.WriteNumber("expected_record_count", expectedRecordCount.Value);
-            }
             writer.WritePropertyName("records");
             writer.WriteRawValue(page.RecordsJson, skipInputValidation: false);
             writer.WriteEndObject();
@@ -167,7 +163,7 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
             : null;
     }
 
-    private static Task EnsureSuccessAsync(
+    private static async Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken,
         bool leaseMutation = false)
@@ -175,7 +171,7 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
         cancellationToken.ThrowIfCancellationRequested();
         if (response.IsSuccessStatusCode)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
@@ -218,11 +214,153 @@ internal sealed class GatewayClient(HttpClient httpClient, Microsoft.Extensions.
 
         if ((int)response.StatusCode is >= 400 and < 500 && response.StatusCode != HttpStatusCode.RequestTimeout)
         {
-            throw new AgentRequestRejectedException("INVALID_PAYLOAD");
+            var gatewayError = await ReadGatewayErrorAsync(response, cancellationToken);
+            var summary = $"Agent gateway rejected the request payload with HTTP {(int)response.StatusCode} ({response.StatusCode}). Code={gatewayError.Code}.";
+            if (!string.IsNullOrWhiteSpace(gatewayError.Reason))
+            {
+                summary += $" Reason: {gatewayError.Reason}";
+            }
+
+            throw new AgentRequestRejectedException(gatewayError.Code, summary);
         }
 
         throw new HttpRequestException($"HTTP {(int)response.StatusCode} ({response.StatusCode}) from agent gateway.");
     }
+
+    private static async Task<GatewayErrorDetails> ReadGatewayErrorAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            var error = TryGetObject(root, "error");
+            var code = NormalizeFailureCode(
+                GetString(root, "code", "error_code")
+                ?? (error is { } errorObject ? GetString(errorObject, "code", "error_code") : null));
+            var reasons = new List<string>();
+            AddReason(reasons, GetString(root, "message", "reason", "detail"));
+            if (error is { } nestedError)
+            {
+                AddReason(reasons, GetString(nestedError, "message", "reason", "detail"));
+            }
+
+            if (TryGetProperty(root, out var errors, "errors", "validation_errors"))
+            {
+                AddValidationErrors(errors, reasons);
+            }
+            else if (error is { } errorDetails
+                     && TryGetProperty(errorDetails, out errors, "errors", "validation_errors"))
+            {
+                AddValidationErrors(errors, reasons);
+            }
+
+            var reason = string.Join("; ", reasons.Distinct(StringComparer.Ordinal));
+            if (reason.Length > MaxGatewayErrorLength)
+            {
+                reason = reason[..MaxGatewayErrorLength] + " [truncated]";
+            }
+
+            return new GatewayErrorDetails(code, reason);
+        }
+        catch (JsonException)
+        {
+            return new GatewayErrorDetails("INVALID_PAYLOAD", string.Empty);
+        }
+    }
+
+    private static void AddValidationErrors(JsonElement errors, List<string> reasons, string? path = null)
+    {
+        if (errors.ValueKind == JsonValueKind.Object)
+        {
+            var field = GetString(errors, "field", "path");
+            var message = GetString(errors, "message", "reason", "detail");
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                AddReason(reasons, string.IsNullOrWhiteSpace(field) ? message : $"{field}: {message}");
+                return;
+            }
+
+            foreach (var property in errors.EnumerateObject())
+            {
+                AddValidationErrors(property.Value, reasons, CombinePath(path, property.Name));
+            }
+            return;
+        }
+
+        if (errors.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in errors.EnumerateArray())
+            {
+                AddValidationErrors(item, reasons, path);
+            }
+            return;
+        }
+
+        if (errors.ValueKind == JsonValueKind.String)
+        {
+            var message = errors.GetString();
+            AddReason(reasons, string.IsNullOrWhiteSpace(path) ? message : $"{path}: {message}");
+        }
+    }
+
+    private static string CombinePath(string? path, string segment) =>
+        string.IsNullOrWhiteSpace(path) ? segment : $"{path}.{segment}";
+
+    private static void AddReason(List<string> reasons, string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return;
+        }
+
+        var normalized = reason.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        reasons.Add(normalized.Length > 512 ? normalized[..512] + " [truncated]" : normalized);
+    }
+
+    private static string NormalizeFailureCode(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code) || code.Length > 64
+            || code.Any(character => !char.IsLetterOrDigit(character) && character is not '_' and not '-' and not '.'))
+        {
+            return "INVALID_PAYLOAD";
+        }
+
+        return code.ToUpperInvariant();
+    }
+
+    private static JsonElement? TryGetObject(JsonElement element, string name) =>
+        element.ValueKind == JsonValueKind.Object
+        && element.TryGetProperty(name, out var value)
+        && value.ValueKind == JsonValueKind.Object
+            ? value
+            : null;
+
+    private static string? GetString(JsonElement element, params string[] names) =>
+        TryGetProperty(element, out var value, names) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static bool TryGetProperty(JsonElement element, out JsonElement value, params string[] names)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var name in names)
+            {
+                if (element.TryGetProperty(name, out value))
+                {
+                    return true;
+                }
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private sealed record GatewayErrorDetails(string Code, string Reason);
 }
 
 internal sealed class AgentAuthenticationException(string message) : Exception(message);
@@ -234,7 +372,7 @@ internal sealed class AgentRateLimitException(TimeSpan retryAfter) : Exception("
     public TimeSpan RetryAfter { get; } = retryAfter;
 }
 
-internal sealed class AgentRequestRejectedException(string failureCode) : Exception("The agent gateway rejected the request payload.")
+internal sealed class AgentRequestRejectedException(string failureCode, string message) : Exception(message)
 {
     public string FailureCode { get; } = failureCode;
 }

@@ -109,6 +109,20 @@ dotnet test -c Release --no-build
 
 ## Manual Service Installation
 
+Servy is preferred when `servy-cli` is installed:
+
+```powershell
+winget install servy
+
+servy-cli install --name="FeeSyncer.Sms" --displayName="FeeSyncer SMS" --path="C:\Program Files\FeeSyncer\FeeSyncer.Sms.exe" --startupDir="C:\Program Files\FeeSyncer" --startupType="Manual" --enableHealth --heartbeatInterval=10 --maxFailedChecks=3 --recoveryAction="RestartProcess" --maxRestartAttempts=3 --quiet
+servy-cli install --name="FeeSyncer.Agent" --displayName="FeeSyncer Agent" --path="C:\Program Files\FeeSyncer\Agent\FeeSyncer.Agent.exe" --startupDir="C:\Program Files\FeeSyncer\Agent" --startupType="Manual" --enableHealth --heartbeatInterval=10 --maxFailedChecks=3 --recoveryAction="RestartProcess" --maxRestartAttempts=3 --quiet
+```
+
+The installer configures Servy stdout/stderr files under
+`C:\ProgramData\Munywele\FeeSyncer\logs` with daily and 10 MB rotation. If
+`servy-cli` is not installed or cannot configure a service, the installer uses
+the native fallback:
+
 ```powershell
 sc.exe create FeeSyncer.Sms binPath= "C:\Program Files\FeeSyncer\FeeSyncer.Sms.exe" start= demand
 sc.exe create FeeSyncer.Agent binPath= "C:\Program Files\FeeSyncer\Agent\FeeSyncer.Agent.exe" start= demand
@@ -120,8 +134,8 @@ sc.exe failure FeeSyncer.Sms reset= 86400 actions= restart/300000/restart/5000/r
 sc.exe failure FeeSyncer.Agent reset= 86400 actions= restart/300000/restart/5000/restart/5000
 ```
 
-The tray Control Panel can also install services; that path creates delayed-auto
-services, unlike the current Inno installer.
+The tray Control Panel uses the same Servy-first strategy but creates
+delayed-auto services. Its native fallback also uses delayed-auto startup.
 
 ## Service Management
 
@@ -165,6 +179,8 @@ Manual upgrades use the same service-state preservation behavior.
 The uninstaller stops and removes both services and asks whether ProgramData
 configuration and logs should be retained. Preserve that directory if the
 machine will be reinstalled or if credentials and diagnostics are still needed.
+Servy-managed services are removed through `servy-cli`; native services and
+Servy removal failures fall back to `sc.exe delete`.
 
 ## CI/CD
 

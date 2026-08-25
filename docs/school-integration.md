@@ -160,6 +160,16 @@ normally returns `202 uploaded`; this means server materialization was accepted,
 not that tenant activation has completed. Heartbeats advertise all three
 capabilities and provide the polling cadence and maximum long-poll duration.
 
+Individual page payloads contain only `content_hash` and `records`. The Agent
+reports `expected_record_count` through the progress endpoint and sends the final
+`record_count` in the completion manifest. Structured gateway validation errors
+retain their code, message, and field-level reasons in Agent logs instead of
+being collapsed into a generic invalid-payload message.
+
+Gateways should return validation failures as HTTP 422 with a stable `code`, a
+human-readable `message`, and an `errors` object keyed by record and field path.
+The Agent logs those details without logging the submitted record payload.
+
 ## Local API
 
 The default base URL is `http://127.0.0.1:8001/api/`. The Agent uses:
@@ -182,9 +192,9 @@ kept synchronized whenever that contract changes.
 ## Fee Processor Updates
 
 When enabled, `FeeProcessorUpdateWorker` runs independently of gateway jobs. It
-can back up `.env` and the previous Git commit, stop the queue service and IIS
-site, update a configured Git branch or tag, run `pnpm install`, `pnpm build`,
-Composer, and Laravel migration/cache commands, and restart local services.
+can back up `.env` and the previous Git commit, stop configured Windows services,
+update a configured Git branch or tag, run `pnpm install`, `pnpm build`, Composer,
+and Laravel migration/cache commands, and restart the configured services.
 Missing pnpm or a failed pnpm install/build is logged but does not stop the
 remaining deployment steps. Configure and test this feature from the tray before
 enabling its schedule.
@@ -220,3 +230,7 @@ The global level can be set under **Settings > Logging**.
 Saving writes the selected `Logging:LogLevel:Default` and
 `Logging:EventLog:LogLevel:Default` values to both SMS and Agent machine
 configuration files. Restart the services when prompted to apply the new level.
+
+When `Debug` is selected, failed tray local API tests display and log the HTTP
+status, safe response headers, and up to 64 KiB of the response body. Configured
+local API credentials and sensitive response headers remain redacted.

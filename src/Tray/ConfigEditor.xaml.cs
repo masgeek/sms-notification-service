@@ -614,7 +614,10 @@ public partial class ConfigEditor : UserControl
                     Timeout = TimeSpan.FromSeconds(timeoutSeconds),
                 };
                 var diagnostics = new FeeProcessorDiagnosticClient(
-                    http, LocalApiUsernameBox.Text, LocalApiPasswordBox.Password);
+                    http,
+                    LocalApiUsernameBox.Text,
+                    LocalApiPasswordBox.Password,
+                    SelectedLogLevel() == "Debug");
 
                 return await diagnostics.CheckAsync(endpoint);
             },
@@ -626,7 +629,9 @@ public partial class ConfigEditor : UserControl
                 $"Username: {Configured(LocalApiUsernameBox.Text)}",
                 $"Password: {Configured(LocalApiPasswordBox.Password)}",
                 $"Timeout: {timeoutSeconds} seconds",
-                "Response data: validated but never displayed or logged",
+                SelectedLogLevel() == "Debug"
+                    ? "Debug response data: displayed and logged on failure (credentials redacted)"
+                    : "Response data: hidden; select Debug logging for failed response details",
             ]);
     }
 

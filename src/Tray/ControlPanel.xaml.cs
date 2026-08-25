@@ -80,8 +80,8 @@ public partial class ControlPanel : Window
     private void StopAgent_Click(object sender, RoutedEventArgs e) => monitor.StopNamedService(Constants.AgentServiceName);
     private void RestartAgent_Click(object sender, RoutedEventArgs e) => monitor.RestartNamedService(Constants.AgentServiceName);
 
-    private void InstallSms_Click(object sender, RoutedEventArgs e) => Install(Constants.ServiceName, "FeeSyncer SMS", Constants.SmsExecutableName);
-    private void InstallAgent_Click(object sender, RoutedEventArgs e) => Install(Constants.AgentServiceName, "FeeSyncer Agent", Constants.AgentExecutableName);
+    private void InstallSms_Click(object sender, RoutedEventArgs e) => Install(Constants.ServiceName, "FeeSyncer SMS", "Listens to SQL Server for SMS notifications and sends them via HTTP API", Constants.SmsExecutableName);
+    private void InstallAgent_Click(object sender, RoutedEventArgs e) => Install(Constants.AgentServiceName, "FeeSyncer Agent", "Synchronizes school data and processes agent work from the central gateway", Constants.AgentExecutableName);
     private void UninstallSms_Click(object sender, RoutedEventArgs e) => Uninstall(Constants.ServiceName);
     private void UninstallAgent_Click(object sender, RoutedEventArgs e) => Uninstall(Constants.AgentServiceName);
 
@@ -215,13 +215,13 @@ public partial class ControlPanel : Window
         }
     }
 
-    private void Install(string name, string display, string executable)
+    private void Install(string name, string display, string description, string executable)
     {
         var directory = string.Equals(executable, Constants.AgentExecutableName, StringComparison.OrdinalIgnoreCase)
             ? System.IO.Path.Combine("..", "Agent")
             : "..";
         var path = System.IO.Path.Combine(AppContext.BaseDirectory, directory, executable);
-        var ok = monitor.InstallService(name, display, System.IO.Path.GetFullPath(path));
+        var ok = monitor.InstallService(name, display, description, System.IO.Path.GetFullPath(path));
         MessageBox.Show(ok ? $"{name} installed." : $"Could not install {name}.", "Service Management", MessageBoxButton.OK, ok ? MessageBoxImage.Information : MessageBoxImage.Error);
         Refresh();
     }
