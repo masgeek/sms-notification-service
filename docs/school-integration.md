@@ -39,10 +39,12 @@ Production overrides are read from:
 C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
 ```
 
-The packaged `appsettings.json`, environment-specific settings, environment
-variables, and command-line arguments are loaded first. In Release builds the
-ProgramData file is loaded last and wins. Debug builds load development settings
-instead. The final Debug/Release selection is compile-time.
+The Agent loads packaged defaults, environment-specific defaults, the shared
+machine settings, and then `agentsettings.json`. Environment variables and
+command-line arguments remain explicit final overrides. Both Windows service and
+interactive console runs therefore use the same ProgramData settings regardless
+of working directory or Debug/Release build. The tray stores the gateway URL and
+endpoint paths beside the enrolled token so they cannot target different servers.
 
 Example:
 

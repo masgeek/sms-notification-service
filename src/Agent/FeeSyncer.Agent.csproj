@@ -21,4 +21,8 @@
     <ProjectReference Include="..\Shared\FeeSyncer.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>

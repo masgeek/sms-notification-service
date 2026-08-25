@@ -27,7 +27,7 @@ public partial class ConfigEditor : UserControl
         Loaded += async (_, _) =>
         {
             ConfigPathText.Text = $"SMS settings: {ConfigPathResolver.GetActiveConfigFile()}{Environment.NewLine}" +
-                                  $"Agent settings: {ConfigPathResolver.GetActiveAgentConfigFile()}";
+                                  $"Agent settings: {ConfigPathResolver.GetMachineAgentConfigFile()}";
             LoadConfig();
             await UpdateFeeToolDetectionTextAsync();
         };
@@ -110,7 +110,10 @@ public partial class ConfigEditor : UserControl
     private void LoadAgentConfig()
     {
         LoadAgentDefaults();
-        var configPath = ConfigPathResolver.FindAgentConfigFile();
+        var machineConfigPath = ConfigPathResolver.GetMachineAgentConfigFile();
+        var configPath = File.Exists(machineConfigPath)
+            ? machineConfigPath
+            : ConfigPathResolver.FindAgentConfigFile();
         if (!File.Exists(configPath))
         {
             AgentStatusText.Text = "Not enrolled";
@@ -118,6 +121,14 @@ public partial class ConfigEditor : UserControl
         }
 
         using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
+        if (doc.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer))
+        {
+            var baseUrl = StringValue(feeSyncer, "BaseUrl");
+            if (!string.IsNullOrWhiteSpace(baseUrl))
+                ApiUrlBox.Text = baseUrl;
+            LoadApiEndpoints(feeSyncer);
+        }
+
         if (!doc.RootElement.TryGetProperty("Agent", out var agent))
             return;
 
@@ -423,6 +434,7 @@ public partial class ConfigEditor : UserControl
         agent["FeeProcessorSshKeyPath"] = FeeProcessorSshKeyPathBox.Text.Trim();
         agent["FeeProcessorSshPassphrase"] = FeeProcessorSshPassphraseBox.Password;
         root["Agent"] = agent;
+        root["FeeSyncer"] = JsonSerializer.SerializeToNode(BuildFeeSyncerSettings());
         ApplyLogLevel(root, SelectedLogLevel());
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
         await File.WriteAllTextAsync(configPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
@@ -436,6 +448,24 @@ public partial class ConfigEditor : UserControl
 
     private static string NormalizeEndpoint(string value, string fallback) =>
         string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().TrimStart('/');
+
+    private Dictionary<string, object?> BuildFeeSyncerSettings() => new()
+    {
+        ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/",
+        ["ApiEndpoints"] = new Dictionary<string, object?>
+        {
+            ["SmsNotifications"] = NormalizeEndpoint(SmsNotificationsEndpointBox.Text, Constants.DefaultSmsNotificationsEndpoint),
+            ["AgentEnroll"] = NormalizeEndpoint(AgentEnrollEndpointBox.Text, Constants.DefaultAgentEnrollEndpoint),
+            ["AgentWork"] = NormalizeEndpoint(AgentWorkEndpointBox.Text, Constants.DefaultAgentWorkEndpoint),
+            ["AgentHeartbeat"] = NormalizeEndpoint(AgentHeartbeatEndpointBox.Text, Constants.DefaultAgentHeartbeatEndpoint),
+            ["AgentRenew"] = NormalizeEndpoint(AgentRenewEndpointBox.Text, Constants.DefaultAgentRenewEndpoint),
+            ["AgentPage"] = NormalizeEndpoint(AgentPageEndpointBox.Text, Constants.DefaultAgentPageEndpoint),
+            ["AgentProgress"] = Constants.DefaultAgentProgressEndpoint,
+            ["AgentComplete"] = NormalizeEndpoint(AgentCompleteEndpointBox.Text, Constants.DefaultAgentCompleteEndpoint),
+            ["AgentPaymentComplete"] = NormalizeEndpoint(AgentPaymentCompleteEndpointBox.Text, Constants.DefaultAgentPaymentCompleteEndpoint),
+            ["AgentFail"] = NormalizeEndpoint(AgentFailEndpointBox.Text, Constants.DefaultAgentFailEndpoint),
+        },
+    };
 
     private void ParseConnectionString(string connectionString)
     {
@@ -534,26 +564,69 @@ public partial class ConfigEditor : UserControl
 
     private async void TestLocalAgentButton_Click(object sender, RoutedEventArgs e)
     {
-        var timeoutSeconds = ParsedInt(RequestTimeoutBox.Text, 30);
-        var loginUrl = LocalApiUrlBox.Text.TrimEnd('/') + "/v1/users/login";
+        await RunFeeProcessorTestAsync(
+            TestLocalAgentButton, "Local API Login", FeeProcessorDiagnosticEndpoint.Login, "POST v1/users/login");
+    }
+
+    private async void TestStudentCountButton_Click(object sender, RoutedEventArgs e) =>
+        await RunFeeProcessorTestAsync(
+            TestStudentCountButton, "Student Count Test", FeeProcessorDiagnosticEndpoint.StudentCount,
+            "GET v1/students/count");
+
+    private async void TestFeeCountButton_Click(object sender, RoutedEventArgs e) =>
+        await RunFeeProcessorTestAsync(
+            TestFeeCountButton, "Fee Count Test", FeeProcessorDiagnosticEndpoint.FeeCount, "GET v1/fees/count");
+
+    private async void TestStudentsPageButton_Click(object sender, RoutedEventArgs e) =>
+        await RunFeeProcessorTestAsync(
+            TestStudentsPageButton, "Students Page Test", FeeProcessorDiagnosticEndpoint.StudentsFirstPage,
+            "GET v1/students?page=1&per_page=3");
+
+    private async void TestFeesPageButton_Click(object sender, RoutedEventArgs e) =>
+        await RunFeeProcessorTestAsync(
+            TestFeesPageButton, "Fees Page Test", FeeProcessorDiagnosticEndpoint.FeesFirstPage,
+            "GET v1/fees?page=1&per_page=3");
+
+    private async Task RunFeeProcessorTestAsync(
+        Button button,
+        string title,
+        FeeProcessorDiagnosticEndpoint endpoint,
+        string request)
+    {
+        var timeoutSeconds = Math.Clamp(ParsedInt(RequestTimeoutBox.Text, 30), 1, 300);
+        var baseUrl = LocalApiUrlBox.Text.Trim();
         await RunConnectionTestAsync(
-            TestLocalAgentButton,
-            "Local Agent Test",
-            () => ConnectionValidator.ValidateSchoolApiAsync(
-                LocalApiUrlBox.Text,
-                LocalApiUsernameBox.Text,
-                LocalApiPasswordBox.Password,
-                timeoutSeconds),
+            button,
+            title,
+            async () =>
+            {
+                if (!Uri.TryCreate(baseUrl.TrimEnd('/') + "/", UriKind.Absolute, out var baseUri))
+                    return new CheckResult { Details = "Local API URL is invalid" };
+
+                using var handler = new SocketsHttpHandler
+                {
+                    UseProxy = false,
+                    ConnectTimeout = TimeSpan.FromSeconds(timeoutSeconds),
+                };
+                using var http = new HttpClient(handler)
+                {
+                    BaseAddress = baseUri,
+                    Timeout = TimeSpan.FromSeconds(timeoutSeconds),
+                };
+                var diagnostics = new FeeProcessorDiagnosticClient(
+                    http, LocalApiUsernameBox.Text, LocalApiPasswordBox.Password);
+
+                return await diagnostics.CheckAsync(endpoint);
+            },
             [
-                $"HTTP request: POST {loginUrl}",
-                "Content type: application/json",
-                "Request body: fixed-length UTF-8 JSON",
+                $"HTTP request: {request}",
+                $"Base URL: {baseUrl}",
+                "Authentication: fresh bearer token (value hidden)",
                 "Proxy: bypassed for local API diagnostic",
-                "Completion: response headers (login body is not downloaded)",
                 $"Username: {Configured(LocalApiUsernameBox.Text)}",
                 $"Password: {Configured(LocalApiPasswordBox.Password)}",
                 $"Timeout: {timeoutSeconds} seconds",
-                "Response body: omitted because a successful login may contain an access token",
+                "Response data: validated but never displayed or logged",
             ]);
     }
 
@@ -883,22 +956,7 @@ public partial class ConfigEditor : UserControl
                 ["UpdateCheckInterval"] = UpdateCheckSchedule.Normalize(UpdateCheckIntervalBox.SelectedValue?.ToString()),
             };
 
-            mutable["FeeSyncer"] = new Dictionary<string, object?>
-            {
-                ["BaseUrl"] = ApiUrlBox.Text.TrimEnd('/') + "/",
-                ["ApiEndpoints"] = new Dictionary<string, object?>
-                {
-                    ["SmsNotifications"] = NormalizeEndpoint(SmsNotificationsEndpointBox.Text, Constants.DefaultSmsNotificationsEndpoint),
-                    ["AgentEnroll"] = NormalizeEndpoint(AgentEnrollEndpointBox.Text, Constants.DefaultAgentEnrollEndpoint),
-                    ["AgentWork"] = NormalizeEndpoint(AgentWorkEndpointBox.Text, Constants.DefaultAgentWorkEndpoint),
-                    ["AgentHeartbeat"] = NormalizeEndpoint(AgentHeartbeatEndpointBox.Text, Constants.DefaultAgentHeartbeatEndpoint),
-                    ["AgentRenew"] = NormalizeEndpoint(AgentRenewEndpointBox.Text, Constants.DefaultAgentRenewEndpoint),
-                    ["AgentPage"] = NormalizeEndpoint(AgentPageEndpointBox.Text, Constants.DefaultAgentPageEndpoint),
-                    ["AgentComplete"] = NormalizeEndpoint(AgentCompleteEndpointBox.Text, Constants.DefaultAgentCompleteEndpoint),
-                    ["AgentPaymentComplete"] = NormalizeEndpoint(AgentPaymentCompleteEndpointBox.Text, Constants.DefaultAgentPaymentCompleteEndpoint),
-                    ["AgentFail"] = NormalizeEndpoint(AgentFailEndpointBox.Text, Constants.DefaultAgentFailEndpoint),
-                }
-            };
+            mutable["FeeSyncer"] = BuildFeeSyncerSettings();
 
             var output = JsonSerializer.Serialize(mutable, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(configPath, output);

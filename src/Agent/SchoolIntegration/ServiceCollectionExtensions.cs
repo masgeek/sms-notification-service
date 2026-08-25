@@ -33,8 +33,6 @@ public static class SchoolIntegrationServiceCollectionExtensions
             .Validate(ValidateOptions, "School integration options are invalid.")
             .Validate(options => IsSecureOrLoopback(options.ServerUrl), "Agent:ServerUrl must use HTTPS unless it targets loopback.")
             .Validate(IsLoopbackApi, "Agent:LocalApiBaseUrl must target loopback.")
-            .Validate(options => IsSecureMqttOrDevelopment(options, configuration),
-                "Agent MQTT must use TLS outside Development.")
             .ValidateOnStart();
 
         var agentOptions = configuration
@@ -93,12 +91,6 @@ public static class SchoolIntegrationServiceCollectionExtensions
             return false;
         }
 
-        if (options.MqttEnabled && !options.MqttUseTls
-            && (!Uri.TryCreate($"http://{options.MqttBrokerHost}", UriKind.Absolute, out var brokerUri) || !brokerUri.IsLoopback))
-        {
-            return false;
-        }
-
         return !string.IsNullOrWhiteSpace(options.MqttTopicPrefix);
     }
 
@@ -115,33 +107,4 @@ public static class SchoolIntegrationServiceCollectionExtensions
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
     }
 
-    private static bool IsSecureMqttOrDevelopment(
-        FeeSyncer.Agent.SchoolIntegration.AgentOptions options,
-        IConfiguration configuration)
-    {
-        if (!options.MqttEnabled)
-        {
-            return true;
-        }
-
-        if (!Uri.TryCreate(
-                FeeSyncer.Agent.SchoolIntegration.MqttAgentConnection.BuildBrokerUri(options),
-                UriKind.Absolute,
-                out var brokerUri))
-        {
-            return false;
-        }
-
-        if (brokerUri.Scheme == Uri.UriSchemeWss)
-        {
-            return true;
-        }
-
-        var environment = configuration["DOTNET_ENVIRONMENT"]
-            ?? configuration["ASPNETCORE_ENVIRONMENT"]
-            ?? Environments.Production;
-        return brokerUri.Scheme == Uri.UriSchemeWs
-            && brokerUri.IsLoopback
-            && string.Equals(environment, Environments.Development, StringComparison.OrdinalIgnoreCase);
-    }
 }

@@ -25,7 +25,8 @@ if ($Clean) {
         Remove-Item -Recurse -Force "src/Sms/bin/Release", "src/Sms/obj/Release", "src/Agent/bin/Release", "src/Agent/obj/Release" -ErrorAction SilentlyContinue
         Remove-Item -Recurse -Force "src/Tray/bin/Release", "src/Tray/obj/Release" -ErrorAction SilentlyContinue
         Remove-Item -Recurse -Force "src/Console/bin/Release", "src/Console/obj/Release" -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
+    #Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force "dotnet build -c Release --no-restore" -ErrorAction SilentlyContinue
 }
 
 $scFlag = if ($SelfContained -eq "true") { "--self-contained" } else { "--no-self-contained" }

@@ -1,26 +1,17 @@
 using FeeSyncer.Agent;
 using FeeSyncer.Shared;
+using Microsoft.Extensions.Hosting.WindowsServices;
 
 if (!ConfigPathResolver.IsDevelopment())
     ConfigPathResolver.EnsureMachineConfigFiles();
 var builder = Host.CreateApplicationBuilder(args);
-var environmentName = builder.Environment.EnvironmentName;
-builder.Configuration.Sources.Clear();
-builder.Configuration
-    .SetBasePath(AppContext.BaseDirectory)
-    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-    .AddJsonFile($"appsettings.{environmentName}.json", optional: true, reloadOnChange: false)
-    .AddEnvironmentVariables()
-    .AddCommandLine(args);
-
-if (ConfigPathResolver.IsDevelopment())
-{
-    builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: false);
-}
-else
-{
-    builder.Configuration.AddJsonFile(ConfigPathResolver.GetMachineAgentConfigFile(), optional: true, reloadOnChange: false);
-}
+var configurationReport = AgentConfiguration.Configure(
+    builder.Configuration,
+    AppContext.BaseDirectory,
+    builder.Environment.EnvironmentName,
+    ConfigPathResolver.GetMachineConfigFile(),
+    ConfigPathResolver.GetMachineAgentConfigFile(),
+    args);
 
 builder.Services.AddWindowsService(options =>
 {
@@ -29,4 +20,10 @@ builder.Services.AddWindowsService(options =>
 builder.Services.AddSchoolIntegrationServices(builder.Configuration);
 
 var host = builder.Build();
+var configurationLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("FeeSyncer.Agent.Configuration");
+AgentConfiguration.LogDebug(
+    configurationLogger,
+    configurationReport,
+    builder.Configuration,
+    WindowsServiceHelpers.IsWindowsService() ? "WindowsService" : "InteractiveConsole");
 await host.RunAsync();
