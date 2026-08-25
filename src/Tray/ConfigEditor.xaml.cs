@@ -534,26 +534,69 @@ public partial class ConfigEditor : UserControl
 
     private async void TestLocalAgentButton_Click(object sender, RoutedEventArgs e)
     {
-        var timeoutSeconds = ParsedInt(RequestTimeoutBox.Text, 30);
-        var loginUrl = LocalApiUrlBox.Text.TrimEnd('/') + "/v1/users/login";
+        await RunFeeProcessorTestAsync(
+            TestLocalAgentButton, "Local API Login", FeeProcessorDiagnosticEndpoint.Login, "POST v1/users/login");
+    }
+
+    private async void TestStudentCountButton_Click(object sender, RoutedEventArgs e) =>
+        await RunFeeProcessorTestAsync(
+            TestStudentCountButton, "Student Count Test", FeeProcessorDiagnosticEndpoint.StudentCount,
+            "GET v1/students/count");
+
+    private async void TestFeeCountButton_Click(object sender, RoutedEventArgs e) =>
+        await RunFeeProcessorTestAsync(
+            TestFeeCountButton, "Fee Count Test", FeeProcessorDiagnosticEndpoint.FeeCount, "GET v1/fees/count");
+
+    private async void TestStudentsPageButton_Click(object sender, RoutedEventArgs e) =>
+        await RunFeeProcessorTestAsync(
+            TestStudentsPageButton, "Students Page Test", FeeProcessorDiagnosticEndpoint.StudentsFirstPage,
+            "GET v1/students?page=1&per_page=3");
+
+    private async void TestFeesPageButton_Click(object sender, RoutedEventArgs e) =>
+        await RunFeeProcessorTestAsync(
+            TestFeesPageButton, "Fees Page Test", FeeProcessorDiagnosticEndpoint.FeesFirstPage,
+            "GET v1/fees?page=1&per_page=3");
+
+    private async Task RunFeeProcessorTestAsync(
+        Button button,
+        string title,
+        FeeProcessorDiagnosticEndpoint endpoint,
+        string request)
+    {
+        var timeoutSeconds = Math.Clamp(ParsedInt(RequestTimeoutBox.Text, 30), 1, 300);
+        var baseUrl = LocalApiUrlBox.Text.Trim();
         await RunConnectionTestAsync(
-            TestLocalAgentButton,
-            "Local Agent Test",
-            () => ConnectionValidator.ValidateSchoolApiAsync(
-                LocalApiUrlBox.Text,
-                LocalApiUsernameBox.Text,
-                LocalApiPasswordBox.Password,
-                timeoutSeconds),
+            button,
+            title,
+            async () =>
+            {
+                if (!Uri.TryCreate(baseUrl.TrimEnd('/') + "/", UriKind.Absolute, out var baseUri))
+                    return new CheckResult { Details = "Local API URL is invalid" };
+
+                using var handler = new SocketsHttpHandler
+                {
+                    UseProxy = false,
+                    ConnectTimeout = TimeSpan.FromSeconds(timeoutSeconds),
+                };
+                using var http = new HttpClient(handler)
+                {
+                    BaseAddress = baseUri,
+                    Timeout = TimeSpan.FromSeconds(timeoutSeconds),
+                };
+                var diagnostics = new FeeProcessorDiagnosticClient(
+                    http, LocalApiUsernameBox.Text, LocalApiPasswordBox.Password);
+
+                return await diagnostics.CheckAsync(endpoint);
+            },
             [
-                $"HTTP request: POST {loginUrl}",
-                "Content type: application/json",
-                "Request body: fixed-length UTF-8 JSON",
+                $"HTTP request: {request}",
+                $"Base URL: {baseUrl}",
+                "Authentication: fresh bearer token (value hidden)",
                 "Proxy: bypassed for local API diagnostic",
-                "Completion: response headers (login body is not downloaded)",
                 $"Username: {Configured(LocalApiUsernameBox.Text)}",
                 $"Password: {Configured(LocalApiPasswordBox.Password)}",
                 $"Timeout: {timeoutSeconds} seconds",
-                "Response body: omitted because a successful login may contain an access token",
+                "Response data: validated but never displayed or logged",
             ]);
     }
 

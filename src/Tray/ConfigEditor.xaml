@@ -112,7 +112,20 @@
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                          <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Agent token:"/><Grid Width="520" HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox Grid.Column="0" x:Name="AgentTokenBox" Margin="0,2" PasswordChanged="AgentTokenBox_PasswordChanged"/><TextBox Grid.Column="0" x:Name="AgentTokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="AgentTokenVisibleBox_TextChanged"/><Button Grid.Column="1" x:Name="AgentTokenVisibilityButton" Content="Show" Click="AgentTokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/></Grid><TextBlock Text="Enabled:" Margin="0,6,0,0"/><CheckBox x:Name="AgentEnabledBox" Margin="0,5"/><Button Content="Test Agent API" x:Name="TestAgentApiButton" Click="TestAgentApiButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="Local API URL:"/><TextBox x:Name="LocalApiUrlBox" Margin="0,2"/><TextBlock Text="Username:"/><TextBox x:Name="LocalApiUsernameBox" Margin="0,2"/><TextBlock Text="Password:"/><PasswordBox x:Name="LocalApiPasswordBox" Margin="0,2"/><Button Content="Test Local API" x:Name="TestLocalAgentButton" Click="TestLocalAgentButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/></StackPanel>
+                         <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                             <TextBlock Text="Local API URL:"/><TextBox x:Name="LocalApiUrlBox" Margin="0,2"/>
+                             <TextBlock Text="Username:"/><TextBox x:Name="LocalApiUsernameBox" Margin="0,2"/>
+                             <TextBlock Text="Password:"/><PasswordBox x:Name="LocalApiPasswordBox" Margin="0,2"/>
+                             <TextBlock Text="Endpoint diagnostics" FontWeight="SemiBold" Margin="0,8,0,3"/>
+                             <WrapPanel>
+                                 <Button Content="Login" x:Name="TestLocalAgentButton" Click="TestLocalAgentButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                 <Button Content="Student Count" x:Name="TestStudentCountButton" Click="TestStudentCountButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                 <Button Content="Fee Count" x:Name="TestFeeCountButton" Click="TestFeeCountButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                 <Button Content="Students Page" x:Name="TestStudentsPageButton" Click="TestStudentsPageButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                 <Button Content="Fees Page" x:Name="TestFeesPageButton" Click="TestFeesPageButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                             </WrapPanel>
+                             <TextBlock Text="Page checks validate three records without displaying student or fee data." TextWrapping="Wrap" Foreground="Gray" FontSize="11"/>
+                         </StackPanel>
                     </Grid>
                     </GroupBox>
                     <GroupBox Header="Timing and MQTT" Margin="0,0,0,10" Padding="8">
