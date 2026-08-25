@@ -194,13 +194,13 @@ dotnet run --project src/Agent/FeeSyncer.Agent.csproj
 dotnet run --project src/Tray/FeeSyncer.Tray.csproj
 ```
 
-The repository currently contains 57 xUnit tests:
+The repository currently contains 70 xUnit tests:
 
 | Test project | Count |
 |---|---:|
 | SMS | 18 |
-| Agent | 28 |
-| Tray | 11 |
+| Agent | 33 |
+| Tray | 19 |
 
 Tests do not require a live SQL Server, SMS provider, MQTT broker, or school API.
 

@@ -168,8 +168,9 @@ Key UI:
 | `SendNotificationDialog.xaml` | Direct SMS table insertion |
 | `AboutWindow.xaml` | Version, components, and project links |
 
-The Control Panel can install both services with delayed-auto startup. This is
-different from the Inno installer, which creates manual services.
+The Control Panel prefers Servy for both services with delayed-auto startup and
+falls back to native `sc.exe` installation. The Inno installer uses the same
+Servy-first strategy but creates manual services.
 
 The tray enrollment client validates `enroll_...`, posts to the central endpoint,
 requires an `fsk_...` response token, saves it, and restarts the Agent.
@@ -254,13 +255,13 @@ Important direct product dependencies:
 
 ## Tests
 
-There are 57 xUnit tests in twelve source files:
+There are 70 xUnit tests in twelve source files:
 
 | Project | Facts | Main coverage |
 |---|---:|---|
 | SMS | 18 | Sender results/backoff, processor flows, tray compatibility source checks |
-| Agent | 28 | Contracts/hashing, lease fencing, redacted debug samples, school API mapping, HTTP diagnostics, MQTT control/events, wake signal |
-| Tray | 11 | Tray icon lifecycle, source fallback, and verified update downloads |
+| Agent | 33 | Contracts/hashing, lease fencing, redacted debug samples, school API mapping, HTTP diagnostics, MQTT control/events, wake signal |
+| Tray | 19 | Tray icon lifecycle, local API diagnostics, source fallback, and verified update downloads |
 
 There are no live database, broker, installer, or end-to-end integration tests.
 Operational UI and Agent orchestration coverage remains limited.

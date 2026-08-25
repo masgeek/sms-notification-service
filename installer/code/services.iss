@@ -64,8 +64,64 @@ begin
   Result := (RunCmd('sc.exe', 'start "' + SvcName + '"') = 0);
 end;
 
+function GetServyCliPath: String;
+begin
+  Result := FileSearch('servy-cli.exe', GetEnv('PATH'));
+end;
+
+function ServyCliAvailable: Boolean;
+var
+  ServyCliPath: String;
+begin
+  ServyCliPath := GetServyCliPath;
+  Result := False;
+  if ServyCliPath <> '' then
+    Result := (RunCmd(ServyCliPath, 'version') = 0);
+end;
+
+function ServiceUsesServy(const SvcName: String): Boolean;
+var
+  OutputFile: String;
+  Content: AnsiString;
+  ExitCode: Integer;
+begin
+  Result := False;
+  if not ServiceExists(SvcName) then
+    Exit;
+
+  OutputFile := ExpandConstant('{tmp}\svcconfig-' + SvcName + '.txt');
+  Exec('cmd.exe', '/C sc.exe qc "' + SvcName + '" > "' + OutputFile + '" 2>&1',
+    '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+  if (ExitCode = 0) and LoadStringFromFile(OutputFile, Content) then
+    Result := Pos('SERVY', UpperCase(Content)) > 0;
+end;
+
+function WaitForServiceDeleted(const SvcName: String; TimeoutMs: Integer): Boolean;
+var
+  StartTick: Cardinal;
+begin
+  StartTick := GetTickCount;
+  while (GetTickCount - StartTick) < Cardinal(TimeoutMs) do
+  begin
+    if not ServiceExists(SvcName) then
+    begin
+      Result := True;
+      Exit;
+    end;
+    Sleep(500);
+  end;
+  Result := not ServiceExists(SvcName);
+end;
+
 function DeleteService(const SvcName: String): Boolean;
 begin
+  if ServyCliAvailable and ServiceUsesServy(SvcName) then
+  begin
+    Result := (RunCmd(GetServyCliPath, 'uninstall --name="' + SvcName + '" --quiet') = 0);
+    if Result then
+      Exit;
+    Log('Servy could not uninstall ' + SvcName + '; falling back to sc.exe.');
+  end;
   Result := (RunCmd('sc.exe', 'delete "' + SvcName + '"') = 0);
 end;
 
@@ -96,9 +152,10 @@ begin
     Log('The ' + SvcName + ' service failed to reach the running state after the upgrade.');
 end;
 
-procedure EnsureService(const SvcName, DisplayName, BinaryPath: String);
+procedure EnsureNativeService(const SvcName, DisplayName, Description, BinaryPath: String);
 var
   QuotedBinaryPath: String;
+  ExitCode: Integer;
 begin
   QuotedBinaryPath := '\"' + BinaryPath + '\"';
   if ServiceExists(SvcName) then
@@ -119,30 +176,63 @@ begin
       'Failed to create service ' + SvcName + '.'
     );
   end;
-end;
-
-procedure ConfigureServiceDescription(const SvcName, Description: String);
-var
-  ExitCode: Integer;
-begin
-  Exec('sc.exe', 'description ' + SvcName + ' "' + Description + '"', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
-  Log('Service description configured.');
-end;
-
-procedure ConfigureDelayedAutoStart(const SvcName: String);
-var
-  ExitCode: Integer;
-begin
-  Exec('sc.exe', 'config ' + SvcName + ' start= delayed-auto', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
-  Log('Delayed auto-start configured.');
-end;
-
-procedure ConfigureRecovery(const SvcName: String);
-var
-  ExitCode: Integer;
-begin
+  Exec('sc.exe', 'description "' + SvcName + '" "' + Description + '"', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
   Exec('sc.exe', 'failure ' + SvcName + ' reset= 86400 actions= restart/300000/restart/5000/restart/5000', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
-  Log('Failure recovery configured (5min, 5s, 5s).');
+  Log('Native service fallback configured for ' + SvcName + '.');
+end;
+
+procedure EnsureService(const SvcName, DisplayName, Description, BinaryPath: String);
+var
+  Params: String;
+  ExitCode: Integer;
+  ExistingServiceUsesServy: Boolean;
+  LogPrefix: String;
+begin
+  if ServyCliAvailable then
+  begin
+    ExistingServiceUsesServy := ServiceUsesServy(SvcName);
+    if ServiceExists(SvcName) and not ExistingServiceUsesServy then
+    begin
+      Log('Migrating native service ' + SvcName + ' to Servy.');
+      RunCmd('sc.exe', 'delete "' + SvcName + '"');
+      if not WaitForServiceDeleted(SvcName, 30000) then
+        RaiseException('Failed to remove the existing ' + SvcName + ' service before Servy migration.');
+    end;
+
+    LogPrefix := ExpandConstant('{commonappdata}\{#ConfigDir}\logs\servy-') + LowerCase(SvcName);
+    Params := 'install --name="' + SvcName + '"' +
+      ' --displayName="' + DisplayName + '"' +
+      ' --description="' + Description + '"' +
+      ' --path="' + BinaryPath + '"' +
+      ' --startupDir="' + ExtractFileDir(BinaryPath) + '"' +
+      ' --startupType="Manual"' +
+      ' --stdout="' + LogPrefix + '-stdout.log"' +
+      ' --stderr="' + LogPrefix + '-stderr.log"' +
+      ' --enableSizeRotation --rotationSize=10' +
+      ' --enableDateRotation --dateRotationType="Daily" --maxRotations=7 --useLocalTimeForRotation' +
+      ' --enableHealth --heartbeatInterval=10 --maxFailedChecks=3' +
+      ' --recoveryAction="RestartProcess" --maxRestartAttempts=3 --quiet';
+    ExitCode := RunCmd(GetServyCliPath, Params);
+    if ExitCode = 0 then
+    begin
+      Log('Servy service configured for ' + SvcName + '.');
+      Exit;
+    end;
+
+    Log('Servy installation failed for ' + SvcName + ' (exit code ' + IntToStr(ExitCode) + '); falling back to sc.exe.');
+    if ServiceExists(SvcName) and ServiceUsesServy(SvcName) then
+    begin
+      RunCmd(GetServyCliPath, 'uninstall --name="' + SvcName + '" --quiet');
+      if ServiceExists(SvcName) then
+        RunCmd('sc.exe', 'delete "' + SvcName + '"');
+      if not WaitForServiceDeleted(SvcName, 30000) then
+        RaiseException('Failed to clean up the Servy service ' + SvcName + ' before native fallback.');
+    end;
+  end
+  else
+    Log('servy-cli was not found; using native sc.exe for ' + SvcName + '.');
+
+  EnsureNativeService(SvcName, DisplayName, Description, BinaryPath);
 end;
 
 function CheckDotNetRuntime: Boolean;

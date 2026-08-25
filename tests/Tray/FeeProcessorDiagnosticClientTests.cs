@@ -92,6 +92,57 @@ public sealed class FeeProcessorDiagnosticClientTests
         Assert.Equal("Local API returned invalid JSON", result.Details);
     }
 
+    [Fact]
+    public async Task Debug_failure_includes_response_details_without_credentials()
+    {
+        using var http = new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError)
+        {
+            Content = new StringContent(
+                "Server exception for private-user using private-password",
+                Encoding.UTF8,
+                "text/plain"),
+        }))
+        {
+            BaseAddress = new Uri("http://127.0.0.1:8001/api/"),
+        };
+        var client = new FeeProcessorDiagnosticClient(http, "private-user", "private-password", includeResponseDetails: true);
+
+        var result = await client.CheckAsync(FeeProcessorDiagnosticEndpoint.Login);
+
+        Assert.False(result.Passed);
+        Assert.Contains("HTTP 500", result.Details, StringComparison.Ordinal);
+        Assert.Contains("Response headers:", result.Details, StringComparison.Ordinal);
+        Assert.Contains("Response body:", result.Details, StringComparison.Ordinal);
+        Assert.Contains("Server exception", result.Details, StringComparison.Ordinal);
+        Assert.DoesNotContain("private-user", result.Details, StringComparison.Ordinal);
+        Assert.DoesNotContain("private-password", result.Details, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Debug_authenticated_failure_redacts_bearer_token_from_response_body()
+    {
+        using var http = new HttpClient(new StubHandler(request =>
+            request.RequestUri!.AbsolutePath.EndsWith("/v1/users/login", StringComparison.Ordinal)
+                ? JsonResponse("{\"token\":\"private-bearer-token\"}")
+                : new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                {
+                    Content = new StringContent(
+                        "Authorization: Bearer private-bearer-token",
+                        Encoding.UTF8,
+                        "text/plain"),
+                }))
+        {
+            BaseAddress = new Uri("http://127.0.0.1:8001/api/"),
+        };
+        var client = new FeeProcessorDiagnosticClient(http, "private-user", "private-password", includeResponseDetails: true);
+
+        var result = await client.CheckAsync(FeeProcessorDiagnosticEndpoint.StudentCount);
+
+        Assert.False(result.Passed);
+        Assert.Contains("Authorization: Bearer [redacted]", result.Details, StringComparison.Ordinal);
+        Assert.DoesNotContain("private-bearer-token", result.Details, StringComparison.Ordinal);
+    }
+
     private static HttpResponseMessage JsonResponse(string json) => new(HttpStatusCode.OK)
     {
         Content = new StringContent(json, Encoding.UTF8, "application/json"),

@@ -207,16 +207,37 @@ public sealed class ServiceMonitor : IDisposable
         }
     }
 
-    public bool InstallService(string serviceName, string displayName, string executablePath)
+    public bool InstallService(string serviceName, string displayName, string description, string executablePath)
     {
-        var result = RunElevated("create", $"{serviceName} binPath= \"{executablePath}\" start= delayed-auto DisplayName= \"{displayName}\" obj= LocalSystem");
-        return result;
+        var servyCli = FindExecutableOnPath("servy-cli.exe");
+        if (servyCli is not null)
+        {
+            var logPrefix = Path.Combine(ConfigPathResolver.GetLogDir(), $"servy-{serviceName.ToLowerInvariant()}");
+            var arguments = $"install --name=\"{serviceName}\" --displayName=\"{displayName}\" " +
+                $"--description=\"{description}\" --path=\"{executablePath}\" " +
+                $"--startupDir=\"{Path.GetDirectoryName(executablePath)}\" --startupType=\"AutomaticDelayedStart\" " +
+                $"--stdout=\"{logPrefix}-stdout.log\" --stderr=\"{logPrefix}-stderr.log\" " +
+                "--enableSizeRotation --rotationSize=10 --enableDateRotation --dateRotationType=\"Daily\" " +
+                "--maxRotations=7 --useLocalTimeForRotation --enableHealth --heartbeatInterval=10 " +
+                "--maxFailedChecks=3 --recoveryAction=\"RestartProcess\" --maxRestartAttempts=3 --quiet";
+            if (RunElevated(servyCli, arguments))
+                return true;
+
+            AppLogger.Warn("Monitor", $"Servy failed to install {serviceName}; falling back to sc.exe");
+        }
+
+        var action = GetServiceStatus(serviceName) is null ? "create" : "config";
+        return RunElevated("sc.exe", $"{action} {serviceName} binPath= \"{executablePath}\" start= delayed-auto DisplayName= \"{displayName}\" obj= LocalSystem");
     }
 
     public bool UninstallService(string serviceName)
     {
         StopNamedService(serviceName);
-        return RunElevated("delete", serviceName);
+        var servyCli = FindExecutableOnPath("servy-cli.exe");
+        if (servyCli is not null && RunElevated(servyCli, $"uninstall --name=\"{serviceName}\" --quiet"))
+            return true;
+
+        return RunElevated("sc.exe", $"delete {serviceName}");
     }
 
     public void StartNamedService(string serviceName) => RunServiceCommand("start", serviceName);
@@ -265,11 +286,12 @@ public sealed class ServiceMonitor : IDisposable
         }
     }
 
-    private static bool RunElevated(string action, string arguments)
+    private static bool RunElevated(string executable, string arguments)
     {
         try
         {
-            using var process = Process.Start(new ProcessStartInfo("sc.exe", $"{action} {arguments}")
+            AppLogger.Info("Monitor", $"Executing elevated: {Path.GetFileName(executable)} {arguments}");
+            using var process = Process.Start(new ProcessStartInfo(executable, arguments)
             {
                 UseShellExecute = true,
                 Verb = "runas",
@@ -280,9 +302,29 @@ public sealed class ServiceMonitor : IDisposable
         }
         catch (Exception ex)
         {
-            AppLogger.Error("Monitor", $"Failed to {action} service", ex);
+            AppLogger.Error("Monitor", $"Failed to execute {Path.GetFileName(executable)}", ex);
             return false;
         }
+    }
+
+    private static string? FindExecutableOnPath(string executable)
+    {
+        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            try
+            {
+                var candidate = Path.Combine(Environment.ExpandEnvironmentVariables(directory.Trim('"')), executable);
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+            catch
+            {
+                // Ignore malformed PATH entries and continue to the native fallback.
+            }
+        }
+
+        return null;
     }
 
     private static void KillProcesses()

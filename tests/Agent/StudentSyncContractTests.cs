@@ -220,7 +220,7 @@ public sealed class StudentSyncContractTests
 
         await gateway.RenewLeaseAsync(work, CancellationToken.None);
         await gateway.ReportExpectedRecordCountAsync(work, 250, CancellationToken.None);
-        await gateway.UploadPageAsync(work, 1, page, 250, CancellationToken.None);
+        await gateway.UploadPageAsync(work, 1, page, CancellationToken.None);
         var completion = await gateway.CompleteAsync(work, new CompletionManifest([page.ContentHash], 0), CancellationToken.None);
         await gateway.CompletePaymentAsync(work, new PaymentDeliveryResult("accepted"), CancellationToken.None);
         await gateway.FailAsync(work, "SYNC_FAILED", CancellationToken.None);
@@ -236,7 +236,7 @@ public sealed class StudentSyncContractTests
         Assert.False(completion.Completed);
         var uploadBody = requests.Single(request => request.Path.Contains("/pages/", StringComparison.Ordinal)).Body;
         Assert.Contains($"\"records\":{Encoding.UTF8.GetString(page.RecordsJson)}", uploadBody, StringComparison.Ordinal);
-        Assert.Contains("\"expected_record_count\":250", uploadBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("expected_record_count", uploadBody, StringComparison.Ordinal);
         var progressBody = requests.Single(request => request.Path.EndsWith("/progress", StringComparison.Ordinal)).Body;
         Assert.Contains("\"expected_record_count\":250", progressBody, StringComparison.Ordinal);
     }
@@ -271,7 +271,9 @@ public sealed class StudentSyncContractTests
     [Fact]
     public async Task Invalid_page_response_is_reportable_instead_of_retried_as_a_network_failure()
     {
-        using var httpClient = new HttpClient(new StubHandler(_ => Task.FromResult(JsonResponse(HttpStatusCode.UnprocessableEntity, "{}"))))
+        using var httpClient = new HttpClient(new StubHandler(_ => Task.FromResult(JsonResponse(
+            HttpStatusCode.UnprocessableEntity,
+            """{"code":"PAGE_VALIDATION_FAILED","message":"Page contains invalid records.","errors":{"records.14.source_student_id":["Value is required."]}}"""))))
         {
             BaseAddress = new Uri("https://gateway.example.test/"),
         };
@@ -281,10 +283,13 @@ public sealed class StudentSyncContractTests
             CreateWork(),
             1,
             GatewayClient.SerializePage<StudentRecordV1>([]),
-            null,
             CancellationToken.None));
 
-        Assert.Equal("INVALID_PAYLOAD", exception.FailureCode);
+        Assert.Equal("PAGE_VALIDATION_FAILED", exception.FailureCode);
+        Assert.Contains("HTTP 422", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Code=PAGE_VALIDATION_FAILED", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Page contains invalid records", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("records.14.source_student_id: Value is required", exception.Message, StringComparison.Ordinal);
     }
 
     private sealed record HashFixture(

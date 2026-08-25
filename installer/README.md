@@ -21,8 +21,11 @@ C:\Program Files\FeeSyncer\
 ```
 
 Both `FeeSyncer.Sms` and `FeeSyncer.Agent` are installed under `LocalSystem` as
-manual (`demand`) services and are left stopped. Service recovery restarts after
-5 minutes, then after 5 seconds for the next two failures.
+manual services and are left stopped. When `servy-cli` is available, Servy is
+the preferred service engine and provides process health recovery plus daily and
+size-based stdout/stderr log rotation. If Servy is unavailable or installation
+fails, the installer falls back to native `sc.exe` services with the existing
+Windows recovery policy.
 
 Configuration is application-managed, not installer-managed:
 
@@ -55,9 +58,10 @@ an upgrade the installer:
 1. Detects either existing FeeSyncer service.
 2. Records which services are running.
 3. Stops both services before replacing files.
-4. Preserves ProgramData configuration and logs.
-5. Restarts only services that were running before the update.
-6. Relaunches the tray as the original user with `--updated`.
+4. Migrates native services to Servy when `servy-cli` is available.
+5. Preserves ProgramData configuration and logs.
+6. Restarts only services that were running before the update.
+7. Relaunches the tray as the original user with `--updated`.
 
 The installers are currently unsigned, so Windows displays **Unknown publisher**
 during elevation. Hash verification is mandatory, but it does not replace a
