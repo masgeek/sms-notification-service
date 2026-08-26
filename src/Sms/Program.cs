@@ -2,8 +2,9 @@ using FeeSyncer.Sms;
 using FeeSyncer.Sms.Checks;
 using FeeSyncer.Sms.Configuration;
 using FeeSyncer.Sms.Data;
-using FeeSyncer.Sms.Logging;
 using FeeSyncer.Shared;
+using FeeSyncer.Shared.Logging;
+using Serilog;
 
 if (args.Contains("--version") || args.Contains("-v"))
 {
@@ -42,15 +43,22 @@ var logDir = ConfigPathResolver.GetLogDir();
 var svcOptions = builder.Configuration.GetSection(SmsServiceOptions.SectionName)
     .Get<SmsServiceOptions>() ?? new();
 
-builder.Logging.AddProvider(new FileLoggerProvider(logDir, svcOptions.LogRetentionDays, svcOptions.MaxLogFileSizeMb));
-var logger = LoggerFactory.Create(logging => logging.AddConsole()).CreateLogger<Program>();
-logger.LogInformation("[App] FeeSyncer.Sms starting (Environment: {Environment})", environment);
+SerilogLogging.Configure(
+    builder.Logging,
+    "Sms",
+    environment,
+    logDir,
+    svcOptions.LogRetentionDays,
+    svcOptions.MaxLogFileSizeMb,
+    SerilogLogging.GetMinimumLevel(builder.Configuration["Logging:LogLevel:Default"]));
+var logger = Log.ForContext<Program>();
+logger.Information("[App] FeeSyncer.Sms starting (Environment: {Environment})", environment);
 
 var resolvedConfigPath = ConfigPathResolver.FindConfigFile();
 if (File.Exists(resolvedConfigPath))
-    logger.LogInformation("[Config] Loading config from: {Path}", resolvedConfigPath);
+    logger.Information("[Config] Loading config from: {Path}", resolvedConfigPath);
 else
-    logger.LogInformation("[Config] No config file found — using environment variables or defaults");
+    logger.Information("[Config] No config file found - using environment variables or defaults");
 
 DapperMapper.Register();
 
@@ -58,7 +66,7 @@ builder.Services.AddSmsServices(builder.Configuration);
 
 builder.Configuration.ValidateSmsServiceOptions();
 
-var host = builder.Build();
+using var host = builder.Build();
 
 var hostLogger = host.Services.GetRequiredService<ILogger<Program>>();
 

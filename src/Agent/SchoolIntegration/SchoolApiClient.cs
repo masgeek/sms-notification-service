@@ -146,7 +146,7 @@ internal sealed class SchoolApiClient(HttpClient httpClient, IOptions<AgentOptio
         accessToken = login.Token;
 
         var expiresByDuration = login.Expires > 0
-            ? DateTimeOffset.UtcNow.AddMilliseconds(login.Expires)
+            ? DateTimeOffset.UtcNow.AddSeconds(login.Expires)
             : DateTimeOffset.MaxValue;
         var expiresAt = login.ExpiresAt ?? DateTimeOffset.MaxValue;
         accessTokenExpiresAt = expiresByDuration < expiresAt ? expiresByDuration : expiresAt;

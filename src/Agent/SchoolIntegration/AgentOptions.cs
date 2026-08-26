@@ -41,6 +41,12 @@ internal sealed class AgentOptions
     [Range(5, 3600)]
     public int LeaseRenewalSeconds { get; init; } = 30;
 
+    [Range(1, 365)]
+    public int LogRetentionDays { get; init; } = 7;
+
+    [Range(1, 1024)]
+    public long MaxLogFileSizeMb { get; init; } = 10;
+
     public bool MqttEnabled { get; init; } = true;
 
     public string MqttBrokerHost { get; init; } = "wss://mqtt.munywele.co.ke/mqtt";

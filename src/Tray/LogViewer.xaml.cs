@@ -40,7 +40,8 @@ public partial class LogViewer : UserControl
                 return;
             }
 
-            var logFiles = Directory.GetFiles(ConfigPathResolver.GetLogDir(), "*.log")
+            var logFiles = Directory.EnumerateFiles(ConfigPathResolver.GetLogDir(), "*.log")
+                .Concat(Directory.EnumerateFiles(ConfigPathResolver.GetLogDir(), "*.json"))
                 .OrderByDescending(f => f)
                 .ToList();
 
@@ -66,7 +67,9 @@ public partial class LogViewer : UserControl
 
             if (!string.IsNullOrEmpty(_selectedFilter))
             {
-                lines = lines.Where(l => l.Contains($"[{_selectedFilter}]")).ToList();
+                lines = lines.Where(line =>
+                    line.Contains($"[{_selectedFilter}]", StringComparison.Ordinal)
+                    || line.Contains($"\"SourceContext\":\"{_selectedFilter}\"", StringComparison.Ordinal)).ToList();
             }
 
             LogTextBox.Text = string.Join(Environment.NewLine, lines);

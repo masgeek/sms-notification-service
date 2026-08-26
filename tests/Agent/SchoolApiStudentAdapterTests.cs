@@ -9,11 +9,12 @@ public sealed class SchoolApiStudentAdapterTests
     [Fact]
     public async Task Reads_students_from_the_loopback_school_api()
     {
+        var loginAttempts = 0;
         using var httpClient = new HttpClient(new StubHandler(request => Task.FromResult(new HttpResponseMessage
         {
             StatusCode = System.Net.HttpStatusCode.OK,
             Content = new StringContent(request.RequestUri?.AbsolutePath.EndsWith("/v1/users/login", StringComparison.Ordinal) == true
-                ? "{\"token\":\"synthetic-local-token\"}"
+                ? LoginResponse(ref loginAttempts)
                 : request.RequestUri?.AbsolutePath.EndsWith("/v1/students/count", StringComparison.Ordinal) == true
                     ? "{\"count\":42}"
                     : "{\"data\":[{\"admno\":\"SYN-001\",\"ClassNo\":\"FORM-1-A\"}],\"next_page_url\":null}"),
@@ -39,6 +40,7 @@ public sealed class SchoolApiStudentAdapterTests
         Assert.Equal("SYN-001", student.SourceStudentId);
         Assert.Equal("FORM-1-A", student.ClassIdentifier);
         Assert.Equal(42, expectedCount);
+        Assert.Equal(1, loginAttempts);
     }
 
     [Fact]
@@ -85,7 +87,7 @@ public sealed class SchoolApiStudentAdapterTests
             requestedPaths.Add(request.RequestUri?.AbsolutePath ?? string.Empty);
 
             return Task.FromResult(JsonResponse(request.RequestUri?.AbsolutePath.EndsWith("/v1/users/login", StringComparison.Ordinal) == true
-                ? "{\"token\":\"synthetic-local-token\",\"expires\":600000}"
+                ? "{\"token\":\"synthetic-local-token\",\"expires\":900}"
                 : request.RequestUri?.AbsolutePath.EndsWith("/v1/fees/count", StringComparison.Ordinal) == true
                     ? "{\"data\":{\"count\":1}}"
                     : "{\"data\":[{\"admno\":\"SYN-001\",\"Payable\":59000,\"Bal\":-7800,\"Opening_Balance\":40000,\"Dated\":\"2026-05-06\",\"Name\":\"Synthetic Student\",\"phone\":\"0700000000\"}],\"next_page_url\":null}"));
@@ -123,6 +125,12 @@ public sealed class SchoolApiStudentAdapterTests
         {
             return handler(request);
         }
+    }
+
+    private static string LoginResponse(ref int loginAttempts)
+    {
+        loginAttempts++;
+        return $$"""{"token":"synthetic-local-token","expiresAt":"{{DateTimeOffset.UtcNow.AddMinutes(15):O}}","expires":899.722721,"expiresInHuman":"14 minutes 59 seconds"}""";
     }
 
     private static HttpResponseMessage JsonResponse(string json)
