@@ -27,23 +27,23 @@ public static class ConfigurationExtensions
             {
                 if (File.Exists(configPath))
                 {
-                    Console.WriteLine($"[Config] Found: {configPath}");
+                    WriteConsole(LogLevel.Information, $"Loaded {configPath}");
                     builder.AddJsonFile(configPath, optional: true, reloadOnChange: false);
                     loaded = true;
                 }
             }
             catch (UnauthorizedAccessException)
             {
-                Console.WriteLine($"[Config] Warning: Access denied to {configPath} — skipping");
+                WriteConsole(LogLevel.Warning, $"Access denied to {configPath}; skipping");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Config] Warning: Could not load {configPath}: {ex.Message} — skipping");
+                WriteConsole(LogLevel.Warning, $"Could not load {configPath}: {ex.Message}; skipping");
             }
         }
 
         if (!loaded)
-            Console.WriteLine("[Config] No config file found — using environment variables or defaults");
+            WriteConsole(LogLevel.Information, "No configuration file found; using environment variables or defaults");
 
         var configuration = builder.Build();
         var baseUrl = configuration["FeeSyncer:BaseUrl"];
@@ -69,7 +69,7 @@ public static class ConfigurationExtensions
             throw new InvalidOperationException("[Config] SmsService:ConnectionString is not configured. Set via appsettings.json or SmsService__ConnectionString.");
 
         if (options.ConnectionString.Contains("TrustServerCertificate=", StringComparison.OrdinalIgnoreCase) == false)
-            Console.WriteLine("[Config] Warning: Connection string does not contain 'TrustServerCertificate=True'. Consider adding it for secure connections.");
+            WriteConsole(LogLevel.Warning, "Connection string does not contain TrustServerCertificate=True");
 
         if (string.IsNullOrWhiteSpace(options.SmsApiUrl))
             throw new InvalidOperationException("[Config] SmsService:SmsApiUrl is not configured. Set via appsettings.json or SmsService__SmsApiUrl.");
@@ -92,4 +92,18 @@ public static class ConfigurationExtensions
         if (options.MaxLogFileSizeMb <= 0)
             throw new InvalidOperationException($"[Config] SmsService:MaxLogFileSizeMb must be > 0, got {options.MaxLogFileSizeMb}.");
     }
+
+    private static void WriteConsole(LogLevel level, string message) =>
+        Serilog.Log.ForContext("SourceContext", "Sms.Config").Write(
+            level switch
+            {
+                LogLevel.Trace => Serilog.Events.LogEventLevel.Verbose,
+                LogLevel.Debug => Serilog.Events.LogEventLevel.Debug,
+                LogLevel.Warning => Serilog.Events.LogEventLevel.Warning,
+                LogLevel.Error => Serilog.Events.LogEventLevel.Error,
+                LogLevel.Critical => Serilog.Events.LogEventLevel.Fatal,
+                _ => Serilog.Events.LogEventLevel.Information,
+            },
+            "{Message}",
+            message);
 }

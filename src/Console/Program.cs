@@ -2,12 +2,9 @@ using FeeSyncer.Shared;
 using FeeSyncer.Shared.Models;
 
 AppLogger.Initialize("ConsoleApp");
-AppLogger.Info("App", $"FeeSyncer.Console Monitor starting (v{VersionHelper.GetCurrentVersion()})");
-AppLogger.Info("App", $"OS: {Environment.OSVersion}, .NET: {Environment.Version}");
-
-Console.WriteLine($"FeeSyncer.Console Monitor v{VersionHelper.GetCurrentVersion()}");
-Console.WriteLine($"OS: {Environment.OSVersion}, .NET: {Environment.Version}");
-Console.WriteLine("Monitoring SMS and Agent services... (Ctrl+C to exit)\n");
+WriteConsole($"FeeSyncer.Console Monitor v{VersionHelper.GetCurrentVersion()}");
+WriteConsole($"OS: {Environment.OSVersion}, .NET: {Environment.Version}");
+WriteConsole("Monitoring SMS and Agent services... (Ctrl+C to exit)");
 
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
@@ -29,8 +26,7 @@ void Subscribe(ServiceMonitor monitor, string label)
         var uptimeStr = info.Uptime > TimeSpan.Zero ? $" | Uptime: {StatusHelper.FormatUptime(info.Uptime)}" : "";
         var methodStr = $" (via {StatusHelper.FormatDetection(info.DetectionMethod)})";
 
-        var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {label}: {statusStr}{methodStr}{uptimeStr} | Version: {info.Version}";
-        Console.WriteLine(line);
+        AppLogger.Info("Console.Monitor", $"{label}: {statusStr}{methodStr}{uptimeStr} | Version: {info.Version}");
 
         if (info.Status != lastStatus)
         {
@@ -54,6 +50,7 @@ catch (OperationCanceledException)
     // Expected
 }
 
-AppLogger.Info("App", "Console monitor stopped");
+WriteConsole("Console monitor stopped");
 AppLogger.Dispose();
-Console.WriteLine("\nStopped.");
+
+static void WriteConsole(string message) => AppLogger.Info("Console", message);

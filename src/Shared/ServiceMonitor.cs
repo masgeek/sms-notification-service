@@ -143,7 +143,8 @@ public sealed class ServiceMonitor : IDisposable
             if (!Directory.Exists(logDir))
                 return false;
 
-            var latestLog = Directory.GetFiles(logDir, "*.log")
+            var latestLog = Directory.EnumerateFiles(logDir, "*.log")
+                .Concat(Directory.EnumerateFiles(logDir, "*.json"))
                 .OrderByDescending(File.GetLastWriteTime)
                 .FirstOrDefault();
 

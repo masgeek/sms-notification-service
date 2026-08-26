@@ -1,4 +1,6 @@
-using System.IO;
+using FeeSyncer.Shared.Logging;
+using Serilog;
+using Serilog.Events;
 
 namespace FeeSyncer.Shared;
 
@@ -7,22 +9,17 @@ public sealed class AppLogger
     private static readonly Lock _lock = new();
     private static AppLogger? _instance;
 
-    private readonly string _logDirectory;
-    private readonly string _filePath;
-    private StreamWriter? _writer;
+    private Serilog.ILogger? logger;
 
     private AppLogger(string logDirectory, string appName)
     {
-        _logDirectory = logDirectory;
-        Directory.CreateDirectory(_logDirectory);
-        CleanupOldLogs();
-
-        var today = DateTime.Now.ToString("yyyy-MM-dd");
-        _filePath = Path.Combine(_logDirectory, $"{today}_{appName}.log");
-        _writer = new StreamWriter(new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
-        {
-            AutoFlush = true
-        };
+        logger = SerilogLogging.CreateLogger(
+            appName,
+            Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production",
+            logDirectory,
+            retentionDays: 7,
+            maxFileSizeMb: 10,
+            writeToConsole: appName.Equals("ConsoleApp", StringComparison.Ordinal));
     }
 
     public static void Initialize(string appName)
@@ -38,63 +35,41 @@ public sealed class AppLogger
         {
             lock (_lock)
             {
-                var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
-                var line = $"[{timestamp}] [{level}] [{tag}] {message}";
-
-                if (ex is not null)
-                    line += Environment.NewLine + ex;
-
-                if (_instance is not null)
-                {
-                    _instance.EnsureWriter();
-                    _instance._writer?.WriteLine(line);
-                }
+                _instance?.logger?
+                    .ForContext("SourceContext", tag)
+                    .Write(ToSerilogLevel(level), ex, "{Message}", message);
             }
         }
         catch
         {
             // Best effort
         }
-    }
-
-    private void EnsureWriter()
-    {
-        if (File.Exists(_filePath) && _writer is not null) return;
-        _writer?.Dispose();
-        _writer = new StreamWriter(new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete))
-        {
-            AutoFlush = true
-        };
     }
 
     public static void Info(string tag, string message) => Log("INFO", tag, message);
     public static void Warn(string tag, string message) => Log("WARN", tag, message);
     public static void Error(string tag, string message, Exception? ex = null) => Log("ERROR", tag, message, ex);
 
-    private void CleanupOldLogs()
-    {
-        try
-        {
-            var cutoff = DateTime.Now.AddDays(-7);
-            foreach (var file in Directory.GetFiles(_logDirectory, "*.log"))
-            {
-                if (File.GetLastWriteTime(file) < cutoff)
-                    File.Delete(file);
-            }
-        }
-        catch
-        {
-            // Best effort
-        }
-    }
-
     public static void Dispose()
     {
         lock (_lock)
         {
-            _instance?._writer?.Flush();
-            _instance?._writer?.Dispose();
-            _instance?._writer = null;
+            (_instance?.logger as IDisposable)?.Dispose();
+            if (_instance is not null)
+            {
+                _instance.logger = null;
+            }
+            _instance = null;
         }
     }
+
+    private static LogEventLevel ToSerilogLevel(string level) => level.ToUpperInvariant() switch
+    {
+        "TRACE" or "VERBOSE" => LogEventLevel.Verbose,
+        "DEBUG" => LogEventLevel.Debug,
+        "WARNING" or "WARN" => LogEventLevel.Warning,
+        "ERROR" => LogEventLevel.Error,
+        "CRITICAL" or "FATAL" => LogEventLevel.Fatal,
+        _ => LogEventLevel.Information,
+    };
 }
