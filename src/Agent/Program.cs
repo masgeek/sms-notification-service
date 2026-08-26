@@ -33,8 +33,8 @@ builder.Services.AddSchoolIntegrationServices(builder.Configuration);
 using var host = builder.Build();
 var configurationLogger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("FeeSyncer.Agent.Configuration");
 var runtimeMode = WindowsServiceHelpers.IsWindowsService()
-    ? "WindowsService"
-    : Environment.UserInteractive ? "InteractiveConsole" : "ServiceWrapper";
+    ? AgentRuntimeMode.WindowsService
+    : Environment.UserInteractive ? AgentRuntimeMode.InteractiveConsole : AgentRuntimeMode.ServiceWrapper;
 var agentEnabled = builder.Configuration.GetValue("Agent:Enabled", true);
 configurationLogger.LogInformation(
     "FeeSyncer Agent host starting. RuntimeMode={RuntimeMode} Enabled={Enabled} LogDirectory={LogDirectory}",

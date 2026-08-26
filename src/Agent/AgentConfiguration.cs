@@ -47,7 +47,7 @@ internal static class AgentConfiguration
         ILogger logger,
         AgentConfigurationReport report,
         IConfiguration configuration,
-        string runtimeMode)
+        AgentRuntimeMode runtimeMode)
     {
         logger.LogDebug(
             "Loading Agent configuration. RuntimeMode={RuntimeMode} Environment={Environment} BasePath={BasePath}",
@@ -104,6 +104,13 @@ internal static class AgentConfiguration
     private static bool BoolValue(string? value, bool fallback) => bool.TryParse(value, out var parsed) ? parsed : fallback;
 
     private static int IntValue(string? value, int fallback) => int.TryParse(value, out var parsed) ? parsed : fallback;
+}
+
+internal enum AgentRuntimeMode
+{
+    WindowsService,
+    InteractiveConsole,
+    ServiceWrapper,
 }
 
 internal sealed record AgentConfigurationReport(

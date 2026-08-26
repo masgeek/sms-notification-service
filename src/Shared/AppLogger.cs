@@ -29,7 +29,7 @@ public sealed class AppLogger
         _instance = new AppLogger(logDir, appName);
     }
 
-    public static void Log(string level, string tag, string message, Exception? ex = null)
+    private static void Log(LogEventLevel level, string tag, string message, Exception? ex = null)
     {
         try
         {
@@ -37,7 +37,7 @@ public sealed class AppLogger
             {
                 _instance?.logger?
                     .ForContext("SourceContext", tag)
-                    .Write(ToSerilogLevel(level), ex, "{Message}", message);
+                    .Write(level, ex, "{Message}", message);
             }
         }
         catch
@@ -46,9 +46,9 @@ public sealed class AppLogger
         }
     }
 
-    public static void Info(string tag, string message) => Log("INFO", tag, message);
-    public static void Warn(string tag, string message) => Log("WARN", tag, message);
-    public static void Error(string tag, string message, Exception? ex = null) => Log("ERROR", tag, message, ex);
+    public static void Info(string tag, string message) => Log(LogEventLevel.Information, tag, message);
+    public static void Warn(string tag, string message) => Log(LogEventLevel.Warning, tag, message);
+    public static void Error(string tag, string message, Exception? ex = null) => Log(LogEventLevel.Error, tag, message, ex);
 
     public static void Dispose()
     {
@@ -62,14 +62,4 @@ public sealed class AppLogger
             _instance = null;
         }
     }
-
-    private static LogEventLevel ToSerilogLevel(string level) => level.ToUpperInvariant() switch
-    {
-        "TRACE" or "VERBOSE" => LogEventLevel.Verbose,
-        "DEBUG" => LogEventLevel.Debug,
-        "WARNING" or "WARN" => LogEventLevel.Warning,
-        "ERROR" => LogEventLevel.Error,
-        "CRITICAL" or "FATAL" => LogEventLevel.Fatal,
-        _ => LogEventLevel.Information,
-    };
 }

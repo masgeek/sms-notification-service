@@ -64,7 +64,7 @@ public sealed class ServiceMonitor : IDisposable
                     Status = (ServiceControllerStatus)(-1),
                     Version = Current.Version,
                     LastCheck = DateTime.Now,
-                    DetectionMethod = "Error"
+                    DetectionMethod = ServiceDetectionMethod.Error
                 };
                 Current = info;
                 StatusChanged?.Invoke(info);
@@ -85,7 +85,7 @@ public sealed class ServiceMonitor : IDisposable
         return new ServiceStatusInfo
         {
             Status = ServiceControllerStatus.Stopped,
-            DetectionMethod = "NotRunning"
+            DetectionMethod = ServiceDetectionMethod.NotRunning
         };
     }
 
@@ -98,7 +98,7 @@ public sealed class ServiceMonitor : IDisposable
             return new ServiceStatusInfo
             {
                 Status = status,
-                DetectionMethod = "ServiceController"
+                DetectionMethod = ServiceDetectionMethod.ServiceController
             };
         }
         catch
@@ -126,7 +126,7 @@ public sealed class ServiceMonitor : IDisposable
             return new ServiceStatusInfo
             {
                 Status = status,
-                DetectionMethod = "Process"
+                DetectionMethod = ServiceDetectionMethod.Process
             };
         }
         catch

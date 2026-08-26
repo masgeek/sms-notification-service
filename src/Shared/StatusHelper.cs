@@ -1,4 +1,5 @@
 using System.ServiceProcess;
+using FeeSyncer.Shared.Models;
 
 namespace FeeSyncer.Shared;
 
@@ -20,12 +21,12 @@ public static class StatusHelper
             ? $"{(int)ts.TotalHours}h {ts.Minutes}m"
             : $"{ts.Minutes}m {ts.Seconds}s";
 
-    public static string FormatDetection(string method) => method switch
+    public static string FormatDetection(ServiceDetectionMethod method) => method switch
     {
-        "ServiceController" => "Windows Service",
-        "Process" => "Process (non-service mode)",
-        "NotRunning" => "Not running",
-        "Error" => "Detection failed",
-        _ => method
+        ServiceDetectionMethod.ServiceController => "Windows Service",
+        ServiceDetectionMethod.Process => "Process (non-service mode)",
+        ServiceDetectionMethod.NotRunning => "Not running",
+        ServiceDetectionMethod.Error => "Detection failed",
+        _ => "Unknown"
     };
 }
