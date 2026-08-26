@@ -16,6 +16,11 @@ internal sealed class SchoolIntegrationWorker(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        logger.LogInformation(
+            "School integration worker started. ServerUrl={ServerUrl} LocalApiBaseUrl={LocalApiBaseUrl} MqttEnabled={MqttEnabled}",
+            options.Value.ServerUrl,
+            options.Value.LocalApiBaseUrl,
+            options.Value.MqttEnabled);
         var nextHeartbeat = DateTimeOffset.MinValue;
         var workPollSeconds = options.Value.WorkPollSeconds;
         var longPollSeconds = options.Value.LongPollSeconds;
@@ -138,6 +143,8 @@ internal sealed class SchoolIntegrationWorker(
                 await Task.Delay(TimeSpan.FromSeconds(options.Value.IdleDelaySeconds), stoppingToken);
             }
         }
+
+        logger.LogInformation("School integration worker stopped.");
     }
 
     private async Task WaitForNextWorkAsync(int delaySeconds, CancellationToken cancellationToken)
