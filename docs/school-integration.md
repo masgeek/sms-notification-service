@@ -231,6 +231,23 @@ Saving writes the selected `Logging:LogLevel:Default` and
 `Logging:EventLog:LogLevel:Default` values to both SMS and Agent machine
 configuration files. Restart the services when prompted to apply the new level.
 
+The Agent writes `Agent`-prefixed daily log files to
+`C:\ProgramData\Munywele\FeeSyncer\logs`. Host startup records whether it is
+running as a native Windows service, an interactive console, or through a
+service wrapper, and reports when `Agent:Enabled=false` prevents worker
+registration. The processing worker runs in all hosting modes when enabled.
+Serilog writes color-coded, human-readable console events. ANSI colors are
+disabled automatically when output is redirected or captured by a service.
+Console source contexts are shortened to the emitting class name, for example:
+`[2026-08-26 07:39:04] [INFO] [MqttAgentConnection] MQTT connection attempt.`
+File events use newline-delimited Compact Log Event Format (CLEF) JSON and
+include the timestamp, message template, level, exception, source context,
+application, environment, and structured message properties. The Agent files
+follow the `Agent-yyyyMMdd.json` naming convention; SMS uses `Sms-yyyyMMdd.json`.
+Daily and size-based rolling and time-based retention are controlled by each
+service's logging settings. JSON files contain no ANSI control codes and can be
+ingested directly by Serilog-compatible log processors.
+
 When `Debug` is selected, failed tray local API tests display and log the HTTP
 status, safe response headers, and up to 64 KiB of the response body. Configured
 local API credentials and sensitive response headers remain redacted.
