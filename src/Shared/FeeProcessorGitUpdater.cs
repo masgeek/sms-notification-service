@@ -62,7 +62,7 @@ public sealed class FeeProcessorGitUpdater
             if (IsSshRepository(request.Repository))
             {
                 progress?.Invoke("Using system Git SSH transport...");
-                RunExternalGit(request, ["fetch", "--prune", origin.Name], progress);
+                RunExternalGit(request, ["fetch", "--prune", "--no-recurse-submodules", origin.Name], progress);
             }
             else
             {
