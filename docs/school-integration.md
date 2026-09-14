@@ -36,29 +36,31 @@ characters, so operators must still ensure the correct token type is used.
 Production overrides are read from:
 
 ```text
-C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
+C:\ProgramData\Munywele\FeeSyncer\appsettings.json       (shared machine settings)
+C:\ProgramData\Munywele\FeeSyncer\agentsettings.json     (Agent machine settings)
 ```
 
 The Agent loads packaged defaults, environment-specific defaults, the shared
 machine settings, and then `agentsettings.json`. Environment variables and
 command-line arguments remain explicit final overrides. Both Windows service and
 interactive console runs therefore use the same ProgramData settings regardless
-of working directory or Debug/Release build. The tray stores the gateway URL and
-endpoint paths beside the enrolled token so they cannot target different servers.
+of working directory or Debug/Release build.
 
-Example:
+Machine settings are split by target: the shared `appsettings.json` holds the
+gateway `FeeSyncer` block (base URL and API endpoint paths), `SmsService`,
+`Logging`, and `Tray`. `agentsettings.json` holds only the `Agent` block, so the
+enrolled token and gateway URL cannot drift into conflicting locations.
+
+Example `agentsettings.json`:
 
 ```json
 {
-  "FeeSyncer": {
-    "BaseUrl": "https://fees.munywele.co.ke/"
-  },
   "Agent": {
     "Enabled": true,
     "AgentToken": "fsk_...",
     "LocalApiBaseUrl": "http://127.0.0.1:8001/api/",
-    "LocalApiUsername": "...",
     "LocalApiPassword": "...",
+    "LocalApiUsername": "...",
     "RequestTimeoutSeconds": 30,
     "IdleDelaySeconds": 5,
     "WorkPollSeconds": 30,

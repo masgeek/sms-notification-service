@@ -26,8 +26,8 @@ public partial class ConfigEditor : UserControl
 
         Loaded += async (_, _) =>
         {
-            ConfigPathText.Text = $"SMS settings: {ConfigPathResolver.GetActiveConfigFile()}{Environment.NewLine}" +
-                                  $"Agent settings: {ConfigPathResolver.GetMachineAgentConfigFile()}";
+            ConfigPathText.Text = $"Shared machine config (SMS and tray): {ConfigPathResolver.GetActiveConfigFile()}{Environment.NewLine}" +
+                                  $"Agent machine config: {ConfigPathResolver.GetMachineAgentConfigFile()}";
             LoadConfig();
             await UpdateFeeToolDetectionTextAsync();
         };
@@ -121,14 +121,6 @@ public partial class ConfigEditor : UserControl
         }
 
         using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
-        if (doc.RootElement.TryGetProperty("FeeSyncer", out var feeSyncer))
-        {
-            var baseUrl = StringValue(feeSyncer, "BaseUrl");
-            if (!string.IsNullOrWhiteSpace(baseUrl))
-                ApiUrlBox.Text = baseUrl;
-            LoadApiEndpoints(feeSyncer);
-        }
-
         if (!doc.RootElement.TryGetProperty("Agent", out var agent))
             return;
 
@@ -434,8 +426,10 @@ public partial class ConfigEditor : UserControl
         agent["FeeProcessorSshKeyPath"] = FeeProcessorSshKeyPathBox.Text.Trim();
         agent["FeeProcessorSshPassphrase"] = FeeProcessorSshPassphraseBox.Password;
         root["Agent"] = agent;
-        root["FeeSyncer"] = JsonSerializer.SerializeToNode(BuildFeeSyncerSettings());
-        ApplyLogLevel(root, SelectedLogLevel());
+        root.Remove("FeeSyncer");
+        root.Remove("Logging");
+        root.Remove("SmsService");
+        root.Remove("Tray");
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
         await File.WriteAllTextAsync(configPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }

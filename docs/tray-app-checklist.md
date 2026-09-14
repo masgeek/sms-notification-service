@@ -28,7 +28,7 @@ prototype plan.
 
 - [ ] Protect machine credentials with DPAPI, Credential Manager, or hardened ACLs
 - [ ] Validate all editor fields before saving
-- [ ] Ensure Agent central endpoint edits are saved to `agentsettings.json`
+- [ ] Ensure Agent central endpoint edits are saved to the shared `appsettings.json` machine config
 - [ ] Insert the Amount field from the manual notification dialog
 - [ ] Distinguish intentional service stops from unexpected failures
 - [ ] Report detailed Servy and `sc.exe` completion errors in the UI
