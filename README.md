@@ -96,7 +96,7 @@ Installed configuration is machine-wide:
 
 | Component | Production file |
 |---|---|
-| SMS and tray | `C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json` |
+| SMS and tray | `C:\ProgramData\Munywele\FeeSyncer\appsettings.json` |
 | Agent | `C:\ProgramData\Munywele\FeeSyncer\agentsettings.json` |
 | Logs | `C:\ProgramData\Munywele\FeeSyncer\logs\` |
 

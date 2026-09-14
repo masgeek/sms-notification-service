@@ -57,7 +57,7 @@ and related utilities live in `src/Shared`.
 ## Production Data
 
 ```text
-C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json
+C:\ProgramData\Munywele\FeeSyncer\appsettings.json
 C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
 C:\ProgramData\Munywele\FeeSyncer\logs\
 ```

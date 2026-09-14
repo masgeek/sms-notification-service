@@ -46,6 +46,9 @@ public sealed class ConnectionValidator
         return await ValidateApiAsync(url, bearerToken ?? string.Empty);
     }
 
+    public static async Task<CheckResult> ValidateDatabaseAsync(string connectionString) =>
+        await ValidateDbAsync(connectionString);
+
     public static async Task<CheckResult> ValidateSchoolApiAsync(
         string baseUrl,
         string username,

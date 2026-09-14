@@ -25,11 +25,9 @@ public static class ConfigPathResolver
 #endif
     }
 
-    public static string GetActiveConfigFile() =>
-        IsDevelopment() ? FindDevelopmentConfigFile() : GetMachineConfigFile();
+    public static string GetActiveConfigFile() => FindConfigFile();
 
-    public static string GetActiveAgentConfigFile() =>
-        IsDevelopment() ? FindDevelopmentAgentConfigFile() : GetMachineAgentConfigFile();
+    public static string GetActiveAgentConfigFile() => FindAgentConfigFile();
 
     public static void EnsureMachineAgentConfigFile()
     {
@@ -54,22 +52,18 @@ public static class ConfigPathResolver
 
     public static string FindConfigFile()
     {
-        if (IsDevelopment())
-            return FindDevelopmentConfigFile();
-
         var machinePath = GetMachineConfigFile();
         if (File.Exists(machinePath))
             return machinePath;
 
+        if (IsDevelopment())
+            return FindDevelopmentConfigFile();
+
         foreach (var appDir in ApplicationDirectories())
         {
-            var productionPath = Path.Combine(appDir, Constants.ConfigFileName);
-            if (File.Exists(productionPath))
-                return productionPath;
-
-            var defaultPath = Path.Combine(appDir, "appsettings.json");
-            if (File.Exists(defaultPath))
-                return defaultPath;
+            var configPath = Path.Combine(appDir, Constants.ConfigFileName);
+            if (File.Exists(configPath))
+                return configPath;
         }
 
         return machinePath;
@@ -77,23 +71,19 @@ public static class ConfigPathResolver
 
     public static string FindAgentConfigFile()
     {
-        if (IsDevelopment())
-            return FindDevelopmentAgentConfigFile();
-
         var machinePath = GetMachineAgentConfigFile();
         if (File.Exists(machinePath))
             return machinePath;
 
+        if (IsDevelopment())
+            return FindDevelopmentAgentConfigFile();
+
         foreach (var appDir in ApplicationDirectories())
         {
             var agentDir = Path.Combine(appDir, "Agent");
-            var productionPath = Path.Combine(agentDir, Constants.ConfigFileName);
-            if (File.Exists(productionPath))
-                return productionPath;
-
-            var defaultPath = Path.Combine(agentDir, "appsettings.json");
-            if (File.Exists(defaultPath))
-                return defaultPath;
+            var configPath = Path.Combine(agentDir, Constants.ConfigFileName);
+            if (File.Exists(configPath))
+                return configPath;
         }
 
         return machinePath;

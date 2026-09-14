@@ -35,7 +35,7 @@
 #define ConsoleAppDisplay "FeeSyncer Console"
 #define EventLogSource   "FeeSyncer.Sms"
 #define ConfigDir        "Munywele\FeeSyncer"
-#define ConfigFile       "appsettings.Production.json"
+#define ConfigFile       "appsettings.json"
 #define LogRetentionDays "7"
 #define MaxLogFileSizeMb "10"
 #define TrayDir          "Tray"

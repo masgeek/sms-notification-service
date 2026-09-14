@@ -30,7 +30,7 @@ Windows recovery policy.
 Configuration is application-managed, not installer-managed:
 
 ```text
-C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json
+C:\ProgramData\Munywele\FeeSyncer\appsettings.json
 C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
 C:\ProgramData\Munywele\FeeSyncer\logs\
 ```

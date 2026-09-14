@@ -18,6 +18,12 @@
             <Setter Property="MinHeight" Value="24"/>
             <Setter Property="MaxWidth" Value="520"/>
         </Style>
+        <Style x:Key="TargetNote" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
     </UserControl.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -33,6 +39,7 @@
                 <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
                         <GroupBox Header="Database" Margin="0,0,0,10" Padding="8">
                         <StackPanel>
+                        <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -46,6 +53,7 @@
                         </GroupBox>
                         <GroupBox Header="SMS API" Margin="0,0,0,10" Padding="8">
                         <StackPanel>
+                        <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -65,6 +73,8 @@
                         </StackPanel>
                         </GroupBox>
                         <GroupBox Header="Retry and File Logging" Margin="0,0,0,10" Padding="8">
+                        <StackPanel>
+                        <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -73,18 +83,22 @@
                             <TextBlock Grid.Row="2" Text="Log retention (days):" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="RetentionBox" Margin="0,2"/>
                             <TextBlock Grid.Row="3" Text="Max log size (MB):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="MaxSizeBox" Margin="0,2"/>
                         </Grid>
+                        </StackPanel>
                         </GroupBox>
                         <GroupBox Header="Tray behavior" Padding="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Startup:" VerticalAlignment="Center"/>
-                                <CheckBox Grid.Row="0" Grid.Column="1" x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray" Margin="0,5"/>
-                                <TextBlock Grid.Row="1" Text="Update check interval:" VerticalAlignment="Center"/>
-                                <ComboBox Grid.Row="1" Grid.Column="1" x:Name="UpdateCheckIntervalBox" SelectedValuePath="Content" SelectedValue="4h" Margin="0,2">
-                                    <ComboBoxItem Content="15m"/><ComboBoxItem Content="30m"/><ComboBoxItem Content="1h"/><ComboBoxItem Content="2h"/><ComboBoxItem Content="4h"/><ComboBoxItem Content="6h"/><ComboBoxItem Content="12h"/><ComboBoxItem Content="24h"/><ComboBoxItem Content="2d"/><ComboBoxItem Content="7d"/>
-                                </ComboBox>
-                            </Grid>
+                        <StackPanel>
+                        <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Startup:" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Row="0" Grid.Column="1" x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray" Margin="0,5"/>
+                            <TextBlock Grid.Row="1" Text="Update check interval:" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="UpdateCheckIntervalBox" SelectedValuePath="Content" SelectedValue="4h" Margin="0,2">
+                                <ComboBoxItem Content="15m"/><ComboBoxItem Content="30m"/><ComboBoxItem Content="1h"/><ComboBoxItem Content="2h"/><ComboBoxItem Content="4h"/><ComboBoxItem Content="6h"/><ComboBoxItem Content="12h"/><ComboBoxItem Content="24h"/><ComboBoxItem Content="2d"/><ComboBoxItem Content="7d"/>
+                            </ComboBox>
+                        </Grid>
+                        </StackPanel>
                         </GroupBox>
                 </StackPanel>
                 </Grid>
@@ -96,6 +110,7 @@
                 <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
                     <GroupBox Header="Enrollment" Margin="0,0,0,10" Padding="8">
                     <StackPanel>
+                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
                     <TextBlock Text="Single-use code from fee-syncer; it is never stored." Foreground="Gray" Margin="0,0,0,6"/>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -109,6 +124,8 @@
                     </StackPanel>
                     </GroupBox>
                     <GroupBox Header="Agent and Local API" Margin="0,0,0,10" Padding="8">
+                    <StackPanel>
+                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                          <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Agent token:"/><Grid Width="520" HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox Grid.Column="0" x:Name="AgentTokenBox" Margin="0,2" PasswordChanged="AgentTokenBox_PasswordChanged"/><TextBox Grid.Column="0" x:Name="AgentTokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="AgentTokenVisibleBox_TextChanged"/><Button Grid.Column="1" x:Name="AgentTokenVisibilityButton" Content="Show" Click="AgentTokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/></Grid><TextBlock Text="Enabled:" Margin="0,6,0,0"/><CheckBox x:Name="AgentEnabledBox" Margin="0,5"/><Button Content="Test Agent API" x:Name="TestAgentApiButton" Click="TestAgentApiButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/></StackPanel>
@@ -127,9 +144,11 @@
                              <TextBlock Text="Page checks validate three records without displaying student or fee data." TextWrapping="Wrap" Foreground="Gray" FontSize="11"/>
                          </StackPanel>
                     </Grid>
+                    </StackPanel>
                     </GroupBox>
                     <GroupBox Header="Timing and MQTT" Margin="0,0,0,10" Padding="8">
                     <StackPanel>
+                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Margin="0,0,4,0"><TextBlock Text="Request timeout"/><TextBox x:Name="RequestTimeoutBox"/><TextBlock Text="Idle delay" Margin="0,4,0,0"/><TextBox x:Name="IdleDelayBox"/><TextBlock Text="Heartbeat" Margin="0,4,0,0"/><TextBox x:Name="HeartbeatBox"/><TextBlock Text="Lease renewal" Margin="0,4,0,0"/><TextBox x:Name="LeaseRenewalBox"/></StackPanel>
@@ -156,6 +175,7 @@
                     <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
                         <GroupBox Header="Global logging" Margin="0,0,0,10" Padding="10">
                             <StackPanel>
+                                <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared; read by SMS service, Agent, and tray)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
                                 <TextBlock Text="Set one default logging level for the SMS service and School Agent. Debug enables detailed Agent HTTP request and response diagnostics." TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -164,7 +184,7 @@
                                         <ComboBoxItem Content="Trace"/><ComboBoxItem Content="Debug"/><ComboBoxItem Content="Information"/><ComboBoxItem Content="Warning"/><ComboBoxItem Content="Error"/><ComboBoxItem Content="Critical"/><ComboBoxItem Content="None"/>
                                     </ComboBox>
                                 </Grid>
-                                <TextBlock Text="Save All writes this value to both machine configuration files. Restart the services when prompted to apply it." TextWrapping="Wrap" Foreground="Gray" Margin="0,10,0,0"/>
+                                <TextBlock Text="Save All writes this value to the shared machine configuration file (appsettings.json). Both services read it from there. Restart the services when prompted to apply it." TextWrapping="Wrap" Foreground="Gray" Margin="0,10,0,0"/>
                             </StackPanel>
                         </GroupBox>
                         <GroupBox Header="Log destinations" Padding="10">
@@ -180,6 +200,7 @@
             <TabItem Header="Fee Processor Updates">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
                 <StackPanel Margin="10" HorizontalAlignment="Stretch">
+                    <TextBlock Style="{StaticResource TargetNote}" Text="All fields write to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
                     <Grid MaxWidth="1100" HorizontalAlignment="Stretch">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>

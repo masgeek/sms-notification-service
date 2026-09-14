@@ -128,7 +128,7 @@ See [School Integration Agent](school-integration.md) for endpoints and options.
 Production files:
 
 ```text
-C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json
+C:\ProgramData\Munywele\FeeSyncer\appsettings.json
 C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
 ```
 
