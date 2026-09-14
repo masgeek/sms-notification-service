@@ -163,7 +163,7 @@ begin
     Log('Service already exists; updating ' + SvcName + '.');
     ExecuteOrFail(
       'sc.exe',
-      'config "' + SvcName + '" binPath= "' + QuotedBinaryPath + '" DisplayName= "' + DisplayName + '" obj= LocalSystem',
+      'config "' + SvcName + '" binPath= "' + QuotedBinaryPath + '" start= delayed-auto DisplayName= "' + DisplayName + '" obj= LocalSystem',
       'Failed to update existing service ' + SvcName + '.'
     );
   end
@@ -172,7 +172,7 @@ begin
     Log('Creating service ' + SvcName + '.');
     ExecuteOrFail(
       'sc.exe',
-      'create "' + SvcName + '" binPath= "' + QuotedBinaryPath + '" start= demand DisplayName= "' + DisplayName + '" obj= LocalSystem',
+      'create "' + SvcName + '" binPath= "' + QuotedBinaryPath + '" start= delayed-auto DisplayName= "' + DisplayName + '" obj= LocalSystem',
       'Failed to create service ' + SvcName + '.'
     );
   end;
@@ -205,7 +205,7 @@ begin
       ' --description="' + Description + '"' +
       ' --path="' + BinaryPath + '"' +
       ' --startupDir="' + ExtractFileDir(BinaryPath) + '"' +
-      ' --startupType="Manual"' +
+      ' --startupType="AutomaticDelayedStart"' +
       ' --stdout="' + LogPrefix + '-stdout.log"' +
       ' --stderr="' + LogPrefix + '-stderr.log"' +
       ' --enableSizeRotation --rotationSize=10' +

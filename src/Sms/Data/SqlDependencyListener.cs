@@ -6,8 +6,12 @@ public sealed class SqlDependencyListener : IDisposable
 {
     private readonly string _connectionString;
     private readonly ILogger<SqlDependencyListener> _logger;
+    private readonly SemaphoreSlim _registrationGate = new(1, 1);
 
     private const int MaxReRegisterAttempts = 5;
+    private volatile bool _registered;
+
+    public bool IsRegistered => _registered;
 
     public SqlDependencyListener(string connectionString, ILogger<SqlDependencyListener> logger)
     {
@@ -28,17 +32,46 @@ public sealed class SqlDependencyListener : IDisposable
     public void Dispose()
     {
         Stop();
+        _registrationGate.Dispose();
     }
 
     public async Task RegisterQueryWithRetryAsync(Action onChanges, CancellationToken stoppingToken)
+    {
+        await _registrationGate.WaitAsync(stoppingToken);
+        try
+        {
+            if (_registered)
+                return;
+
+            await RegisterQueryCoreAsync(onChanges, stoppingToken);
+            _logger.LogInformation("[Listener] Query registered successfully. Waiting for table changes...");
+        }
+        finally
+        {
+            _registrationGate.Release();
+        }
+    }
+
+    public async Task EnsureRegisteredAsync(Action onChanges, CancellationToken stoppingToken)
+    {
+        if (_registered)
+            return;
+
+        await RegisterQueryWithRetryAsync(onChanges, stoppingToken);
+    }
+
+    private async Task RegisterQueryCoreAsync(Action onChanges, CancellationToken stoppingToken)
     {
         for (int attempt = 1; attempt <= MaxReRegisterAttempts; attempt++)
         {
             try
             {
                 RegisterQuery(onChanges, stoppingToken);
-                _logger.LogInformation("[Listener] Query registered successfully. Waiting for table changes...");
                 return;
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -53,7 +86,7 @@ public sealed class SqlDependencyListener : IDisposable
             }
         }
 
-        _logger.LogCritical("[Listener] Registration failed after {Max} attempts — listener is inactive", MaxReRegisterAttempts);
+        _logger.LogCritical("[Listener] Registration failed after {Max} attempts — listener inactive until the periodic sweep retries", MaxReRegisterAttempts);
     }
 
     private void RegisterQuery(Action onChanges, CancellationToken stoppingToken)
@@ -67,6 +100,7 @@ public sealed class SqlDependencyListener : IDisposable
         var dependency = new SqlDependency(command);
         dependency.OnChange += (sender, e) =>
         {
+            _registered = false;
             if (e.Type == SqlNotificationType.Change)
             {
                 _logger.LogDebug("[Listener] Change event fired (Info: {Info})", e.Info);
@@ -79,10 +113,11 @@ public sealed class SqlDependencyListener : IDisposable
 
             if (!stoppingToken.IsCancellationRequested)
             {
-                _ = RegisterQueryWithRetryAsync(onChanges, stoppingToken);
+                _ = EnsureRegisteredAsync(onChanges, stoppingToken);
             }
         };
 
         command.ExecuteReader();
+        _registered = true;
     }
 }

@@ -13,6 +13,7 @@ public sealed class TableChangeListener : BackgroundService
     private readonly SqlDependencyListener _listener;
 
     private const int ShutdownTimeoutSeconds = 30;
+    private static readonly TimeSpan ReRegistrationSweepInterval = TimeSpan.FromSeconds(30);
 
     public TableChangeListener(ILogger<TableChangeListener> logger, NotificationProcessor processor, SqlDependencyListener listener)
     {
@@ -41,10 +42,16 @@ public sealed class TableChangeListener : BackgroundService
             _logger.LogCritical(ex, "[Listener] Failed to start SqlDependency — Service Broker may not be enabled on the target database");
         }
 
-        // Keep the service alive until shutdown
+        // Keep the service alive until shutdown, sweeping for a dormant registration.
         try
         {
-            await Task.Delay(Timeout.Infinite, stoppingToken);
+            using var sweepTimer = new PeriodicTimer(ReRegistrationSweepInterval);
+            while (await sweepTimer.WaitForNextTickAsync(stoppingToken))
+            {
+                await _listener.EnsureRegisteredAsync(
+                    onChanges: () => _ = _processor.ProcessPendingAsync(stoppingToken),
+                    stoppingToken: stoppingToken);
+            }
         }
         catch (OperationCanceledException)
         {

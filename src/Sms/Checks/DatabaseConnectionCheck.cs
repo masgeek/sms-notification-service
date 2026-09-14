@@ -7,6 +7,9 @@ public static class DatabaseConnectionCheck
 {
     private const int ConnectTimeoutSeconds = 10;
 
+    /// Best-effort pre-flight probe. Failures are logged as warnings rather than
+    /// thrown so the service survives a boot that races SQL Server startup; the
+    /// SqlDependency listener retries its own connection afterwards.
     public static async Task RunAsync(string connectionString, ILogger logger, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("[DB] Checking database connectivity (timeout: {Timeout}s)...", ConnectTimeoutSeconds);
@@ -29,20 +32,29 @@ public static class DatabaseConnectionCheck
         catch (OperationCanceledException) when (cts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
             sw.Stop();
-            logger.LogCritical("[DB] Connection timed out after {Elapsed}ms (limit: {Timeout}s)", sw.ElapsedMilliseconds, ConnectTimeoutSeconds);
-            throw new TimeoutException($"Database connection timed out after {ConnectTimeoutSeconds}s");
+            LogUnavailable(logger, "[DB] Connection timed out after {Elapsed}ms (limit: {Timeout}s) — SQL Server may still be starting", sw.ElapsedMilliseconds, ConnectTimeoutSeconds);
         }
         catch (SqlException ex)
         {
             sw.Stop();
-            logger.LogCritical(ex, "[DB] Connection failed after {Elapsed}ms — {Error}", sw.ElapsedMilliseconds, ex.Message);
-            throw;
+            LogUnavailable(logger, ex, "[DB] Connection failed after {Elapsed}ms — {Error} — SQL Server may still be starting", sw.ElapsedMilliseconds, ex.Message);
         }
         catch (Exception ex)
         {
             sw.Stop();
-            logger.LogCritical(ex, "[DB] Unexpected error after {Elapsed}ms — {Error}", sw.ElapsedMilliseconds, ex.Message);
-            throw;
+            LogUnavailable(logger, ex, "[DB] Unexpected error after {Elapsed}ms — {Error} — SQL Server may still be starting", sw.ElapsedMilliseconds, ex.Message);
         }
+    }
+
+    private static void LogUnavailable(ILogger logger, string message, params object[] args)
+    {
+        logger.LogWarning(message, args);
+        logger.LogWarning("[DB] Continuing startup; the SqlDependency listener will retry the connection.");
+    }
+
+    private static void LogUnavailable(ILogger logger, Exception ex, string message, params object[] args)
+    {
+        logger.LogWarning(ex, message, args);
+        logger.LogWarning("[DB] Continuing startup; the SqlDependency listener will retry the connection.");
     }
 }
