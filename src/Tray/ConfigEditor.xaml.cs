@@ -491,46 +491,31 @@ public partial class ConfigEditor : UserControl
 
     private async void TestDatabaseButton_Click(object sender, RoutedEventArgs e)
     {
-        TestDatabaseButton.IsEnabled = false;
-        TestDatabaseButton.Content = "Testing...";
-        try
-        {
-            var result = await new ConnectionValidator().ValidateDatabaseAsync();
-            MessageBox.Show($"Database: {(result.Passed ? "OK" : "FAIL")} {result.Details}", "Database Connection Test",
-                MessageBoxButton.OK, result.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Database test failed: {ex.Message}", "Database Connection Test", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            TestDatabaseButton.IsEnabled = true;
-            TestDatabaseButton.Content = "Test Database";
-        }
+        var connectionString = BuildConnectionString();
+        await RunConnectionTestAsync(
+            TestDatabaseButton,
+            "Database Test",
+            () => ConnectionValidator.ValidateDatabaseAsync(connectionString),
+            [
+                $"Server: {DbServerBox.Text}",
+                $"Database: {DbNameBox.Text}",
+                $"User ID: {DbUserIdBox.Text}",
+                $"Connection string: {Configured(connectionString)}",
+            ]);
     }
 
     private async void TestSmsButton_Click(object sender, RoutedEventArgs e)
     {
-        TestSmsButton.IsEnabled = false;
-        TestSmsButton.Content = "Testing...";
-
-        try
-        {
-            var result = await new ConnectionValidator().ValidateSmsApiAsync();
-            MessageBox.Show($"SMS API: {(result.Passed ? "OK" : "FAIL")} {result.Details}", "SMS API Test",
-                MessageBoxButton.OK,
-                result.Passed ? MessageBoxImage.Information : MessageBoxImage.Warning);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"SMS API test failed: {ex.Message}", "SMS API Test", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            TestSmsButton.IsEnabled = true;
-            TestSmsButton.Content = "Test SMS API";
-        }
+        var url = ConfigReader.CombineUrl(ApiUrlBox.Text, SmsNotificationsEndpointBox.Text);
+        await RunConnectionTestAsync(
+            TestSmsButton,
+            "SMS API Test",
+            () => ConnectionValidator.ValidateHttpAsync(url, TokenBox.Password.Trim()),
+            [
+                $"HTTP request: GET {url}",
+                $"Bearer token: {Configured(TokenBox.Password)}",
+                "Timeout: 10 seconds",
+            ]);
     }
 
     private async void TestAgentApiButton_Click(object sender, RoutedEventArgs e)
