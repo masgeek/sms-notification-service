@@ -51,7 +51,7 @@ public sealed class AgentConfigurationTests : IDisposable
             configuration,
             tempDirectory,
             "Production",
-            Path.Combine(tempDirectory, "appsettings.Production.json"),
+            Path.Combine(tempDirectory, "appsettings.json"),
             agentConfig,
             ["--Agent:AgentToken=command-token", "--FeeSyncer:BaseUrl=https://command.example/"],
             includeEnvironmentVariables: false);
@@ -71,7 +71,7 @@ public sealed class AgentConfigurationTests : IDisposable
             """{"Agent":{"AgentToken":"service-default"},"FeeSyncer":{"BaseUrl":"https://service-default.example/"}}""");
         File.WriteAllText(Path.Combine(consoleDirectory, "appsettings.json"),
             """{"Agent":{"AgentToken":"console-default"},"FeeSyncer":{"BaseUrl":"https://console-default.example/"}}""");
-        var sharedConfig = Path.Combine(tempDirectory, "appsettings.Production.json");
+        var sharedConfig = Path.Combine(tempDirectory, "appsettings.json");
         var agentConfig = Path.Combine(tempDirectory, "agentsettings.json");
         File.WriteAllText(sharedConfig,
             """{"FeeSyncer":{"BaseUrl":"https://enrolled-server.example/"}}""");
@@ -97,7 +97,7 @@ public sealed class AgentConfigurationTests : IDisposable
     public void Debug_report_lists_sources_in_precedence_order_without_values()
     {
         Directory.CreateDirectory(tempDirectory);
-        var sharedConfig = Path.Combine(tempDirectory, "appsettings.Production.json");
+        var sharedConfig = Path.Combine(tempDirectory, "appsettings.json");
         var agentConfig = Path.Combine(tempDirectory, "agentsettings.json");
         File.WriteAllText(sharedConfig, "{}");
         File.WriteAllText(agentConfig, """{"Agent":{"AgentToken":"private-agent-token"}}""");

@@ -26,7 +26,7 @@ C:\Program Files\FeeSyncer\
 Machine data is stored separately:
 
 ```text
-C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json
+C:\ProgramData\Munywele\FeeSyncer\appsettings.json
 C:\ProgramData\Munywele\FeeSyncer\agentsettings.json
 C:\ProgramData\Munywele\FeeSyncer\logs\
 ```
@@ -217,7 +217,7 @@ application.
 
 ### SMS service does not start
 
-1. Verify `C:\ProgramData\Munywele\FeeSyncer\appsettings.Production.json`.
+1. Verify `C:\ProgramData\Munywele\FeeSyncer\appsettings.json`.
 2. Confirm the connection string and bearer token are populated.
 3. Confirm Service Broker is enabled.
 4. Review ProgramData logs and the Windows Application log.
