@@ -4,9 +4,9 @@
     "net10.0": {
       "Dapper": {
         "type": "Direct",
-        "requested": "[2.1.79, )",
-        "resolved": "2.1.79",
-        "contentHash": "8YijbzgTfmqmQOnVNorYM6K++pxqnW3nJ4aC1sRHzxUA2CcuoJ9gsTem3kgBnPRMc38zZHl4Esb6hAezXIEEuw=="
+        "requested": "[2.1.89, )",
+        "resolved": "2.1.89",
+        "contentHash": "1VjFE664wnxvuhlgP8kS4PeFFF4jqD3VkbIHW6Zlc52zuibgcz5ICnIHcQXlTp6pURpPNGLV0ZpNe5x9KePJnA=="
       },
       "Microsoft.Data.SqlClient": {
         "type": "Direct",
@@ -527,7 +527,7 @@
         "type": "Project",
         "dependencies": {
           "CliWrap": "[3.10.5, )",
-          "Dapper": "[2.1.79, )",
+          "Dapper": "[2.1.89, )",
           "LibGit2Sharp": "[0.32.0, )",
           "Microsoft.Data.SqlClient": "[7.0.2, )",
           "Serilog": "[4.4.0, )",
