@@ -35,139 +35,305 @@
         <TabControl Grid.Row="1">
             <TabItem Header="SMS Service">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
-                <Grid x:Name="SmsSection">
-                <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
-                        <GroupBox Header="Database" Margin="0,0,0,10" Padding="8">
-                        <StackPanel>
-                        <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Server:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="DbServerBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Text="Database:" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="DbNameBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Text="User ID:" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="DbUserIdBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Text="Password:" VerticalAlignment="Center"/><PasswordBox Grid.Row="3" Grid.Column="1" x:Name="DbPasswordBox" Margin="0,2"/>
-                        </Grid>
-                        <Button Content="Test Database" x:Name="TestDatabaseButton" Click="TestDatabaseButton_Click" Padding="12,4" HorizontalAlignment="Left"/>
+                    <Grid x:Name="SmsSection">
+                        <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
+                            <GroupBox Header="Database" Margin="0,0,0,10" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="180"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="Server:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="DbServerBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="1" Text="Database:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="DbNameBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="2" Text="User ID:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="DbUserIdBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="3" Text="Password:" VerticalAlignment="Center"/>
+                                        <PasswordBox Grid.Row="3" Grid.Column="1" x:Name="DbPasswordBox" Margin="0,2"/>
+                                    </Grid>
+                                    <Button Content="Test Database" x:Name="TestDatabaseButton" Click="TestDatabaseButton_Click" Padding="12,4" HorizontalAlignment="Left"/>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="FEE SYNCER API" Margin="0,0,0,10" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="180"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="FeeSyncer base URL:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="ApiUrlBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="1" Text="Authorization token:" VerticalAlignment="Center"/>
+                                        <Grid Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" MaxWidth="520">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <PasswordBox Grid.Column="0" x:Name="TokenBox" Margin="0,2" PasswordChanged="TokenBox_PasswordChanged"/>
+                                            <TextBox Grid.Column="0" x:Name="TokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="TokenVisibleBox_TextChanged"/>
+                                            <Button Grid.Column="1" x:Name="TokenVisibilityButton" Content="Show" Click="TokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/>
+                                        </Grid>
+                                        <TextBlock Grid.Row="2" Text="SMS notifications endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="SmsNotificationsEndpointBox" Margin="0,2" ToolTip="Relative endpoint path, for example api/v1/notifications"/>
+                                        <TextBlock Grid.Row="3" Text="Agent enrollment endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="3" Grid.Column="1" x:Name="AgentEnrollEndpointBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="4" Text="Agent work endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="4" Grid.Column="1" x:Name="AgentWorkEndpointBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="5" Text="Agent heartbeat endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="5" Grid.Column="1" x:Name="AgentHeartbeatEndpointBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="6" Text="Agent renew endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="6" Grid.Column="1" x:Name="AgentRenewEndpointBox" Margin="0,2" ToolTip="Use {jobId} as the job ID placeholder"/>
+                                        <TextBlock Grid.Row="7" Text="Agent page endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="7" Grid.Column="1" x:Name="AgentPageEndpointBox" Margin="0,2" ToolTip="Use {jobId} and {pageNumber} placeholders"/>
+                                        <TextBlock Grid.Row="8" Text="Agent complete endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="8" Grid.Column="1" x:Name="AgentCompleteEndpointBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="9" Text="Payment complete endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="9" Grid.Column="1" x:Name="AgentPaymentCompleteEndpointBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="10" Text="Agent failure endpoint:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="10" Grid.Column="1" x:Name="AgentFailEndpointBox" Margin="0,2"/>
+                                    </Grid>
+                                    <Button Content="Test SMS API" x:Name="TestSmsButton" Click="TestSmsButton_Click" Padding="12,4" HorizontalAlignment="Left"/>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Retry" Margin="0,0,0,10" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="180"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="Retry backoff (s):" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="BackoffBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="1" Text="Retry poll interval (s):" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="PollIntervalBox" Margin="0,2"/>
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Tray behavior" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="180"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="Startup:" VerticalAlignment="Center"/>
+                                        <CheckBox Grid.Row="0" Grid.Column="1" x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray" Margin="0,5"/>
+                                        <TextBlock Grid.Row="1" Text="Update check interval:" VerticalAlignment="Center"/>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="UpdateCheckIntervalBox" SelectedValuePath="Content" SelectedValue="4h" Margin="0,2">
+                                            <ComboBoxItem Content="15m"/>
+                                            <ComboBoxItem Content="30m"/>
+                                            <ComboBoxItem Content="1h"/>
+                                            <ComboBoxItem Content="2h"/>
+                                            <ComboBoxItem Content="4h"/>
+                                            <ComboBoxItem Content="6h"/>
+                                            <ComboBoxItem Content="12h"/>
+                                            <ComboBoxItem Content="24h"/>
+                                            <ComboBoxItem Content="2d"/>
+                                            <ComboBoxItem Content="7d"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
                         </StackPanel>
-                        </GroupBox>
-                        <GroupBox Header="SMS API" Margin="0,0,0,10" Padding="8">
-                        <StackPanel>
-                        <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="FeeSyncer base URL:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="ApiUrlBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Text="SMS notifications endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="SmsNotificationsEndpointBox" Margin="0,2" ToolTip="Relative endpoint path, for example api/v1/notifications"/>
-                            <TextBlock Grid.Row="2" Text="Agent enrollment endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="AgentEnrollEndpointBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Text="Agent work endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="AgentWorkEndpointBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="4" Text="Agent heartbeat endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="4" Grid.Column="1" x:Name="AgentHeartbeatEndpointBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="5" Text="Agent renew endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="5" Grid.Column="1" x:Name="AgentRenewEndpointBox" Margin="0,2" ToolTip="Use {jobId} as the job ID placeholder"/>
-                            <TextBlock Grid.Row="6" Text="Agent page endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="6" Grid.Column="1" x:Name="AgentPageEndpointBox" Margin="0,2" ToolTip="Use {jobId} and {pageNumber} placeholders"/>
-                            <TextBlock Grid.Row="7" Text="Agent complete endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="7" Grid.Column="1" x:Name="AgentCompleteEndpointBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="8" Text="Payment complete endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="8" Grid.Column="1" x:Name="AgentPaymentCompleteEndpointBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="9" Text="Agent failure endpoint:" VerticalAlignment="Center"/><TextBox Grid.Row="9" Grid.Column="1" x:Name="AgentFailEndpointBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="10" Text="Authorization token:" VerticalAlignment="Center"/><Grid Grid.Row="10" Grid.Column="1" Width="520" HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox Grid.Column="0" x:Name="TokenBox" Margin="0,2" PasswordChanged="TokenBox_PasswordChanged"/><TextBox Grid.Column="0" x:Name="TokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="TokenVisibleBox_TextChanged"/><Button Grid.Column="1" x:Name="TokenVisibilityButton" Content="Show" Click="TokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/></Grid>
-                        </Grid>
-                        <Button Content="Test SMS API" x:Name="TestSmsButton" Click="TestSmsButton_Click" Padding="12,4" HorizontalAlignment="Left"/>
-                        </StackPanel>
-                        </GroupBox>
-                        <GroupBox Header="Retry and File Logging" Margin="0,0,0,10" Padding="8">
-                        <StackPanel>
-                        <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Retry backoff (s):" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="BackoffBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Text="Retry poll interval (s):" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="PollIntervalBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Text="Log retention (days):" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="RetentionBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Text="Max log size (MB):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="MaxSizeBox" Margin="0,2"/>
-                        </Grid>
-                        </StackPanel>
-                        </GroupBox>
-                        <GroupBox Header="Tray behavior" Padding="8">
-                        <StackPanel>
-                        <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Startup:" VerticalAlignment="Center"/>
-                            <CheckBox Grid.Row="0" Grid.Column="1" x:Name="TrayStartMinimizedBox" Content="Start minimized to system tray" Margin="0,5"/>
-                            <TextBlock Grid.Row="1" Text="Update check interval:" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="UpdateCheckIntervalBox" SelectedValuePath="Content" SelectedValue="4h" Margin="0,2">
-                                <ComboBoxItem Content="15m"/><ComboBoxItem Content="30m"/><ComboBoxItem Content="1h"/><ComboBoxItem Content="2h"/><ComboBoxItem Content="4h"/><ComboBoxItem Content="6h"/><ComboBoxItem Content="12h"/><ComboBoxItem Content="24h"/><ComboBoxItem Content="2d"/><ComboBoxItem Content="7d"/>
-                            </ComboBox>
-                        </Grid>
-                        </StackPanel>
-                        </GroupBox>
-                </StackPanel>
-                </Grid>
+                    </Grid>
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="School Agent">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
-                <Grid x:Name="AgentSection">
-                <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
-                    <GroupBox Header="Enrollment" Margin="0,0,0,10" Padding="8">
-                    <StackPanel>
-                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
-                    <TextBlock Text="Single-use code from fee-syncer; it is never stored." Foreground="Gray" Margin="0,0,0,6"/>
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Enrollment code:"/><TextBox x:Name="EnrollmentCodeBox" Margin="0,2"/></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="6,0,0,0"><TextBlock Text="Agent name:"/><TextBox x:Name="AgentNameBox" Margin="0,2"/></StackPanel>
+                    <Grid x:Name="AgentSection">
+                        <StackPanel Margin="10" HorizontalAlignment="Stretch" MaxWidth="1100">
+                            <GroupBox Header="Enrollment" Margin="0,0,0,10" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
+                                    <TextBlock Text="Single-use code from fee-syncer; it is never stored." Foreground="Gray" Margin="0,0,0,6"/>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                            <TextBlock Text="Enrollment code:"/>
+                                            <TextBox x:Name="EnrollmentCodeBox" Margin="0,2"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                            <TextBlock Text="Agent name:"/>
+                                            <TextBox x:Name="AgentNameBox" Margin="0,2"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                        <Button Content="Enroll / Re-enroll" x:Name="EnrollButton" Click="EnrollButton_Click" Padding="12,4" Margin="0,0,8,0"/>
+                                        <TextBlock x:Name="AgentStatusText" VerticalAlignment="Center" Foreground="Gray"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Agent credentials" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="180"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="Agent token:" VerticalAlignment="Center"/>
+                                        <Grid Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" MaxWidth="520">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <PasswordBox Grid.Column="0" x:Name="AgentTokenBox" Margin="0,2" PasswordChanged="AgentTokenBox_PasswordChanged"/>
+                                            <TextBox Grid.Column="0" x:Name="AgentTokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="AgentTokenVisibleBox_TextChanged"/>
+                                            <Button Grid.Column="1" x:Name="AgentTokenVisibilityButton" Content="Show" Click="AgentTokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/>
+                                        </Grid>
+                                        <TextBlock Grid.Row="1" Text="Enabled:" VerticalAlignment="Center"/>
+                                        <CheckBox Grid.Row="1" Grid.Column="1" x:Name="AgentEnabledBox" Margin="0,5"/>
+                                    </Grid>
+                                    <Button Content="Test Agent API" x:Name="TestAgentApiButton" Click="TestAgentApiButton_Click" Padding="12,4" HorizontalAlignment="Left"/>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Local API" Margin="0,0,0,10" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="180"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="Local API URL:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="LocalApiUrlBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="1" Text="Username:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="LocalApiUsernameBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="2" Text="Password:" VerticalAlignment="Center"/>
+                                        <PasswordBox Grid.Row="2" Grid.Column="1" x:Name="LocalApiPasswordBox" Margin="0,2"/>
+                                    </Grid>
+                                    <TextBlock Text="Endpoint diagnostics" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <WrapPanel Margin="0,0,0,6">
+                                        <Button Content="Login" x:Name="TestLocalAgentButton" Click="TestLocalAgentButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                        <Button Content="Student Count" x:Name="TestStudentCountButton" Click="TestStudentCountButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                        <Button Content="Fee Count" x:Name="TestFeeCountButton" Click="TestFeeCountButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                        <Button Content="Students Page" x:Name="TestStudentsPageButton" Click="TestStudentsPageButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                        <Button Content="Fees Page" x:Name="TestFeesPageButton" Click="TestFeesPageButton_Click" Padding="12,4" Margin="0,0,6,6"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="Page checks validate three records without displaying student or fee data." TextWrapping="Wrap" Foreground="Gray" FontSize="11"/>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Agent Timing" Margin="0,0,0,10" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="180"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="Request timeout:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="RequestTimeoutBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="1" Text="Idle delay:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="IdleDelayBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="2" Text="Heartbeat:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="HeartbeatBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="3" Text="Lease renewal:" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Row="3" Grid.Column="1" x:Name="LeaseRenewalBox" Margin="0,2"/>
+                                        <TextBlock Grid.Row="4" Text="Agent status:" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Row="4" Grid.Column="1" x:Name="AgentStatusSummaryText" Margin="0,5" Foreground="Gray"/>
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="MQTT" Margin="0,0,0,10" Padding="10">
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                            <TextBlock Text="MQTT environment"/>
+                                            <ComboBox x:Name="MqttEnvironmentBox" SelectedValuePath="Content" SelectedValue="Production" SelectionChanged="MqttEnvironmentBox_SelectionChanged">
+                                                <ComboBoxItem Content="Development"/>
+                                                <ComboBoxItem Content="Production"/>
+                                                <ComboBoxItem Content="Custom"/>
+                                            </ComboBox>
+                                            <TextBlock Text="Broker URL" Margin="0,4,0,0"/>
+                                            <TextBox x:Name="MqttHostBox"/>
+                                            <TextBlock Text="Broker port (fallback)" Margin="0,4,0,0"/>
+                                            <TextBox x:Name="MqttPortBox"/>
+                                            <TextBlock Text="Broker path (fallback)" Margin="0,4,0,0"/>
+                                            <TextBox x:Name="MqttPathBox"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="4,0">
+                                            <TextBlock Text="MQTT enabled"/>
+                                            <CheckBox x:Name="MqttEnabledBox" Margin="0,5"/>
+                                            <TextBlock Text="TLS (fallback)" Margin="0,4,0,0"/>
+                                            <CheckBox x:Name="MqttTlsBox" Margin="0,5"/>
+                                            <TextBlock Text="MQTT username" Margin="0,4,0,0"/>
+                                            <TextBox x:Name="MqttUsernameBox"/>
+                                            <TextBlock Text="MQTT password" Margin="0,4,0,0"/>
+                                            <PasswordBox x:Name="MqttPasswordBox"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                            <TextBlock Text="Topic prefix"/>
+                                            <TextBox x:Name="MqttTopicBox"/>
+                                            <TextBlock Text="Keep alive" Margin="0,4,0,0"/>
+                                            <TextBox x:Name="MqttKeepAliveBox"/>
+                                            <TextBlock Text="Reconnect min" Margin="0,4,0,0"/>
+                                            <TextBox x:Name="MqttReconnectMinBox"/>
+                                            <TextBlock Text="Reconnect max" Margin="0,4,0,0"/>
+                                            <TextBox x:Name="MqttReconnectMaxBox"/>
+                                            <Button Content="Test MQTT" x:Name="TestMqttButton" Click="TestMqttButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="Agent Connectivity Test Output" Padding="10" Visibility="Collapsed" x:Name="AgentTestOutputGroup">
+                                <TextBox x:Name="AgentTestOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" MinHeight="100" MaxHeight="180"/>
+                            </GroupBox>
+                        </StackPanel>
                     </Grid>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Enroll / Re-enroll" x:Name="EnrollButton" Click="EnrollButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                        <TextBlock x:Name="AgentStatusText" VerticalAlignment="Center" Foreground="Gray"/>
-                    </StackPanel>
-                    </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="Agent and Local API" Margin="0,0,0,10" Padding="8">
-                    <StackPanel>
-                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                         <StackPanel Grid.Column="0" Margin="0,0,6,0"><TextBlock Text="Agent token:"/><Grid Width="520" HorizontalAlignment="Left"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><PasswordBox Grid.Column="0" x:Name="AgentTokenBox" Margin="0,2" PasswordChanged="AgentTokenBox_PasswordChanged"/><TextBox Grid.Column="0" x:Name="AgentTokenVisibleBox" Margin="0,2" Visibility="Collapsed" TextChanged="AgentTokenVisibleBox_TextChanged"/><Button Grid.Column="1" x:Name="AgentTokenVisibilityButton" Content="Show" Click="AgentTokenVisibilityButton_Click" Width="54" Margin="4,2,0,2" Padding="8,0"/></Grid><TextBlock Text="Enabled:" Margin="0,6,0,0"/><CheckBox x:Name="AgentEnabledBox" Margin="0,5"/><Button Content="Test Agent API" x:Name="TestAgentApiButton" Click="TestAgentApiButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/></StackPanel>
-                         <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                             <TextBlock Text="Local API URL:"/><TextBox x:Name="LocalApiUrlBox" Margin="0,2"/>
-                             <TextBlock Text="Username:"/><TextBox x:Name="LocalApiUsernameBox" Margin="0,2"/>
-                             <TextBlock Text="Password:"/><PasswordBox x:Name="LocalApiPasswordBox" Margin="0,2"/>
-                             <TextBlock Text="Endpoint diagnostics" FontWeight="SemiBold" Margin="0,8,0,3"/>
-                             <WrapPanel>
-                                 <Button Content="Login" x:Name="TestLocalAgentButton" Click="TestLocalAgentButton_Click" Padding="12,4" Margin="0,0,6,6"/>
-                                 <Button Content="Student Count" x:Name="TestStudentCountButton" Click="TestStudentCountButton_Click" Padding="12,4" Margin="0,0,6,6"/>
-                                 <Button Content="Fee Count" x:Name="TestFeeCountButton" Click="TestFeeCountButton_Click" Padding="12,4" Margin="0,0,6,6"/>
-                                 <Button Content="Students Page" x:Name="TestStudentsPageButton" Click="TestStudentsPageButton_Click" Padding="12,4" Margin="0,0,6,6"/>
-                                 <Button Content="Fees Page" x:Name="TestFeesPageButton" Click="TestFeesPageButton_Click" Padding="12,4" Margin="0,0,6,6"/>
-                             </WrapPanel>
-                             <TextBlock Text="Page checks validate three records without displaying student or fee data." TextWrapping="Wrap" Foreground="Gray" FontSize="11"/>
-                         </StackPanel>
-                    </Grid>
-                    </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="Timing and MQTT" Margin="0,0,0,10" Padding="8">
-                    <StackPanel>
-                    <TextBlock Style="{StaticResource TargetNote}" Text="Writes to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,4,0"><TextBlock Text="Request timeout"/><TextBox x:Name="RequestTimeoutBox"/><TextBlock Text="Idle delay" Margin="0,4,0,0"/><TextBox x:Name="IdleDelayBox"/><TextBlock Text="Heartbeat" Margin="0,4,0,0"/><TextBox x:Name="HeartbeatBox"/><TextBlock Text="Lease renewal" Margin="0,4,0,0"/><TextBox x:Name="LeaseRenewalBox"/></StackPanel>
-                         <StackPanel Grid.Column="1" Margin="4,0"><TextBlock Text="MQTT environment"/><ComboBox x:Name="MqttEnvironmentBox" SelectedValuePath="Content" SelectedValue="Production" SelectionChanged="MqttEnvironmentBox_SelectionChanged"><ComboBoxItem Content="Development"/><ComboBoxItem Content="Production"/><ComboBoxItem Content="Custom"/></ComboBox><TextBlock Text="MQTT enabled" Margin="0,4,0,0"/><CheckBox x:Name="MqttEnabledBox" Margin="0,5"/><TextBlock Text="Broker URL"/><TextBox x:Name="MqttHostBox"/><TextBlock Text="Broker port (fallback)" Margin="0,4,0,0"/><TextBox x:Name="MqttPortBox"/><TextBlock Text="Broker path (fallback)" Margin="0,4,0,0"/><TextBox x:Name="MqttPathBox"/><TextBlock Text="TLS (fallback)" Margin="0,4,0,0"/><CheckBox x:Name="MqttTlsBox" Margin="0,5"/></StackPanel>
-                         <StackPanel Grid.Column="2" Margin="4,0,0,0"><TextBlock Text="MQTT username"/><TextBox x:Name="MqttUsernameBox"/><TextBlock Text="MQTT password" Margin="0,4,0,0"/><PasswordBox x:Name="MqttPasswordBox"/><TextBlock Text="Topic prefix" Margin="0,4,0,0"/><TextBox x:Name="MqttTopicBox"/><TextBlock Text="Keep alive" Margin="0,4,0,0"/><TextBox x:Name="MqttKeepAliveBox"/><Button Content="Test MQTT" x:Name="TestMqttButton" Click="TestMqttButton_Click" Padding="12,4" Margin="0,8,0,0" HorizontalAlignment="Left"/></StackPanel>
-                    </Grid>
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,4,0"><TextBlock Text="Reconnect min"/><TextBox x:Name="MqttReconnectMinBox"/></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="4,0"><TextBlock Text="Reconnect max"/><TextBox x:Name="MqttReconnectMaxBox"/></StackPanel>
-                        <StackPanel Grid.Column="2" Margin="4,0,0,0"><TextBlock Text="Agent status"/><TextBlock x:Name="AgentStatusSummaryText" Margin="0,5" Foreground="Gray"/></StackPanel>
-                    </Grid>
-                    </StackPanel>
-                    </GroupBox>
-                    <GroupBox Header="Agent Connectivity Test Output" Margin="0,8,0,0" Padding="8" Visibility="Collapsed" x:Name="AgentTestOutputGroup">
-                        <TextBox x:Name="AgentTestOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" MinHeight="100" MaxHeight="180"/>
-                    </GroupBox>
-                </StackPanel>
-                </Grid>
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="Logging">
@@ -178,13 +344,41 @@
                                 <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared; read by SMS service, Agent, and tray)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
                                 <TextBlock Text="Set one default logging level for the SMS service and School Agent. Debug enables detailed Agent HTTP request and response diagnostics." TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,10"/>
                                 <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
                                     <TextBlock Text="Log level:" VerticalAlignment="Center"/>
                                     <ComboBox Grid.Column="1" x:Name="LogLevelBox" SelectedValuePath="Content" SelectedValue="Information" Margin="0,2" ToolTip="Applies to SMS, Agent, console, file, and Windows Event Log providers after restart.">
-                                        <ComboBoxItem Content="Trace"/><ComboBoxItem Content="Debug"/><ComboBoxItem Content="Information"/><ComboBoxItem Content="Warning"/><ComboBoxItem Content="Error"/><ComboBoxItem Content="Critical"/><ComboBoxItem Content="None"/>
+                                        <ComboBoxItem Content="Trace"/>
+                                        <ComboBoxItem Content="Debug"/>
+                                        <ComboBoxItem Content="Information"/>
+                                        <ComboBoxItem Content="Warning"/>
+                                        <ComboBoxItem Content="Error"/>
+                                        <ComboBoxItem Content="Critical"/>
+                                        <ComboBoxItem Content="None"/>
                                     </ComboBox>
                                 </Grid>
                                 <TextBlock Text="Save All writes this value to the shared machine configuration file (appsettings.json). Both services read it from there. Restart the services when prompted to apply it." TextWrapping="Wrap" Foreground="Gray" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+                        <GroupBox Header="Log Rotation" Margin="0,0,0,10" Padding="10">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource TargetNote}" Text="Writes to appsettings.json (shared machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\appsettings.json"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="Log retention (days):" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="RetentionBox" Margin="0,2"/>
+                                    <TextBlock Grid.Row="1" Text="Max log size (MB):" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="MaxSizeBox" Margin="0,2"/>
+                                </Grid>
                             </StackPanel>
                         </GroupBox>
                         <GroupBox Header="Log destinations" Padding="10">
@@ -199,65 +393,152 @@
             </TabItem>
             <TabItem Header="Fee Processor Updates">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
-                <StackPanel Margin="10" HorizontalAlignment="Stretch">
-                    <TextBlock Style="{StaticResource TargetNote}" Text="All fields write to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
-                    <Grid MaxWidth="1100" HorizontalAlignment="Stretch">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <GroupBox Grid.Row="0" Grid.Column="0" Header="Repository" Margin="0,0,5,10" Padding="10">
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Application directory:" VerticalAlignment="Center"/><DockPanel Grid.Row="0" Grid.Column="1" LastChildFill="True"><Button DockPanel.Dock="Right" Content="..." Click="BrowseFeeUpdatePath_Click" Width="30" Margin="4,2,0,2"/><TextBox x:Name="FeeUpdatePathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
-                            <TextBlock Grid.Row="1" Text="Repository:" VerticalAlignment="Center"/><TextBox Grid.Row="1" Grid.Column="1" x:Name="FeeUpdateRepositoryBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="2" Text="Branch:" VerticalAlignment="Center"/><TextBox Grid.Row="2" Grid.Column="1" x:Name="FeeUpdateBranchBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="3" Text="Tag (optional):" VerticalAlignment="Center"/><TextBox Grid.Row="3" Grid.Column="1" x:Name="FeeUpdateTagBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="4" Text="Enabled:" VerticalAlignment="Center"/><CheckBox Grid.Row="4" Grid.Column="1" x:Name="FeeUpdateEnabledBox" Margin="0,5"/>
+                    <StackPanel Margin="10" HorizontalAlignment="Stretch">
+                        <TextBlock Style="{StaticResource TargetNote}" Text="All fields write to agentsettings.json (Agent machine config)" ToolTip="C:\ProgramData\Munywele\FeeSyncer\agentsettings.json"/>
+                        <Grid MaxWidth="1100" HorizontalAlignment="Stretch">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <GroupBox Grid.Row="0" Grid.Column="0" Header="Repository" Margin="0,0,5,10" Padding="10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="Application directory:" VerticalAlignment="Center"/>
+                                    <DockPanel Grid.Row="0" Grid.Column="1" LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Content="..." Click="BrowseFeeUpdatePath_Click" Width="30" Margin="4,2,0,2"/>
+                                        <TextBox x:Name="FeeUpdatePathBox" IsReadOnly="True" Margin="0,2"/>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1" Text="Repository:" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="FeeUpdateRepositoryBox" Margin="0,2"/>
+                                    <TextBlock Grid.Row="2" Text="Branch:" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="FeeUpdateBranchBox" Margin="0,2"/>
+                                    <TextBlock Grid.Row="3" Text="Tag (optional):" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="FeeUpdateTagBox" Margin="0,2"/>
+                                    <TextBlock Grid.Row="4" Text="Enabled:" VerticalAlignment="Center"/>
+                                    <CheckBox Grid.Row="4" Grid.Column="1" x:Name="FeeUpdateEnabledBox" Margin="0,5"/>
+                                </Grid>
+                            </GroupBox>
+                            <GroupBox Grid.Row="0" Grid.Column="1" Header="SSH Authentication" Margin="5,0,0,10" Padding="10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="SSH username:" VerticalAlignment="Center"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="FeeProcessorSshUsernameBox" Margin="0,2"/>
+                                    <TextBlock Grid.Row="1" Text="Private key path:" VerticalAlignment="Center"/>
+                                    <DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Button Content="Clear" Click="ClearSshKey_Click" Padding="6,0" Margin="4,2,0,2"/>
+                                            <Button Content="..." Click="BrowseSshKey_Click" Width="30" Margin="4,2,0,2"/>
+                                        </StackPanel>
+                                        <TextBox x:Name="FeeProcessorSshKeyPathBox" IsReadOnly="True" Margin="0,2"/>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="2" Text="SSH passphrase:" VerticalAlignment="Center"/>
+                                    <PasswordBox Grid.Row="2" Grid.Column="1" x:Name="FeeProcessorSshPassphraseBox" Margin="0,2"/>
+                                </Grid>
+                            </GroupBox>
+                            <GroupBox Grid.Row="1" Grid.Column="0" Header="Tool Paths" Margin="0,0,5,10" Padding="10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="PHP (blank = PATH):" VerticalAlignment="Center"/>
+                                    <DockPanel Grid.Row="0" Grid.Column="1" LastChildFill="True">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Button Content="Clear" Click="ClearPhp_Click" Padding="6,0" Margin="4,2,0,2"/>
+                                            <Button Content="..." Click="BrowsePhp_Click" Width="30" Margin="4,2,0,2"/>
+                                        </StackPanel>
+                                        <TextBox x:Name="PhpExecutablePathBox" IsReadOnly="True" Margin="0,2"/>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="1" Text="Composer (blank = PATH):" VerticalAlignment="Center"/>
+                                    <DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Button Content="Clear" Click="ClearComposer_Click" Padding="6,0" Margin="4,2,0,2"/>
+                                            <Button Content="..." Click="BrowseComposer_Click" Width="30" Margin="4,2,0,2"/>
+                                        </StackPanel>
+                                        <TextBox x:Name="ComposerExecutablePathBox" IsReadOnly="True" Margin="0,2"/>
+                                    </DockPanel>
+                                    <TextBlock Grid.Row="2" Text="Git (blank = PATH):" VerticalAlignment="Center"/>
+                                    <DockPanel Grid.Row="2" Grid.Column="1" LastChildFill="True">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Button Content="Clear" Click="ClearGit_Click" Padding="6,0" Margin="4,2,0,2"/>
+                                            <Button Content="..." Click="BrowseGit_Click" Width="30" Margin="4,2,0,2"/>
+                                        </StackPanel>
+                                        <TextBox x:Name="GitExecutablePathBox" IsReadOnly="True" Margin="0,2"/>
+                                    </DockPanel>
+                                </Grid>
+                            </GroupBox>
+                            <GroupBox Grid.Row="1" Grid.Column="1" Header="Schedule and Backup" Margin="5,0,0,10" Padding="10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="Update interval:" VerticalAlignment="Center"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="FeeUpdateIntervalBox" SelectedValuePath="Content" SelectedValue="24h" ToolTip="Select how often Fee Processor updates run." Margin="0,2">
+                                        <ComboBoxItem Content="15m"/>
+                                        <ComboBoxItem Content="30m"/>
+                                        <ComboBoxItem Content="1h"/>
+                                        <ComboBoxItem Content="2h"/>
+                                        <ComboBoxItem Content="4h"/>
+                                        <ComboBoxItem Content="6h"/>
+                                        <ComboBoxItem Content="12h"/>
+                                        <ComboBoxItem Content="24h"/>
+                                        <ComboBoxItem Content="2d"/>
+                                        <ComboBoxItem Content="7d"/>
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="1" Text="Backup directory:" VerticalAlignment="Center"/>
+                                    <DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Content="..." Click="BrowseBackupPath_Click" Width="30" Margin="4,2,0,2"/>
+                                        <TextBox x:Name="FeeUpdateBackupBox" IsReadOnly="True" Margin="0,2"/>
+                                    </DockPanel>
+                                </Grid>
+                            </GroupBox>
                         </Grid>
-                    </GroupBox>
-                    <GroupBox Grid.Row="0" Grid.Column="1" Header="SSH Authentication" Margin="5,0,0,10" Padding="10">
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="SSH username:" VerticalAlignment="Center"/><TextBox Grid.Row="0" Grid.Column="1" x:Name="FeeProcessorSshUsernameBox" Margin="0,2"/>
-                            <TextBlock Grid.Row="1" Text="Private key path:" VerticalAlignment="Center"/><DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Clear" Click="ClearSshKey_Click" Padding="6,0" Margin="4,2,0,2"/><Button Content="..." Click="BrowseSshKey_Click" Width="30" Margin="4,2,0,2"/></StackPanel><TextBox x:Name="FeeProcessorSshKeyPathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
-                            <TextBlock Grid.Row="2" Text="SSH passphrase:" VerticalAlignment="Center"/><PasswordBox Grid.Row="2" Grid.Column="1" x:Name="FeeProcessorSshPassphraseBox" Margin="0,2"/>
-                        </Grid>
-                    </GroupBox>
-                    <GroupBox Grid.Row="1" Grid.Column="0" Header="Tool Paths" Margin="0,0,5,10" Padding="10">
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="PHP (blank = PATH):" VerticalAlignment="Center"/><DockPanel Grid.Row="0" Grid.Column="1" LastChildFill="True"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Clear" Click="ClearPhp_Click" Padding="6,0" Margin="4,2,0,2"/><Button Content="..." Click="BrowsePhp_Click" Width="30" Margin="4,2,0,2"/></StackPanel><TextBox x:Name="PhpExecutablePathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
-                            <TextBlock Grid.Row="1" Text="Composer (blank = PATH):" VerticalAlignment="Center"/><DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Clear" Click="ClearComposer_Click" Padding="6,0" Margin="4,2,0,2"/><Button Content="..." Click="BrowseComposer_Click" Width="30" Margin="4,2,0,2"/></StackPanel><TextBox x:Name="ComposerExecutablePathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
-                            <TextBlock Grid.Row="2" Text="Git (blank = PATH):" VerticalAlignment="Center"/><DockPanel Grid.Row="2" Grid.Column="1" LastChildFill="True"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="Clear" Click="ClearGit_Click" Padding="6,0" Margin="4,2,0,2"/><Button Content="..." Click="BrowseGit_Click" Width="30" Margin="4,2,0,2"/></StackPanel><TextBox x:Name="GitExecutablePathBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
-                        </Grid>
-                    </GroupBox>
-                    <GroupBox Grid.Row="1" Grid.Column="1" Header="Schedule and Backup" Margin="5,0,0,10" Padding="10">
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="180"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Update interval:" VerticalAlignment="Center"/><ComboBox Grid.Row="0" Grid.Column="1" x:Name="FeeUpdateIntervalBox" SelectedValuePath="Content" SelectedValue="24h" ToolTip="Select how often Fee Processor updates run." Margin="0,2">
-                                <ComboBoxItem Content="15m"/><ComboBoxItem Content="30m"/><ComboBoxItem Content="1h"/><ComboBoxItem Content="2h"/><ComboBoxItem Content="4h"/><ComboBoxItem Content="6h"/><ComboBoxItem Content="12h"/><ComboBoxItem Content="24h"/><ComboBoxItem Content="2d"/><ComboBoxItem Content="7d"/>
-                            </ComboBox>
-                            <TextBlock Grid.Row="1" Text="Backup directory:" VerticalAlignment="Center"/><DockPanel Grid.Row="1" Grid.Column="1" LastChildFill="True"><Button DockPanel.Dock="Right" Content="..." Click="BrowseBackupPath_Click" Width="30" Margin="4,2,0,2"/><TextBox x:Name="FeeUpdateBackupBox" IsReadOnly="True" Margin="0,2"/></DockPanel>
-                        </Grid>
-                    </GroupBox>
-                    </Grid>
-                    <TextBlock Text="Use * in Tag to deploy the latest remote tag. A tag takes precedence over Branch." Foreground="Gray" TextWrapping="Wrap" Margin="0,10,0,6"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Detect PHP" x:Name="DetectPhpButton" Click="DetectPhpButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                        <Button Content="Detect Composer" x:Name="DetectComposerButton" Click="DetectComposerButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                        <Button Content="Detect Git" x:Name="DetectGitButton" Click="DetectGitButton_Click" Padding="12,4" Margin="0,0,8,0"/>
-                        <Button Content="Pull Updates Now" x:Name="PullFeeUpdateButton" Click="PullFeeUpdateButton_Click" Padding="12,4"/>
-                        <TextBlock x:Name="FeeUpdateStatusText" VerticalAlignment="Center" Foreground="Gray" Margin="10,0,0,0"/>
+                        <TextBlock Text="Use * in Tag to deploy the latest remote tag. A tag takes precedence over Branch." Foreground="Gray" TextWrapping="Wrap" Margin="0,10,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Detect PHP" x:Name="DetectPhpButton" Click="DetectPhpButton_Click" Padding="12,4" Margin="0,0,8,0"/>
+                            <Button Content="Detect Composer" x:Name="DetectComposerButton" Click="DetectComposerButton_Click" Padding="12,4" Margin="0,0,8,0"/>
+                            <Button Content="Detect Git" x:Name="DetectGitButton" Click="DetectGitButton_Click" Padding="12,4" Margin="0,0,8,0"/>
+                            <Button Content="Pull Updates Now" x:Name="PullFeeUpdateButton" Click="PullFeeUpdateButton_Click" Padding="12,4"/>
+                            <TextBlock x:Name="FeeUpdateStatusText" VerticalAlignment="Center" Foreground="Gray" Margin="10,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock x:Name="PhpDetectionText" Foreground="Gray" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                        <TextBlock x:Name="ComposerDetectionText" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                        <TextBlock x:Name="GitDetectionText" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                        <ProgressBar x:Name="FeeUpdateProgressBar" Height="8" IsIndeterminate="True" Visibility="Collapsed" Margin="0,8,0,0"/>
+                        <TextBox x:Name="FeeUpdateOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" HorizontalAlignment="Stretch" MaxWidth="2000" MinHeight="180" Height="220" Margin="0,8,0,0" Visibility="Collapsed"/>
                     </StackPanel>
-                    <TextBlock x:Name="PhpDetectionText" Foreground="Gray" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                    <TextBlock x:Name="ComposerDetectionText" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                    <TextBlock x:Name="GitDetectionText" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                    <ProgressBar x:Name="FeeUpdateProgressBar" Height="8" IsIndeterminate="True" Visibility="Collapsed" Margin="0,8,0,0"/>
-                    <TextBox x:Name="FeeUpdateOutputBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" HorizontalAlignment="Stretch" MaxWidth="2000" MinHeight="180" Height="220" Margin="0,8,0,0" Visibility="Collapsed"/>
-                </StackPanel>
                 </ScrollViewer>
             </TabItem>
         </TabControl>
@@ -269,3 +550,4 @@
         </StackPanel>
     </Grid>
 </UserControl>
+    
