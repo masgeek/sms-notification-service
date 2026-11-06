@@ -157,7 +157,7 @@ jobs:
            echo placeholder > build\console\FeeSyncer.Console.exe
 
       - name: Compile and validate
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
+        uses: Minionguyjpro/Inno-Setup-Action@v1.3.0
         with:
           path: installer/installer.iss
 
@@ -183,7 +183,7 @@ jobs:
            echo placeholder > build\console-framework\FeeSyncer.Console.exe
 
       - name: Compile and validate
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
+        uses: Minionguyjpro/Inno-Setup-Action@v1.3.0
         with:
           path: installer/installer-framework.iss
 
